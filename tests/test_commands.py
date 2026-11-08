@@ -107,3 +107,19 @@ def test_watch_command_prints_the_wrapper_and_the_cron_line_without_changing_any
     assert "never approves" in out
     assert "not a known project" in make_watch_command(lambda: svc)("nope")
     assert "Usage" in make_watch_command(lambda: svc)("")
+
+
+def test_a_chat_user_who_is_not_an_approver_cannot_approve_a_create_release_or_see_its_card(tmp_path: Path) -> None:
+    from workroom.tests.test_create_flow import SPEC, _workbook
+
+    root = tmp_path / "proj"
+    root.mkdir()
+    _workbook(root, 175)
+    svc = Service(tmp_path / "state", frozenset({"telegram:111"}))
+    pid = svc.add_project(str(root))["project"]
+    staged_ = svc.create_from_spec(pid, SPEC)
+    out, asked = run(svc, APPROVE, ["telegram:111"], platform="telegram", source=Source("999"), args=f"{pid} {staged_['release_id']}")
+    assert "not allowed to approve" in out and asked == [], "no card is shown and no question is asked"
+    assert not (root / "reports/q2.pptx").exists() and svc.awaiting(pid), "nothing was written and the release is still waiting"
+    ok, asked2 = run(svc, APPROVE, ["telegram:111"], platform="telegram", source=Source("111"), args=f"{pid} {staged_['release_id']}")
+    assert "Created reports/q2.pptx" in ok and asked2 and (root / "reports/q2.pptx").exists()
