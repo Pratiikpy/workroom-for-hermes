@@ -41,7 +41,7 @@ Workroom can also make the file, so its figures are tied to their sources from t
 - **Project instructions.** `workroom.md`, `AGENTS.md` and `CLAUDE.md` in a project are shown to the agent only after you read and authorise their exact text, and they can never change who approves or what needs approval.
 - **Try the sample.** On a first run, one click makes a sample project in Workroom's own storage, stages its deck for your approval, and lets you pretend a new quarter arrived.
 
-Evidence for each is in `bench/EVIDENCE.md` (rows dated 8 Nov 2026). What is not verified is listed in the same rows: no third-party model has driven the creation tools yet, the page editor passed automated keyboard and contrast tests but has not been used with a real screen reader, and the new surfaces were run on Windows only.
+Evidence for each is in `bench/EVIDENCE.md` (rows dated 8 Nov 2026). What is not verified is listed in the same rows: no third-party model has driven the creation tools yet, the page editor passed automated keyboard and contrast tests but has not been used with a real screen reader, and the new Desktop screens were run on Windows only (the test suite also passes on macOS and Linux in CI).
 
 ## Schedule it
 
