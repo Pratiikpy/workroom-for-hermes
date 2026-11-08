@@ -10,7 +10,7 @@ _PLUGIN_ROOT = str(Path(__file__).resolve().parent.parent)
 if _PLUGIN_ROOT not in sys.path:
     sys.path.insert(0, _PLUGIN_ROOT)
 
-from workroom_core.service import Service, ServiceError  # noqa: E402
+from workroom_core.service import NeedsAcknowledgement, Service, ServiceError  # noqa: E402
 from workroom_core.status import collect_status  # noqa: E402
 
 router = APIRouter()
@@ -44,11 +44,14 @@ class ApproveBody(BaseModel):
     project: str = Field(min_length=1, max_length=64)
     release_id: str = Field(min_length=1, max_length=64)
     digest: str = Field(min_length=64, max_length=64)
+    acknowledge: bool = False
 
 
 def _guard(fn):
     try:
         return fn()
+    except NeedsAcknowledgement as exc:
+        raise HTTPException(status_code=409, detail={"needs_acknowledgement": True, "message": str(exc), "flags": exc.flags}) from exc
     except ServiceError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -245,4 +248,4 @@ async def restore(body: ReleaseBody) -> dict:
 @router.post("/approve")
 async def approve(body: ApproveBody) -> dict:
     """The only route that approves and publishes. It is not an agent tool; it needs an authenticated Hermes session."""
-    return _guard(lambda: _service().approve_and_publish(body.project, body.release_id, body.digest))
+    return _guard(lambda: _service().approve_and_publish(body.project, body.release_id, body.digest, acknowledge=body.acknowledge))

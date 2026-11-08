@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .childenv import child_env
+from .meaning.decisions import Decisions
 from .controller.approvals import ApprovalError, sign
 from .build.formats import plain
 from .controller.release import Controller, NotReady, ReleaseError, StaleRelease
@@ -89,6 +90,14 @@ def _closing(fn):
 
 class ServiceError(Exception):
     """A request the service refuses; the message is safe to show to the user."""
+
+
+class NeedsAcknowledgement(ServiceError):
+    """The release makes sentences false and the owner has not yet said they have seen them."""
+
+    def __init__(self, flags: list[dict]) -> None:
+        super().__init__(f"{len(flags)} sentence{'s' if len(flags) != 1 else ''} no longer match{'' if len(flags) != 1 else 'es'} the numbers. Review them, then approve and confirm you have seen them. Nothing was changed.")
+        self.flags = flags
 
 
 class Service:
@@ -948,14 +957,27 @@ class Service:
         findings = self._check_staged(plan)
         meta_dir = self.data_dir / "projects" / pid / "meta"
         meta_dir.mkdir(parents=True, exist_ok=True)
+        flags, coverage = self._flags(proj, plan)
         (meta_dir / f"{rid}.json").write_text(
-            json.dumps({"changes": self._changes(proj, plan), "held": plan.skipped}), encoding="utf-8")
+            json.dumps({"changes": self._changes(proj, plan), "held": plan.skipped, "flags": flags, "coverage": coverage}), encoding="utf-8")
         try:
             ctl.mark_verified(rid, findings)
         except NotReady:
             return {"release_id": rid, "state": "blocked", "findings": findings}
         return {"release_id": rid, "state": "awaiting_approval", "digest": ctl.digest(rid),
-                "changes": self._changes(proj, plan), "held": plan.skipped}
+                "changes": self._changes(proj, plan), "held": plan.skipped, "flags": flags, "coverage": coverage}
+
+    def _flags(self, proj: Project, plan: Plan) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """What the update means for the sentences around the numbers, each with the owner's earlier decision about it, if any."""
+        found, cov = proj.consequences(plan)
+        decided = Decisions(proj.db)
+        docs: dict[str, Any] = {}
+        out = []
+        for f in found:
+            if f.deck not in docs:
+                docs[f.deck] = open_document((proj.root / f.deck).read_bytes(), f.deck)
+            out.append({**f.view(), "where": location_label(docs[f.deck], f.slide), "decision": decided.get(f.id) or ""})
+        return out, cov.view()
 
     @staticmethod
     def _check_staged(plan: Plan) -> list[str]:
@@ -1000,12 +1022,19 @@ class Service:
         return findings
 
     @_closing
-    def approve_and_publish(self, pid: str, release_id: str, digest: str, principal: str = DESKTOP_PRINCIPAL, channel: str = "desktop") -> dict[str, Any]:
+    def approve_and_publish(self, pid: str, release_id: str, digest: str, principal: str = DESKTOP_PRINCIPAL, channel: str = "desktop", acknowledge: bool = False) -> dict[str, Any]:
         """Called only from the authenticated Desktop route with the digest the human was shown."""
         proj, ctl = self._open(pid)
         manifest, anchor = self._integrity(pid, proj, ctl)
         if ctl.digest(release_id) != digest:
             raise ServiceError("the release changed since it was shown to you; review it again")
+        open_flags = self._release_view(pid, release_id).get("flags", [])
+        open_flags = [f for f in open_flags if f["severity"] == "high" and not f["decision"]]
+        if open_flags and not acknowledge:
+            raise NeedsAcknowledgement(open_flags)
+        decided = Decisions(proj.db)
+        for f in open_flags:
+            decided.set(f["id"], "finding", "acknowledged", f["summary"][:200])
         ap = sign(self._key, release_id, digest, principal, channel, time.time() + APPROVAL_TTL_SECONDS, secrets.token_hex(8))
         try:
             ctl.record_approval(release_id, ap)
@@ -1043,6 +1072,9 @@ class Service:
     @_closing
     def release_view(self, pid: str, release_id: str) -> dict[str, Any]:
         """What the owner is shown for one release: its state, its changes, and the digest they approve."""
+        return self._release_view(pid, release_id)
+
+    def _release_view(self, pid: str, release_id: str) -> dict[str, Any]:
         import re
 
         if not re.fullmatch(r"[0-9a-f]{16}", release_id or ""):
@@ -1070,8 +1102,12 @@ class Service:
         meta_path = self.data_dir / "projects" / pid / "meta" / f"{release_id}.json"
         meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {"changes": [], "held": []}
         findings = next((r.detail.get("findings", []) for r in reversed(ctl.journal.rows(release_id)) if r.step == "BLOCKED"), [])
+        decided = Decisions(proj.db)
+        flags = [{**f, "decision": decided.get(f["id"]) or ""} for f in meta.get("flags", [])]
         return {"release_id": release_id, "state": state, "digest": digest, "changes": meta["changes"], "held": meta["held"], "findings": findings,
-                "created": bool(meta.get("created")), "figures": meta.get("figures", []), "edited_page": bool(meta.get("edited_page"))}
+                "created": bool(meta.get("created")), "figures": meta.get("figures", []), "edited_page": bool(meta.get("edited_page")),
+                "flags": flags, "coverage": meta.get("coverage", {}),
+                "needs_acknowledgement": [f["id"] for f in flags if f["severity"] == "high" and not f["decision"]]}
 
     @_closing
     def awaiting(self, pid: str) -> list[dict[str, Any]]:

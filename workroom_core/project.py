@@ -139,6 +139,7 @@ class Project:
             " seg INT, offset INT, cell_rc TEXT, raw TEXT, state TEXT, src_file TEXT, sheet TEXT, ref TEXT, transform TEXT,"
             " linked_value REAL, label_score REAL, context TEXT)"
         )
+        self.db.execute("CREATE TABLE IF NOT EXISTS snapshot (file TEXT, sheet TEXT, ref TEXT, value REAL, PRIMARY KEY (file, sheet, ref))")
         for column in ("context TEXT", "slide_uid TEXT", "fp_near TEXT", "anchor TEXT", "prior_state TEXT", "held_note TEXT", "basis TEXT", "receipt TEXT", "kind TEXT", "chart TEXT", "formula TEXT"):
             try:
                 self.db.execute(f"ALTER TABLE ties ADD COLUMN {column}")
@@ -414,6 +415,7 @@ class Project:
         'reanchored'. A tied number that a person retyped becomes 'held' and is left alone; it returns to its old state when the
         original number is put back. A link is dropped only when its number is gone."""
         index = self.source_index()
+        self._seed_snapshot({(c.file, c.sheet, c.ref): c.value for c in index.cells})
         existing = self.ties()
         kept_ids: set[int] = set()
         found = no_source = kept = reanchored = 0
@@ -552,6 +554,12 @@ class Project:
 
         dismiss_calculation(self, candidate_id)
 
+    def consequences(self, plan: "Plan"):
+        """What the planned update means for the sentences around the numbers: claims it makes false, and what could not be checked."""
+        from .meaning.claimscan import claim_findings
+
+        return claim_findings(self, plan)
+
     @staticmethod
     def _sign_fits(t: Tie, new: float) -> bool:
         """A calculated change written as up or down keeps its direction; a change that has turned over is held, not rewritten."""
@@ -566,6 +574,20 @@ class Project:
     # ---- plan ----
     def _current_values(self) -> dict[tuple[str, str, str], float]:
         return {(c.file, c.sheet, c.ref): c.value for c in self.source_index().cells}
+
+    def snapshot_values(self) -> dict[tuple[str, str, str], float]:
+        """Every source cell as it stood at the last release (or when it was first seen): the baseline that "changed" is measured against."""
+        return {(f, s, r): v for f, s, r, v in self.db.execute("SELECT file, sheet, ref, value FROM snapshot")}
+
+    def _seed_snapshot(self, values: dict[tuple[str, str, str], float]) -> None:
+        self.db.execute("BEGIN")
+        self.db.executemany("INSERT OR IGNORE INTO snapshot (file, sheet, ref, value) VALUES (?,?,?,?)", [(f, s, r, v) for (f, s, r), v in values.items()])
+        self.db.execute("COMMIT")
+
+    def _write_snapshot(self, values: dict[tuple[str, str, str], float]) -> None:
+        self.db.execute("BEGIN")
+        self.db.executemany("INSERT OR REPLACE INTO snapshot (file, sheet, ref, value) VALUES (?,?,?,?)", [(f, s, r, v) for (f, s, r), v in values.items()])
+        self.db.execute("COMMIT")
 
     @staticmethod
     def _tie_value(t: Tie, values: dict[tuple[str, str, str], float], default: float | None = None) -> float | None:
@@ -719,6 +741,7 @@ class Project:
                         continue
                     new = self._tie_value(t, values, t.linked_value)
                     self.db.execute("UPDATE ties SET seg=?, offset=?, raw=?, linked_value=?, fp_near=? WHERE id=?", (d.seg, d.offset, d.number.raw, new, self._fp_near(d), t.id))
+        self._write_snapshot({**current, **(override or {})})
         for t in self.ties():
             if t.deck not in plan.files:
                 new = self._tie_value(t, current)

@@ -61,6 +61,14 @@ class Calc:
         return " + ".join(names)
 
 
+def describe(calc: "Calc") -> str:
+    """The calculation with its values, for the owner to check by eye."""
+    vals = [format(t.value, ",.10g") for t in calc.terms]
+    shown = {"pct_change": f"({vals[0]} - {vals[1]}) / {vals[1]}" if len(vals) == 2 else "", "ratio": " / ".join(vals), "diff": " - ".join(vals), "sum": " + ".join(vals)}[calc.op]
+    result = calc.value * 100 if calc.transform == "fraction_to_percent" else calc.value
+    return f"{shown} = {format(result, ',.6g')}{'%' if calc.transform == 'fraction_to_percent' else ''}"
+
+
 def compute(op: str, values: list[float]) -> float | None:
     if op == "pct_change":
         return None if values[1] == 0 else (values[0] - values[1]) / abs(values[1])

@@ -14,6 +14,7 @@ from typing import Any, Callable
 from ..workroom_core.service import Service, ServiceError
 
 APPROVE = "Approve and publish"
+APPROVE_SEEN = "Approve and publish; I have read the flagged sentences"
 CANCEL = "Cancel"
 _LOCAL_PLATFORMS = (None, "", "cli", "local", "desktop", "tui", "api_server")
 
@@ -48,6 +49,14 @@ def _card(view: dict[str, Any]) -> str:
             lines.append(f"  and {len(view['changes']) - 6} more")
         if view.get("held"):
             lines.append(f"{len(view['held'])} held for you")
+        flags = [f for f in view.get("flags", []) if f["severity"] in ("high", "medium")]
+        if flags:
+            lines.append(f"{len(flags)} sentence{'s' if len(flags) != 1 else ''} to read before you approve:")
+            for f in flags[:4]:
+                lines.append(f"  [{f['severity']}] {f['summary']}")
+                lines.append(f"      now reads: {f['sentence_after'][:140]}")
+            if len(flags) > 4:
+                lines.append(f"  and {len(flags) - 4} more")
         lines.append("Nothing has changed yet. A backup of every replaced file is kept.")
     lines.append(f"Fingerprint {view['digest'][:12]}; your answer applies to exactly this release.")
     return chr(10).join(lines)
@@ -76,10 +85,12 @@ def make_approve_command(service_factory: Callable[[], Service], ask_choice: Cal
             view = svc.release_view(pid, rid)
             if view["state"] != "awaiting_approval":
                 return f"That release is not waiting for approval (it is {view['state']})."
-            choice = ask_choice(_card(view), [APPROVE, CANCEL])
-            if choice != APPROVE:
+            needs_ack = bool(view.get("needs_acknowledgement"))
+            approve_label = APPROVE_SEEN if needs_ack else APPROVE
+            choice = ask_choice(_card(view), [approve_label, CANCEL])
+            if choice != approve_label:
                 return "Nothing was changed." if choice == CANCEL else "No answer was given; nothing was changed."
-            svc.approve_and_publish(pid, rid, view["digest"], principal=principal, channel=str(getattr(platform, "value", platform) or "local"))
+            svc.approve_and_publish(pid, rid, view["digest"], principal=principal, channel=str(getattr(platform, "value", platform) or "local"), acknowledge=needs_ack)
             if view.get("created"):
                 return f"Created {view['changes'][0]['deck']}. Every figure in it is tied to its source; Restore removes it."
             if view.get("edited_page"):
