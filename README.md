@@ -6,6 +6,14 @@ You point it at a folder of Office files. It reads the numbers in your decks and
 
 Status: early build (version 0.1.0). Everything below says what has and has not been tested. The evidence is in [`bench/EVIDENCE.md`](bench/EVIDENCE.md); every claim here cites a line there.
 
+## Screenshots
+
+These are from a real Hermes Desktop v0.23.0 session on Windows (not mockups), taken on a clean folder.
+
+1. Find the links: each number in the deck is tied to the cell it came from. ![Find links](docs/screenshots/01-find-links.png)
+2. Review what would change and approve exactly that release. ![Review and approve](docs/screenshots/02-review-and-approve.png)
+3. Published, with a backup kept and the release listed under Past releases. ![Published](docs/screenshots/03-published-and-past-releases.png)
+
 ## How it works
 
 1. **Find the links.** Workroom reads decks (.pptx), reports (.docx) and workbooks (.xlsx) and links each number to a source cell using the value, the words around it, the period and the units. Equal numbers never create a link by themselves. When it is not sure, it asks you; it never guesses.
