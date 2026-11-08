@@ -27,6 +27,18 @@ def principal_for(platform: Any, source: Any) -> str:
     return f"{plat}:{uid}" if uid else f"{plat}:unknown"
 
 
+def _change_lines(changes: list[dict[str, Any]], limit: int) -> list[str]:
+    """One line per distinct change; the same old and new text in the same place on several shapes is one line with a count."""
+    grouped: dict[tuple, int] = {}
+    for c in changes:
+        key = (c["old_text"], c["new_text"], c["deck"], c.get("where") or "slide " + str(c["slide"]))
+        grouped[key] = grouped.get(key, 0) + 1
+    lines = [f"  {old} -> {new}   ({deck}, {where}{', ' + str(n) + ' places' if n > 1 else ''})" for (old, new, deck, where), n in list(grouped.items())[:limit]]
+    if len(grouped) > limit:
+        lines.append(f"  and {len(grouped) - limit} more")
+    return lines
+
+
 def _card(view: dict[str, Any]) -> str:
     if view.get("created"):
         grouped: dict[tuple, int] = {}
@@ -45,19 +57,13 @@ def _card(view: dict[str, Any]) -> str:
         r = view["rolled"]
         span = f" ({r['example']})" if r.get("example") else ""
         lines = [f"Workroom release {view['release_id']}: rolls your documents forward {r['steps']} period{'s' if r['steps'] != 1 else ''}{span}: {r['figures']} figures re-pointed to the next period, {r['period_words']} period words advanced."]
-        for c in view["changes"][:5]:
-            lines.append(f"  {c['old_text']} -> {c['new_text']}   ({c['deck']}, {c.get('where') or 'slide ' + str(c['slide'])})")
-        if len(view["changes"]) > 5:
-            lines.append(f"  and {len(view['changes']) - 5} more")
+        lines.extend(_change_lines(view["changes"], 5))
         if view.get("held"):
             lines.append(f"{len(view['held'])} left for you")
         lines.append("Nothing has changed yet. A backup of every replaced file is kept, and Restore undoes the whole roll.")
     else:
         lines = [f"Workroom release {view['release_id']}: {len(view['changes'])} number(s) will change in your documents."]
-        for c in view["changes"][:6]:
-            lines.append(f"  {c['old_text']} -> {c['new_text']}   ({c['deck']}, {c.get('where') or 'slide ' + str(c['slide'])})")
-        if len(view["changes"]) > 6:
-            lines.append(f"  and {len(view['changes']) - 6} more")
+        lines.extend(_change_lines(view["changes"], 6))
         if view.get("held"):
             lines.append(f"{len(view['held'])} held for you")
         lines.append("Nothing has changed yet. A backup of every replaced file is kept.")

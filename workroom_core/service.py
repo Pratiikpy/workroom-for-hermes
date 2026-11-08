@@ -252,6 +252,7 @@ class Service:
             "no_source": found.no_source,
             "kept": found.kept,
             "unreadable": list(found.unreadable),
+            "missing": list(found.missing),
         }
 
     @staticmethod
@@ -1017,7 +1018,8 @@ class Service:
         self._integrity(pid, proj, ctl)
         plan = proj.plan_refresh()
         if not plan.files:
-            raise ServiceError("nothing to release: no tied number has changed")
+            why = f"no tied number has changed ({len(plan.skipped)} could not be updated: {'; '.join(plan.skipped[:2])}{' ...' if len(plan.skipped) > 2 else ''})" if plan.skipped else "no tied number has changed"
+            raise ServiceError("nothing to release: " + why)
         rid = ctl.stage(plan.files, mode=mode)
         findings = self._check_staged(plan)
         meta_dir = self.data_dir / "projects" / pid / "meta"
@@ -1239,9 +1241,9 @@ class Service:
                     for rid in ctl.journal.release_ids():
                         steps = [r.step for r in ctl.journal.rows(rid)]
                         if "VERIFIED" in steps and not any(x in steps for x in ("PUBLISHED", "EXPIRED", "REFUSED_STALE", "BLOCKED", "ROLLED_BACK", "PUBLISHING")):
-                            seq = max(r.seq for r in ctl.journal.rows(rid))
-                            if best is None or seq > best[0]:
-                                best = (seq, pid, rid)
+                            at = ctl.journal.when(rid, "VERIFIED") or 0.0  # time, not the project's own journal counter: counters of different projects do not compare
+                            if best is None or at > best[0]:
+                                best = (at, pid, rid)
                 finally:
                     self._close_opened()
             except ServiceError:

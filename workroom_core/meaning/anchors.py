@@ -53,6 +53,10 @@ def relocate_sources(project: "Project") -> list[str]:
     for c in index.cells:
         by_labels.setdefault((c.file, c.sheet, tuple(c.row_labels), tuple(c.col_labels)), []).append(c)
     notes: list[str] = []
+    sheets_with_numbers = {(c.file, c.sheet) for c in index.cells}
+    by_file_labels: dict[tuple, list] = {}
+    for c in index.cells:
+        by_file_labels.setdefault((c.file, tuple(c.row_labels), tuple(c.col_labels)), []).append(c)
 
     def resolve(file: str, sheet: str, ref: str, stored) -> tuple[str, Any, str]:
         """(outcome, new cell or None, note): ok | moved | slot | needs_you | missing | learn"""
@@ -65,6 +69,13 @@ def relocate_sources(project: "Project") -> list[str]:
         hits = by_labels.get((file, sheet) + want, [])
         if len(hits) == 1:
             return ("ok", hits[0], "") if hits[0].ref == ref else ("moved", hits[0], f"{_name(hits[0])} moved from {ref} to {hits[0].ref} in {file}; the tie followed it")
+        if cell is None and (file, sheet) not in sheets_with_numbers:
+            # the sheet itself is gone from the workbook: renamed (or its figures moved to another sheet). Follow it only when exactly one sheet carries the headings.
+            elsewhere = by_file_labels.get((file,) + want, [])
+            if len(elsewhere) == 1:
+                return "moved", elsewhere[0], f"sheet {sheet} is now {elsewhere[0].sheet} in {file}; the tie followed it"
+            if len(elsewhere) > 1:
+                return "needs_you", None, f"sheet {sheet} is gone from {file} and {len(elsewhere)} other sheets carry its headings"
         if cell is None:
             return "missing", None, ""
         if len(hits) == 0 and _only_periods_differ(want, (tuple(cell.row_labels), tuple(cell.col_labels))):
@@ -114,7 +125,7 @@ def relocate_sources(project: "Project") -> list[str]:
         if outcome == "learn":
             project.db.execute("UPDATE ties SET src_labels=? WHERE id=?", (json.dumps(labels_of(cell), ensure_ascii=False), t.id))
         elif outcome == "moved":
-            project.db.execute("UPDATE ties SET ref=? WHERE id=?", (cell.ref, t.id))
+            project.db.execute("UPDATE ties SET ref=?, sheet=? WHERE id=?", (cell.ref, cell.sheet, t.id))
             notes.append(note)
         elif outcome == "slot":
             now_key = (t.src_file, t.sheet, tuple(cell.row_labels), tuple(cell.col_labels))

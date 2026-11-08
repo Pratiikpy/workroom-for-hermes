@@ -118,3 +118,29 @@ def test_the_baseline_follows_the_cell_so_a_shift_is_not_a_false_change_in_a_cla
     assert plan.impacts == [] and findings == []
     base = proj.snapshot_values()
     assert base[("results.xlsx", "Results", "E2")] == 15_100_000 and base[("results.xlsx", "Results", "B2")] == 12_000_000
+
+
+def test_renaming_the_sheet_does_not_cut_the_ties(tmp_path: Path) -> None:
+    proj = _project(tmp_path)
+    with Workbook(str(proj.root / "results.xlsx")) as wb:  # the same data on a sheet with a new name, after a new cover sheet
+        wb.add_worksheet("Cover").write(0, 0, "Board pack")
+        ws = wb.add_worksheet("Figures")
+        ws.write_row(0, 0, ["Metric", "Q2 2026", "Q3 2026"])
+        ws.write_row(1, 0, ["Net revenue", 14_000_000, 16_000_000])
+    plan = proj.plan_refresh()
+    assert any("sheet Results is now Figures" in n for n in plan.notes)
+    assert {i.old_text: i.new_text for i in plan.impacts} == {"$15.1 million": "$16.0 million"}
+    assert {t.sheet for t in proj.ties() if t.kind == "text"} == {"Figures"}
+
+
+def test_a_sheet_that_split_into_two_look_alikes_is_not_guessed(tmp_path: Path) -> None:
+    proj = _project(tmp_path)
+    with Workbook(str(proj.root / "results.xlsx")) as wb:
+        for name, v in (("North", 16_000_000), ("South", 3_000_000)):
+            ws = wb.add_worksheet(name)
+            ws.write_row(0, 0, ["Metric", "Q2 2026", "Q3 2026"])
+            ws.write_row(1, 0, ["Net revenue", 14_000_000, v])
+    plan = proj.plan_refresh()
+    assert plan.impacts == []
+    assert any("needs you" in n and "2 other sheets" in n for n in plan.notes)
+    assert {t.state for t in proj.ties() if t.kind == "text"} == {"confirm"}

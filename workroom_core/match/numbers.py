@@ -38,6 +38,32 @@ class NumberMention:
     end: int
 
 
+_MONTH = r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
+_DAY_AFTER_MONTH = re.compile(_MONTH + r"\.?\s+$", re.I)
+_DAY_BEFORE_MONTH = re.compile(r"^\s+(?:of\s+)?" + _MONTH + chr(92) + "b", re.I)
+
+
+def _part_of_longer_token(text: str, start: int, end: int) -> bool:
+    """A clock time (1:50), a version or section number (2.1.3), a date (12/05/2026, January 30), or an ordinal (30th): one token, not a
+    quantity, and it must not be edited piece by piece."""
+    prev = text[start - 1] if start > 0 else ""
+    prev2 = text[start - 2] if start > 1 else ""
+    nxt = text[end] if end < len(text) else ""
+    nxt2 = text[end + 1] if end + 1 < len(text) else ""
+    if text[start] == "." and prev.isdigit():
+        return True
+    if text[end:end + 2].lower() in ("st", "nd", "rd", "th") and not text[end + 2:end + 3].isalpha():
+        return True  # an ordinal: 30th, 3rd
+    digits = text[start:end]
+    if digits.isdigit() and len(digits) <= 2 and 1 <= int(digits) <= 31 and (_DAY_AFTER_MONTH.search(text[max(0, start - 12):start]) or _DAY_BEFORE_MONTH.match(text[end:end + 16])):
+        return True  # the day of a date: January 30, 30 January
+    if prev in (":", "/") and prev2.isdigit():
+        return True
+    if nxt in (":", "/") and nxt2.isdigit():
+        return True
+    return nxt == "." and nxt2.isdigit()
+
+
 def parse_numbers(text: str) -> list[NumberMention]:
     """All numeric mentions in ``text``. Years such as 2024 are returned like any number; callers decide."""
     out: list[NumberMention] = []
@@ -47,9 +73,15 @@ def parse_numbers(text: str) -> list[NumberMention]:
         before = text[m.start("num") - 1] if m.start("num") > 0 else " "
         if before.isalpha() and not m.group("cur"):
             continue
+        if _part_of_longer_token(text, m.start("num"), m.end("num")):
+            continue
         decimals = len(raw_num.split(".")[1]) if "." in raw_num else 0
         value = float(raw_num.replace(",", ""))
-        negative = bool(m.group("sign")) or (bool(m.group("neg_open")) and bool(m.group("neg_close")))
+        balanced = bool(m.group("neg_open")) and bool(m.group("neg_close"))
+        sign_at = m.start("sign")
+        # a dash glued to the figure before it (10-15%, 2026-27) is a range, not a minus sign
+        is_range = sign_at >= 1 and (text[sign_at - 1].isalnum() or text[sign_at - 1] in "%)")
+        negative = (bool(m.group("sign")) and not is_range) or balanced
         scale_word = (m.group("scale") or "").lower()
         scale = _SCALE_WORDS.get(scale_word, 1.0)
         pct = (m.group("pct") or "").lower()
@@ -64,9 +96,12 @@ def parse_numbers(text: str) -> list[NumberMention]:
         else:
             unit = "plain"
         sign = -1.0 if negative else 1.0
-        whole = m.group(0)
-        start = m.start() + (len(whole) - len(whole.lstrip()))
-        end = m.end() - (len(whole) - len(whole.rstrip()))
+        firsts = (m.start("cur"), m.start("num")) if is_range else (m.start("sign"), m.start("cur"), m.start("num"))
+        lo = m.start("neg_open") if balanced else min(i for i in firsts if i >= 0)
+        hi = m.end("neg_close") if balanced else max(m.end(g) for g in ("num", "scale", "pct") if m.group(g))
+        whole = text[lo:hi]
+        start = lo + (len(whole) - len(whole.lstrip()))
+        end = hi - (len(whole) - len(whole.rstrip()))
         out.append(NumberMention(whole.strip(), sign * value, sign * value * scale, decimals, unit, scale, negative, start, end))
     return out
 

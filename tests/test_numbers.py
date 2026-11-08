@@ -83,3 +83,28 @@ def test_mention_offsets_point_at_the_first_character() -> None:
     text = "margin was 25% and revenue $4.2 billion"
     for m in parse_numbers(text):
         assert text[m.start : m.end] == m.raw
+
+
+def test_a_lone_bracket_is_not_part_of_the_number() -> None:
+    assert [m.raw for m in parse_numbers("High Value (>$10K)")] == ["$10K"]
+    assert [m.raw for m in parse_numbers("(up 12.5%) and (3.1")] == ["12.5%", "3.1"]
+    assert [(m.raw, m.negative) for m in parse_numbers("($4.5m) and (7)")] == [("($4.5m)", True), ("(7)", True)]
+
+
+def test_times_dates_and_versions_are_not_quantities() -> None:
+    assert parse_numbers("The Wait (1:50 to 2:10)") == []
+    assert parse_numbers("version 2.1.3 shipped on 12/05/2026") == []
+    assert [m.raw for m in parse_numbers("SCENE 5 at 1:50")] == ["5"]
+
+
+def test_a_dash_after_a_figure_is_a_range_not_a_minus() -> None:
+    got = [(m.raw, m.value, m.negative) for m in parse_numbers("growth of 10-15% a year")]
+    assert got == [("10", 10.0, False), ("15%", 15.0, False)]
+    assert [(m.raw, m.negative) for m in parse_numbers("fell to -3.1% from 2%")] == [("-3.1%", True), ("2%", False)]
+
+
+def test_the_day_of_a_date_and_an_ordinal_are_not_quantities() -> None:
+    assert parse_numbers("Prepared: January 30, 2026") == [m for m in parse_numbers("Prepared: January 30, 2026") if m.raw == "2026"]
+    assert [m.raw for m in parse_numbers("on 30 January we sold 30 units")] == ["30"]
+    assert parse_numbers("our 30th year and the 3rd quarter") == []
+    assert [m.raw for m in parse_numbers("Mar 2026 sales were 31 units")] == ["2026", "31"]

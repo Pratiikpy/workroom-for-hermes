@@ -128,6 +128,7 @@ class Discovery:
     no_source: int
     kept: int
     unreadable: tuple[str, ...] = ()
+    missing: tuple[str, ...] = ()
     reanchored: int = 0
     held: int = 0
 
@@ -573,12 +574,15 @@ class Project:
                      "accepted" if res.decision == "accept" else "confirm", b.cell.file, b.cell.sheet, b.cell.ref, transform,
                      b.cell.value, b.label_score, dm.context[0] if dm.context else "", dm.slide_uid, self._fp_near(dm), "exact"),
                 )
+        present = {self._rel(p) for p in self._files(DECK_EXT)}
+        missing = sorted({t.deck for t in existing if t.kind != "scene" and t.deck not in present})
+        kept_ids.update(t.id for t in existing if t.deck in missing)  # a document that is away for a moment (a save in progress, a sync) keeps every link and decision
         for tie in existing:
             if tie.id not in kept_ids and tie.kind != "scene":
                 self.db.execute("DELETE FROM ties WHERE id=?", (tie.id,))
         self.relocate_sources()  # remembers the headings of the ties just made
         held = self.db.execute("SELECT COUNT(*) FROM ties WHERE state='held'").fetchone()[0]
-        return Discovery(found=found, no_source=no_source, kept=kept, unreadable=tuple(unreadable) + tuple(getattr(self, "unreadable_sources", [])), reanchored=reanchored, held=held)
+        return Discovery(found=found, no_source=no_source, kept=kept, unreadable=tuple(unreadable) + tuple(getattr(self, "unreadable_sources", [])), missing=tuple(missing), reanchored=reanchored, held=held)
 
     def ties(self, states: tuple[str, ...] | None = None) -> list[Tie]:
         cur = self.db.execute("SELECT * FROM ties ORDER BY id")
@@ -817,6 +821,9 @@ class Project:
         for deck_rel, items in by_deck.items():
             if is_scene(deck_rel):
                 self._plan_scene(plan, deck_rel, items)
+                continue
+            if not (self.root / deck_rel).is_file():
+                plan.skipped.append(f"{deck_rel}: the document is missing from the folder; its {len(items)} figure(s) were not changed and its links are kept")
                 continue
             deck = open_document((self.root / deck_rel).read_bytes(), deck_rel)
             if self._config().get("tracked_changes") and hasattr(deck, "tracked"):

@@ -32,6 +32,25 @@ def parse_xml(data: bytes) -> etree._Element:
         raise PackageError(f"an XML part cannot be read safely: {str(exc)[:80]}") from exc
 
 
+_STRICT_TO_TRANSITIONAL = (
+    (b"http://purl.oclc.org/ooxml/spreadsheetml/main", b"http://schemas.openxmlformats.org/spreadsheetml/2006/main"),
+    (b"http://purl.oclc.org/ooxml/officeDocument/relationships", b"http://schemas.openxmlformats.org/officeDocument/2006/relationships"),
+    (b"http://purl.oclc.org/ooxml/drawingml/main", b"http://schemas.openxmlformats.org/drawingml/2006/main"),
+)
+
+
+def is_strict(data: bytes) -> bool:
+    return b"purl.oclc.org/ooxml" in data
+
+
+def parse_xml_read(data: bytes) -> etree._Element:
+    """For reading only: Strict Open XML (ISO 29500 strict namespaces) is read as if it used the usual names. Never serialise the result back."""
+    if is_strict(data):
+        for strict, usual in _STRICT_TO_TRANSITIONAL:
+            data = data.replace(strict, usual)
+    return parse_xml(data)
+
+
 def serialize_xml(root: etree._Element) -> bytes:
     body = etree.tostring(root, encoding="UTF-8", xml_declaration=False)
     return b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n' + body
@@ -75,7 +94,7 @@ class Sheet:
 
 
 def sheets(pkg: Package) -> list[Sheet]:
-    wb = parse_xml(pkg.read("xl/workbook.xml"))
+    wb = parse_xml_read(pkg.read("xl/workbook.xml"))
     rels = rels_for(pkg, "xl/workbook.xml")
     out = []
     for s in wb.iter("{%s}sheet" % S_NS):
@@ -88,7 +107,7 @@ def sheets(pkg: Package) -> list[Sheet]:
 def shared_strings(pkg: Package) -> list[str]:
     if "xl/sharedStrings.xml" not in pkg.by_name:
         return []
-    root = parse_xml(pkg.read("xl/sharedStrings.xml"))
+    root = parse_xml_read(pkg.read("xl/sharedStrings.xml"))
     return ["".join(t.text or "" for t in si.iter("{%s}t" % S_NS)) for si in root.iter("{%s}si" % S_NS)]
 
 
@@ -96,7 +115,7 @@ def read_cell(pkg: Package, sheet_name: str, ref: str) -> Cell:
     sh = next((s for s in sheets(pkg) if s.name == sheet_name), None)
     if sh is None:
         raise EditError(f"sheet {sheet_name!r} not found")
-    root = parse_xml(pkg.read(sh.part))
+    root = parse_xml_read(pkg.read(sh.part))
     c = root.xpath("//x:c[@r=$r]", namespaces={"x": S_NS}, r=ref.replace("$", ""))
     if not c:
         return Cell(ref, None, None, None)
@@ -118,6 +137,8 @@ def patch_numeric_cell(workbook: bytes, sheet_name: str, ref: str, value: float 
     sh = next((s for s in sheets(pkg) if s.name == sheet_name), None)
     if sh is None:
         raise EditError(f"sheet {sheet_name!r} not found")
+    if is_strict(pkg.read(sh.part)):
+        raise EditError("a Strict Open XML workbook is read but never edited")
     root = parse_xml(pkg.read(sh.part))
     found = root.xpath("//x:c[@r=$r]", namespaces={"x": S_NS}, r=ref.replace("$", ""))
     if not found:
@@ -171,7 +192,7 @@ def _col_to_int(col: str) -> int:
 def _date_style_ids(pkg: Package) -> set[int]:
     if "xl/styles.xml" not in pkg.by_name:
         return set()
-    root = parse_xml(pkg.read("xl/styles.xml"))
+    root = parse_xml_read(pkg.read("xl/styles.xml"))
     custom = {}
     for nf in root.iter("{%s}numFmt" % S_NS):
         code = (nf.get("formatCode") or "").lower()
@@ -188,40 +209,67 @@ def _date_style_ids(pkg: Package) -> set[int]:
     return out
 
 
+def _hidden_columns(root: etree._Element) -> set[int]:
+    out: set[int] = set()
+    for col in root.iter("{%s}col" % S_NS):
+        if col.get("hidden") in ("1", "true"):
+            lo, hi = int(col.get("min") or 0), int(col.get("max") or 0)
+            if lo and hi - lo < 20_000:
+                out.update(range(lo, hi + 1))
+    return out
+
+
+def _col_letters(n: int) -> str:
+    out = ""
+    while n:
+        n, r = divmod(n - 1, 26)
+        out = chr(65 + r) + out
+    return out
+
+
 def index_workbook(pkg: Package, max_cells: int = 500_000, file: str = "") -> list[SourceCell]:
-    """Every numeric cell with the text labels on its row and column. Dates are flagged, hidden rows noted."""
+    """Every numeric cell with the text labels on its row and column. Dates are flagged; cells in hidden rows, hidden columns and hidden
+    sheets are flagged hidden. Rows and cells that omit their position (legal in the format) are placed in reading order."""
     sst = shared_strings(pkg)
     date_styles = _date_style_ids(pkg)
     out: list[SourceCell] = []
     for sh in sheets(pkg):
-        root = parse_xml(pkg.read(sh.part))
+        root = parse_xml_read(pkg.read(sh.part))
+        sheet_hidden = sh.state != "visible"
+        hidden_cols = _hidden_columns(root)
         strings: dict[tuple[int, int], str] = {}
         numbers: list[tuple[int, int, str, float, bool, bool, bool]] = []
+        row_n = 0
         for row in root.iter("{%s}row" % S_NS):
+            row_n = int(row.get("r")) if (row.get("r") or "").isdigit() else row_n + 1
             hidden = row.get("hidden") in ("1", "true")
+            col_n = 0
             for c in row.iter("{%s}c" % S_NS):
                 ref = c.get("r") or ""
                 try:
-                    col_s, row_n = split_cell(ref)
+                    col_s, at_row = split_cell(ref)
+                    col_n = _col_to_int(col_s)
+                    cell_row = at_row
                 except EditError:
-                    continue
-                col_n = _col_to_int(col_s)
+                    col_n += 1
+                    cell_row = row_n
+                    ref = f"{_col_letters(col_n)}{cell_row}"
                 kind = c.get("t")
                 v = c.find("{%s}v" % S_NS)
                 f = c.find("{%s}f" % S_NS)
                 if kind == "s" and v is not None and v.text is not None:
-                    strings[(row_n, col_n)] = sst[int(v.text)].strip()
+                    strings[(cell_row, col_n)] = sst[int(v.text)].strip()
                 elif kind == "inlineStr":
-                    strings[(row_n, col_n)] = "".join(t.text or "" for t in c.iter("{%s}t" % S_NS)).strip()
+                    strings[(cell_row, col_n)] = "".join(t.text or "" for t in c.iter("{%s}t" % S_NS)).strip()
                 elif kind == "str" and v is not None and v.text:
-                    strings[(row_n, col_n)] = v.text.strip()
+                    strings[(cell_row, col_n)] = v.text.strip()
                 elif kind in (None, "n") and v is not None and v.text not in (None, ""):
                     try:
                         val = float(v.text)
                     except ValueError:
                         continue
                     style = int(c.get("s") or 0)
-                    numbers.append((row_n, col_n, ref, val, f is not None, style in date_styles, hidden))
+                    numbers.append((cell_row, col_n, ref, val, f is not None, style in date_styles, hidden or sheet_hidden or col_n in hidden_cols))
         rows_by: dict[int, list[tuple[int, str]]] = {}
         cols_by: dict[int, list[tuple[int, str]]] = {}
         for (r, c), s in strings.items():

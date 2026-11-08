@@ -27,7 +27,16 @@ def _paths(args: dict[str, Any]) -> list[str]:
 
 
 SHELL_TOOLS = {"terminal", "shell", "bash", "execute_code", "run_command"}
-_WRITEISH = re.compile(r"(>>?|\b(?:mv|cp|rm|del|move|copy|ren|rename|touch|tee|truncate|dd|zip|7z|unzip -o|Set-Content|Add-Content|Out-File|Remove-Item|Move-Item|Copy-Item|save|write)\b|sed\s+-i|open\s*\([^)]*['\"][wax]\+?b?['\"])", re.I)
+_WRITEISH = re.compile(
+    r"(>>?|\b(?:mv|cp|rm|del|erase|rd|rmdir|move|copy|copyfile|ren|rename|renames|touch|tee|truncate|dd|zip|7z|xcopy|robocopy|mklink|save|saveas|write|write_bytes|write_text|writelines|"
+    r"writeFile\w*|appendFile\w*|unlink\w*|rmSync|rmtree|remove|removedirs|Delete|WriteAll\w*|copyFile\w*|createWriteStream|"
+    r"Set-Content|Add-Content|Clear-Content|Out-File|Remove-Item|Move-Item|Copy-Item|Rename-Item|New-Item|Compress-Archive|Expand-Archive)\b|"
+    r"\bos\.replace\b|\bgit\b[^;&|]*\b(?:checkout|restore|reset|clean|stash|mv|rm)\b|unzip\s+-o|sed\s+-i|open\s*\([^)]*['\"][wax]\+?b?['\"])", re.I)
+# verbs that can reach files nobody named: a whole folder, a wildcard, a working directory
+_FOLDERISH = re.compile(
+    r"(?:\b(?:rm|del|erase|rd|rmdir|rmtree|remove|removedirs|unlink\w*|rmSync|Delete|move|mv|ren|rename|renames|robocopy|xcopy|Remove-Item|Move-Item|Rename-Item|Clear-Content)\b|"
+    r"\bgit\b[^;&|]*\b(?:checkout|restore|reset|clean|stash|mv|rm)\b)", re.I)
+_GLOB = re.compile(r"[*?\[{][^\s'\"<>|]*(?:pptx|docx|xlsx)", re.I)
 _OFFICE_NAME = re.compile(r"[^\s'\"<>|]+\.(?:pptx|docx|xlsx)\b", re.I)
 SHELL_MESSAGE = ("This command looks like it writes {name}, which Workroom manages. A direct change bypasses the verified release; "
                  "approve only if you mean to edit it by hand.")
@@ -48,6 +57,21 @@ def make_guard(roots: Callable[[], list[str]]) -> Callable[..., dict[str, str] |
             text = _shell_text(args)
             if not _WRITEISH.search(text):
                 return None
+            if _GLOB.search(text):
+                return {"action": "approve", "message": SHELL_MESSAGE.format(name="the Office files in this folder"), "rule_key": "workroom-shell-write"}
+            lowered = text.lower().replace("\\", "/")
+            folderish = bool(_FOLDERISH.search(text))
+            for m in managed:
+                if folderish and m.as_posix().lower() in lowered:
+                    return {"action": "approve", "message": SHELL_MESSAGE.format(name=f"files inside {m.name}"), "rule_key": "workroom-shell-write"}
+            for key in ("workdir", "cwd", "working_dir", "directory"):
+                if folderish and isinstance(args.get(key), str) and args[key].strip():
+                    try:
+                        here = Path(args[key]).expanduser().resolve()
+                    except OSError:
+                        continue
+                    if any(here == m or m in here.parents for m in managed):
+                        return {"action": "approve", "message": SHELL_MESSAGE.format(name=f"files inside {here.name}"), "rule_key": "workroom-shell-write"}
             for raw in _OFFICE_NAME.findall(text):
                 try:
                     rp = Path(raw.strip("\"'")).expanduser().resolve()
