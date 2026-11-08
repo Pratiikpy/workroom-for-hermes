@@ -70,7 +70,7 @@ CREATE_SCHEMA = {
         "Formats: #,##0  #,##0.00  $#,##0  $#,##0.0M  #,##0K  0.0%. A percent fact holds a fraction (0.25 shows 25.0%). "
         "Find cells with workroom_list_sources. Never type a number that is not a slot. Facts need ref, concept, period and unit. "
         "Visual page: kind 'scene', path 'pages/name.scene.json', and scene:{canvas:{w,h}, nodes:[{id,type:'rect'|'ellipse'|'line'|'text',x,y,w,h,fill,stroke,stroke_w,radius,rotate,opacity; text nodes also text (with {fact:format} slots), size,color,bold,align}]} (colours are six hex digits, nodes draw in list order). "
-        "Workbook: kind 'xlsx', path 'name.xlsx', sheets:[{name, rows:[[cell,...],...]}] where a cell is text, a number, {fact:'id', format:'$#,##0'} (a tied number; formats without K, M or B) or {formula:'=B2*2'} (kept as a formula); the first row is the header. Put figures in their own cells, not inside text. "
+        "Workbook: kind 'xlsx', path 'name.xlsx', sheets:[{name, rows:[[cell,...],...]}] where a cell is text, a number, {fact:'id', format:'$#,##0'} (a tied number; formats without K, M or B) {formula:'=B2*2'} (kept as a formula) or {input: 0.05} (a number you are told to type, such as an assumption; plain numbers are refused); the first row is the header. Put figures in their own cells, not inside text. "
         "If the spec is refused, the reply lists each error; fix those and call again."
     ),
     "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "spec": {"type": "object"}}, "required": ["project", "spec"]},

@@ -1,0 +1,43 @@
+[
+ {
+  "run": 0,
+  "scenario": "create_deck",
+  "model": "gemini-2.5-flash-lite",
+  "seconds": 2,
+  "tool_calls": [],
+  "create_attempts": 0,
+  "create_refusals": 0,
+  "staged": false,
+  "edit_ok": false,
+  "final": ""
+ },
+ {
+  "run": 0,
+  "scenario": "careless",
+  "model": "gemini-2.5-flash-lite",
+  "seconds": 3,
+  "tool_calls": [
+   "workroom_create"
+  ],
+  "create_attempts": 1,
+  "create_refusals": 1,
+  "staged": false,
+  "edit_ok": false,
+  "final": "I'm sorry, I cannot create the deck with the provided spec. The error message indicates that the spec must be an object with version 1. Could you please provide the spec in the correct format?"
+ },
+ {
+  "run": 0,
+  "scenario": "edit_page",
+  "model": "gemini-2.5-flash-lite",
+  "seconds": 4,
+  "tool_calls": [
+   "workroom_read_page",
+   "workroom_edit_page"
+  ],
+  "create_attempts": 0,
+  "create_refusals": 0,
+  "staged": false,
+  "edit_ok": false,
+  "final": "I'm sorry, but I am unable to add a line to the page. The Workroom API has a limit of 500 operations, and your request exceeded this limit. Please simplify your request and try again."
+ }
+]

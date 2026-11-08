@@ -56,6 +56,7 @@ class Validated:
     notes: list[str] = field(default_factory=list)
     chart_points: list[dict[str, Any]] = field(default_factory=list)  # one per tied chart data point, in document order
     cell_facts: list[dict[str, Any]] = field(default_factory=list)  # one per tied workbook cell
+    typed_inputs: list[dict[str, Any]] = field(default_factory=list)  # numbers a person or model declared as hand-entered inputs in a workbook
 
 
 RESERVED = {"con", "prn", "aux", "nul", *(f"com{i}" for i in range(1, 10)), *(f"lpt{i}" for i in range(1, 10))}
@@ -141,7 +142,8 @@ def _blocks_ok(v: Validated, blocks: Any, kind: str, where: str) -> int:
     for bi, b in enumerate(blocks):
         at = f"{prefix}blocks[{bi}]"
         if not isinstance(b, dict) or b.get("type") not in BLOCK_TYPES[kind]:
-            _err(v, "bad_spec", at, f"block type must be one of {', '.join(BLOCK_TYPES[kind])}")
+            got = b.get("type") if isinstance(b, dict) else b
+            _err(v, "bad_spec", at, f"block type {str(got)[:40]!r} is not valid in a {kind}; each block is an object whose type is one of {', '.join(BLOCK_TYPES[kind])}")
             continue
         t = b["type"]
         for key in ("text", "title"):
@@ -240,7 +242,9 @@ def _structure(v: Validated, spec: Any) -> bool:
                         elif len(c) > 2000:
                             _err(v, "too_large", cat, "text longer than 2000 characters")
                     elif isinstance(c, (int, float)):
-                        pass
+                        _err(v, "untied_figure", cat, f"the number {c} is typed by hand; tie it with {{fact, format}}, or declare it a hand-entered input with {{input: {c}}} so the owner can see it")
+                    elif isinstance(c, dict) and set(c) == {"input"} and isinstance(c["input"], (int, float)) and not isinstance(c["input"], bool) and abs(c["input"]) < 1e15:
+                        v.typed_inputs.append({"where": cat, "value": c["input"]})
                     elif isinstance(c, dict) and set(c) <= {"fact", "format"} and isinstance(c.get("fact"), str) and isinstance(c.get("format"), str):
                         pass
                     elif isinstance(c, dict) and set(c) == {"formula"} and isinstance(c["formula"], str) and c["formula"].startswith("=") and len(c["formula"]) <= 500:
@@ -493,7 +497,9 @@ def resolve(spec: dict[str, Any], values: dict[str, float]) -> tuple[dict[str, A
         for sh in out["sheets"]:
             for row in sh["rows"]:
                 for ci, c in enumerate(row):
-                    if isinstance(c, dict) and "fact" in c:
+                    if isinstance(c, dict) and "input" in c:
+                        row[ci] = c["input"]
+                    elif isinstance(c, dict) and "fact" in c:
                         used.add(c["fact"])
                         row[ci] = {"value": values[c["fact"]], "number_format": excel_format(c["format"])}
         groups = []
@@ -514,3 +520,22 @@ def resolve(spec: dict[str, Any], values: dict[str, float]) -> tuple[dict[str, A
     final = {p: t for p, t in iter_texts(out)}
     occurrences = [(p, f, r, final[p]) for p, f, r, _ in occurrences]
     return out, occurrences
+
+
+EXAMPLES = {
+    "pptx": {"version": 1, "kind": "pptx", "path": "reports/q3.pptx", "facts": {"rev": {"ref": "results.xlsx!Results!D2", "concept": "Revenue", "period": "Q3 2026", "unit": "currency"}},
+             "slides": [{"title": "Q3 2026 review", "blocks": [{"type": "kpis", "items": [{"label": "Revenue", "value": "{rev:$#,##0.0M}", "note": "Q3 2026"}]},
+                                                              {"type": "text", "text": "Revenue was {rev:$#,##0.0M} in Q3 2026."}]}]},
+    "docx": {"version": 1, "kind": "docx", "path": "reports/q3.docx", "facts": {"rev": {"ref": "results.xlsx!Results!D2", "concept": "Revenue", "period": "Q3 2026", "unit": "currency"}},
+             "blocks": [{"type": "heading", "level": 1, "text": "Q3 2026 review"}, {"type": "paragraph", "text": "Revenue was {rev:$#,##0.0M} in Q3 2026."}]},
+    "xlsx": {"version": 1, "kind": "xlsx", "path": "summary.xlsx", "facts": {"rev": {"ref": "results.xlsx!Results!D2", "concept": "Revenue", "period": "Q3 2026", "unit": "currency"}},
+             "sheets": [{"name": "Summary", "rows": [["Metric", "Q3 2026"], ["Revenue", {"fact": "rev", "format": "$#,##0"}]]}]},
+    "scene": {"version": 1, "kind": "scene", "path": "pages/q3.scene.json", "facts": {"rev": {"ref": "results.xlsx!Results!D2", "concept": "Revenue", "period": "Q3 2026", "unit": "currency"}},
+              "scene": {"version": 1, "canvas": {"w": 1280, "h": 720}, "nodes": [{"id": "t", "type": "text", "x": 80, "y": 80, "w": 900, "h": 60, "text": "Revenue {rev:$#,##0.0M}", "size": 40}]}},
+}
+
+
+def example_for(spec: Any) -> dict[str, Any]:
+    """A small valid spec of the kind the caller was attempting, for a refusal reply."""
+    kind = spec.get("kind") if isinstance(spec, dict) else None
+    return EXAMPLES.get(kind, EXAMPLES["pptx"])

@@ -1,0 +1,63 @@
+[
+ {
+  "run": 0,
+  "scenario": "create_deck",
+  "model": "gemini-3.1-flash-lite",
+  "seconds": 34,
+  "tool_calls": [
+   "workroom_list_sources",
+   "workroom_create",
+   "workroom_create",
+   "workroom_create",
+   "workroom_create",
+   "workroom_create",
+   "workroom_create",
+   "workroom_create",
+   "workroom_create",
+   "workroom_create"
+  ],
+  "create_attempts": 9,
+  "create_refusals": 9,
+  "staged": false,
+  "edit_ok": false,
+  "final": "(stopped: too many steps)"
+ },
+ {
+  "run": 0,
+  "scenario": "careless",
+  "model": "gemini-3.1-flash-lite",
+  "seconds": 46,
+  "tool_calls": [
+   "workroom_list_sources",
+   "workroom_create",
+   "workroom_create",
+   "workroom_create",
+   "workroom_create",
+   "workroom_create",
+   "workroom_create",
+   "workroom_create",
+   "workroom_create",
+   "workroom_create"
+  ],
+  "create_attempts": 9,
+  "create_refusals": 9,
+  "staged": false,
+  "edit_ok": false,
+  "final": "(stopped: too many steps)"
+ },
+ {
+  "run": 0,
+  "scenario": "edit_page",
+  "model": "gemini-3.1-flash-lite",
+  "seconds": 4,
+  "tool_calls": [
+   "workroom_read_page",
+   "workroom_edit_page"
+  ],
+  "create_attempts": 0,
+  "create_refusals": 0,
+  "staged": false,
+  "edit_ok": true,
+  "final": "The page `pages/q2.scene.json` has been updated: the title size is now 56, and a thin teal (0F766E) line has been added underneath it."
+ }
+]

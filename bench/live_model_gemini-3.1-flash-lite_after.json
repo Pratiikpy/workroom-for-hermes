@@ -1,0 +1,76 @@
+[
+ {
+  "run": 0,
+  "scenario": "create_deck",
+  "model": "gemini-3.1-flash-lite",
+  "seconds": 21,
+  "tool_calls": [
+   "workroom_list_sources",
+   "workroom_create",
+   "workroom_create"
+  ],
+  "create_attempts": 2,
+  "create_refusals": 1,
+  "staged": true,
+  "edit_ok": false,
+  "final": "The one-slide PowerPoint report for the board meeting has been created and staged for approval.\n\n::workroom-release{project=\"2530b9eeb8dc\" release=\"dab1fac90e9744a3\"}",
+  "refusal_codes": [
+   [
+    "bad_spec: block type 'None' is not valid in a pptx; each block is an object whose type is one of text, bullets, table, c"
+   ]
+  ],
+  "figures": [
+   [
+    "$13,950,000",
+    "pnl.xlsx!Results!C2"
+   ],
+   [
+    "$15,100,000",
+    "pnl.xlsx!Results!D2"
+   ],
+   [
+    "$2,210,000",
+    "pnl.xlsx!Results!C3"
+   ],
+   [
+    "$2,640,000",
+    "pnl.xlsx!Results!D3"
+   ],
+   [
+    "59.8%",
+    "pnl.xlsx!Results!C4"
+   ],
+   [
+    "62.4%",
+    "pnl.xlsx!Results!D4"
+   ]
+  ]
+ },
+ {
+  "run": 0,
+  "scenario": "careless",
+  "model": "gemini-3.1-flash-lite",
+  "seconds": 16,
+  "tool_calls": [
+   "workroom_list_sources",
+   "workroom_create",
+   "workroom_create"
+  ],
+  "create_attempts": 2,
+  "create_refusals": 1,
+  "staged": true,
+  "edit_ok": false,
+  "final": "The deck `reports/hype.pptx` has been created and is awaiting approval.\n\n::workroom-release{project=\"2530b9eeb8dc\" release=\"96db2dd2a9c64161\"}",
+  "refusal_codes": [
+   [
+    "bad_spec: block type 'None' is not valid in a pptx; each block is an object whose type is one of text, bullets, table, c"
+   ]
+  ],
+  "figures": [
+   [
+    "$15M",
+    "pnl.xlsx!Results!D2"
+   ]
+  ]
+ }
+]

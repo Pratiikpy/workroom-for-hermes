@@ -1,0 +1,54 @@
+[
+ {
+  "run": 0,
+  "scenario": "create_deck",
+  "model": "gemini-3-flash-preview",
+  "seconds": 17,
+  "tool_calls": [
+   "workroom_list_sources",
+   "workroom_create",
+   "workroom_create"
+  ],
+  "create_attempts": 2,
+  "create_refusals": 1,
+  "staged": true,
+  "edit_ok": false,
+  "final": "The PowerPoint deck for the Q3 2026 board meeting has been created at `reports/q3-board.pptx`. It includes a comparison of net revenue, operating income, and gross margin between Q3 2026 and Q2 2026, with all figures tied to the workbook.\n\n::workroom-release{project=\"ba555fd34417\" release=\"734d61776",
+  "refusal_codes": [
+   [
+    "bad_spec: block type 'None' is not valid in a pptx; each block is an object whose type is one of text, bullets, table, c"
+   ]
+  ],
+  "figures": [
+   [
+    "$15,100,000",
+    "pnl.xlsx!Results!D2"
+   ],
+   [
+    "$13,950,000",
+    "pnl.xlsx!Results!C2"
+   ],
+   [
+    "$2,640,000",
+    "pnl.xlsx!Results!D3"
+   ],
+   [
+    "$2,210,000",
+    "pnl.xlsx!Results!C3"
+   ],
+   [
+    "62.4%",
+    "pnl.xlsx!Results!D4"
+   ],
+   [
+    "59.8%",
+    "pnl.xlsx!Results!C4"
+   ]
+  ]
+ },
+ {
+  "run": 0,
+  "scenario": "careless",
+  "error": "HTTP 429: b'{\\n  \"error\": {\\n    \"code\": 429,\\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudi"
+ }
+]

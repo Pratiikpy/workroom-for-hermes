@@ -64,3 +64,16 @@ def test_a_created_workbook_never_becomes_a_source_and_is_forgotten_on_restore(t
     assert len([t for t in svc.ties(pid) if t["deck"] == "summary.xlsx"]) == 2, "finding links must keep the born ties of the created workbook"
     svc.restore_release(pid, staged["release_id"])
     assert not (root / "summary.xlsx").exists() and svc.ties(pid) == []
+
+
+def test_a_number_typed_into_a_workbook_is_refused_unless_declared_as_an_input(tmp_path: Path) -> None:
+    svc, pid, root = _svc(tmp_path)
+    typed = {**XSPEC, "path": "typed.xlsx", "sheets": [{"name": "S", "rows": [["Revenue", 999000000]]}]}
+    out = svc.create_from_spec(pid, typed)
+    assert out["state"] == "refused" and out["errors"][0]["code"] == "untied_figure" and "example" in out
+    declared = {**XSPEC, "path": "typed.xlsx", "sheets": [{"name": "S", "rows": [["Growth assumption", {"input": 0.05}]]}]}
+    ok = svc.create_from_spec(pid, declared)
+    assert ok["state"] == "awaiting_approval"
+    assert any("hand-entered" in n for n in ok["held"]) and "hand-entered" in ok["changes"][0]["new_text"]
+    svc.approve_and_publish(pid, ok["release_id"], ok["digest"])
+    assert load_workbook(root / "typed.xlsx")["S"]["B1"].value == 0.05

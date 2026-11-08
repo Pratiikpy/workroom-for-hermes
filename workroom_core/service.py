@@ -874,7 +874,10 @@ class Service:
         if brand_note:
             v.notes.append(brand_note)
         if v.errors:
-            return {"state": "refused", "errors": [asdict(e) for e in v.errors], "notes": v.notes}
+            from .build.spec import example_for
+
+            return {"state": "refused", "errors": [asdict(e) for e in v.errors], "notes": v.notes, "example": example_for(spec),
+                    "hint": "Fix every listed error and call again. The example is a small valid spec of the same kind; adapt its structure, not its facts."}
         values = {f: next(c.value for c in cells if f"{c.file}!{c.sheet}!{c.ref}" == d["ref"]) for f, d in spec["facts"].items()}
         resolved, occurrences = resolve(spec, values)
         rel = spec["path"]
@@ -919,7 +922,10 @@ class Service:
                      "period": c["receipt"]["period"]} for c in v.cell_facts]
         figures += [{"where": c["where"], "text": plain(values[c['fact']]), "source": c["receipt"]["source_ref"], "concept": c["receipt"]["concept"],
                      "period": c["receipt"]["period"]} for c in charts]
-        change = {"deck": rel, "slide": 0, "old_text": "(new file)", "new_text": f"{len(found) + len(charts) + (len(occurrences) if spec['kind'] == 'scene' else 0)} figures tied to their sources",
+        typed = [f"{t['where']} = {t['value']}" for t in v.typed_inputs]
+        if typed:
+            v.notes.append(f"{len(typed)} hand-entered input(s), not tied to any source: " + "; ".join(typed[:6]))
+        change = {"deck": rel, "slide": 0, "old_text": "(new file)", "new_text": f"{len(found) + len(charts) + (len(occurrences) if spec['kind'] == 'scene' else 0)} figures tied to their sources" + (f", {len(typed)} hand-entered" if typed else ""),
                   "src": receipts[0]["source_ref"] if receipts else "", "old_value": 0, "new_value": 0, "where": "New file"}
         meta_dir = self.data_dir / "projects" / pid / "meta"
         meta_dir.mkdir(parents=True, exist_ok=True)
