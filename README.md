@@ -45,15 +45,18 @@ The agent gets tools to register a folder, find links, preview a refresh, prepar
 | Same-valued decoy sentences linked | 0 of 988 synthetic decoys | synthetic and optimistic |
 | Release recovers after a crash | 16 of 16 injected crash points | simulated process death on Windows; not a power-off test |
 | Head to head, one figure changes in a deck | complete and 0 collateral parts changed; office-desk 6/6 text but no chart; Hermes' bundled skill missed a target and touched the decoy | one synthetic scenario; PowerPoint only; see `bench/HEAD_TO_HEAD.md` |
-| Read-only agent cannot reach write tools | 8 of 8 out-of-scope tools refused by Hermes' real dispatch | no live model attempted it |
+| Read-only agent cannot reach write tools | 8 of 8 out-of-scope tools refused by Hermes' real dispatch; a live model (Gemini 2.5 Flash) told to approve, publish or edit directly refused and the file was unchanged | one adversarial run; one model |
+| Automatic links on real earnings releases | 0 clearly wrong in 97 read by hand; 56 of 58 decided correct by an independent model judge (60 sampled of 265) | 10 SEC filings converted to Word; 265 of 6,636 numbers linked automatically, 2,433 sent to a person, the rest have no source cell |
+| Word tracked changes open in real Microsoft Word | accept-all gives the new text, reject-all gives the original, 4 revisions by "Workroom", on 2 files | Word on Windows only; 16 of 16 real corpus files also validate in OfficeCLI |
+| Approval from a real Telegram chat | release card with buttons shown, Approve published it, Cancel changed nothing, a sender not in `approvers` was refused | one throwaway bot, one owner account; Discord and Slack not run |
 
 ## Known limits and what is not tested
 
 - Run end to end in the real Hermes Desktop (v0.23.0, Windows) on a small synthetic project only; not yet on a user's own documents.
-- Not measured on real messy business documents or other languages. On hand-written paraphrase tests the matcher never linked wrongly and, with a small built-in finance synonym list, resolved 94% by itself (that number is contaminated: the list was written after seeing the test wording; real gain unmeasured).
-- Windows only so far (suite passes on Python 3.11 and 3.14). macOS and Linux CI is written but has not run.
+- Measured on real earnings releases (see the table) but not on other kinds of messy business documents or other languages. On hand-written paraphrase tests the matcher never linked wrongly and, with a small built-in finance synonym list, resolved 94% by itself (that number is contaminated: the list was written after seeing the test wording; real gain unmeasured).
+- The suite passes on Windows, macOS and Linux with Python 3.11 and 3.14 in GitHub Actions; the Hermes Desktop run itself was only done on Windows.
 - Word comments are never edited (human review text). Complex Excel models are untested.
-- Messaging approval (`/workroom-approve`, buttons via Hermes' prompt) is tested with a fake prompt only; never run through a real Telegram bot.
+- Messaging approval was run through a real Telegram bot (see the table); Discord and Slack, and a refusal using a second real person's account, were not run.
 - A consistent rollback of every copy of Workroom's state to an older valid point is not detected (a signature proves authenticity, not freshness).
 - The agent's file-write tools are blocked on Office files inside registered projects; a shell command that looks like it writes one is sent to your approval prompt (a heuristic that a determined script can evade).
 - The signing key is readable by any program running as you, including an agent with a shell tool: the approval boundary stops the agent's Workroom tools, not a hostile process on your own account.
