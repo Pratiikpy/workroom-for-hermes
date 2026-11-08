@@ -17,6 +17,7 @@ from ..ooxml.pptx import A_NS, C_NS, NS, P_NS, R_NS, Deck
 from ..ooxml.xlsx import parse_xml, rels_for
 from .decisions import Decisions
 from .findings import Finding, mask_digits
+from .periods import Period, find_periods
 
 if TYPE_CHECKING:
     from ..project import Plan, Project
@@ -54,17 +55,21 @@ def _hidden_text(deck: Deck, slide_no: int) -> Iterator[tuple[str, str]]:
                         yield "a chart title or label", t
 
 
-def stale_mentions(project: "Project", plan: "Plan") -> list[Finding]:
+def stale_mentions(project: "Project", plan: "Plan", roll: dict | None = None) -> list[Finding]:
     from ..project import open_document
 
     index = project.source_index()
     cells = {(c.file, c.sheet, c.ref): c for c in index.cells}
     now = {k: c.value for k, c in cells.items()}
     changed = []
+    rolled = {it["id"]: it for it in (roll or {}).get("ties", [])}
     for t in project.ties():
         if t.kind in ("text", "chart", "derived") and t.state in ("accepted", "confirmed"):
-            new = project._tie_value(t, now)
             cell = cells.get((t.src_file, t.sheet, t.ref))
+            if t.id in rolled:
+                new = rolled[t.id]["new_value"]
+            else:
+                new = project._tie_value(t, now)
             if new is not None and cell is not None and new != t.linked_value:
                 changed.append((t, cell, t.linked_value, new))
     if not changed:
@@ -122,4 +127,27 @@ def clipped_charts(project: "Project", plan: "Plan") -> list[Finding]:
                         out.append(Finding(Decisions.key("axis", rel, slide, shape_id, cat), "chart_axis_clipped", "high", rel, slide, name, name,
                                            f"The chart \"{name}\" has its axis fixed at {bound}, so {cat or 'a point'} ({format(v, ',.10g')}) would be drawn outside it",
                                            ("Axis limits set by hand do not follow the data; change them in PowerPoint or reset the axis to automatic",)))
+    return out
+
+
+def stale_period_words(project: "Project", plan: "Plan", roll: dict | None) -> list[Finding]:
+    """After a roll: a period word in speaker notes, chart text or a picture description that still names a period the roll has left behind."""
+    if not roll or not roll.get("ties"):
+        return []
+    out: list[Finding] = []
+    for path in project._files((".pptx",)):
+        rel = project._rel(path)
+        olds = {Period(it["period"][0], it["period"][1]) for it in roll["ties"] if it["deck"] == rel and it.get("period")}
+        if not olds:
+            continue
+        deck = Deck(plan.files.get(rel) or path.read_bytes())
+        for slide_no in range(1, len(deck.slide_parts()) + 1):
+            for where, text in _hidden_text(deck, slide_no):
+                for _a, _b, p in find_periods(text):
+                    if p in olds:
+                        word = text[_a:_b]
+                        out.append(Finding(Decisions.key("stale_period", rel, where, mask_digits(text), word), "stale_period", "medium", rel, slide_no, text[:200], text[:200],
+                                           f"\"{word}\" in {where} still names the period this release moves on from",
+                                           ("Workroom advances period words in slide text and tables, not in notes, chart text or picture descriptions; change this one yourself",)))
+                        break
     return out

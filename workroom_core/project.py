@@ -68,7 +68,8 @@ class Tie:
     receipt: str = ""  # JSON: the fact selection receipt of a born tie
     kind: str = "text"  # text (a number in a text shape or table) | chart (one data point of a native chart) | derived (a number calculated from source cells)
     chart: str = ""  # JSON for a chart tie: {"series": index, "category": label}
-    formula: str = ""  # JSON for a derived tie: {"op": "pct_change"|"ratio"|"diff"|"sum", "terms": ["file!sheet!ref", ...], "cue": "up"|"down"|""}
+    formula: str = ""  # JSON for a derived tie: {"op": "pct_change"|"ratio"|"diff"|"sum", "terms": [[file, sheet, ref], ...], "cue": "up"|"down"|"", "labels": [...]}
+    src_labels: str = ""  # JSON [row headings, column headings] of the source cell when the tie was made, so the tie can follow the cell if the sheet is edited
 
 
 @dataclass(frozen=True)
@@ -87,6 +88,7 @@ class Plan:
     impacts: list[Impact] = field(default_factory=list)
     files: dict[str, bytes] = field(default_factory=dict)
     skipped: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)  # sources that moved and were followed, headings that changed
 
 
 @dataclass(frozen=True)
@@ -141,8 +143,8 @@ class Project:
             " seg INT, offset INT, cell_rc TEXT, raw TEXT, state TEXT, src_file TEXT, sheet TEXT, ref TEXT, transform TEXT,"
             " linked_value REAL, label_score REAL, context TEXT)"
         )
-        self.db.execute("CREATE TABLE IF NOT EXISTS snapshot (file TEXT, sheet TEXT, ref TEXT, value REAL, PRIMARY KEY (file, sheet, ref))")
-        for column in ("context TEXT", "slide_uid TEXT", "fp_near TEXT", "anchor TEXT", "prior_state TEXT", "held_note TEXT", "basis TEXT", "receipt TEXT", "kind TEXT", "chart TEXT", "formula TEXT"):
+        self.db.execute("CREATE TABLE IF NOT EXISTS snapshot2 (file TEXT, sheet TEXT, key TEXT, value REAL, PRIMARY KEY (file, sheet, key))")
+        for column in ("context TEXT", "slide_uid TEXT", "fp_near TEXT", "anchor TEXT", "prior_state TEXT", "held_note TEXT", "basis TEXT", "receipt TEXT", "kind TEXT", "chart TEXT", "formula TEXT", "src_labels TEXT"):
             try:
                 self.db.execute(f"ALTER TABLE ties ADD COLUMN {column}")
             except sqlite3.OperationalError:
@@ -416,8 +418,9 @@ class Project:
         then, if the document was edited around it, its fingerprint (the number and the words next to it), shown as
         'reanchored'. A tied number that a person retyped becomes 'held' and is left alone; it returns to its old state when the
         original number is put back. A link is dropped only when its number is gone."""
+        self.relocate_sources()
         index = self.source_index()
-        self._seed_snapshot({(c.file, c.sheet, c.ref): c.value for c in index.cells})
+        self._seed_snapshot(index.cells)
         existing = self.ties()
         kept_ids: set[int] = set()
         found = no_source = kept = reanchored = 0
@@ -463,16 +466,56 @@ class Project:
                             matched[ts[0].id] = dm
                             consumed.add(i)
                             via_fingerprint.add(ts[0].id)
-            # pass 3: a tied number that a person changed in place is held, not forgotten
+            # pass 3: a tied number that a person changed in place is held, not forgotten, unless they corrected it to exactly what the source says now
+            adopted: dict[int, tuple[DocMention, float, dict | None]] = {}
+            values_now: dict[tuple[str, str, str], float] | None = None
+
+            def retyped(t: Tie, dm: DocMention) -> None:
+                nonlocal values_now
+                if values_now is None:
+                    values_now = self._current_values()
+                now_v = self._tie_value(t, values_now)
+                if now_v is not None and t.state != "held" and self._shows(dm.number, t, now_v):
+                    adopted[t.id] = (dm, now_v, None)  # a person corrected it to exactly what the source says now: it stays managed
+                    return
+                moved = self._hand_rolled(t, dm, index, values_now) if t.state != "held" else None
+                if moved is not None:
+                    adopted[t.id] = (dm, moved["value"], moved)  # a person moved it to another period by hand: the tie follows
+                else:
+                    held_now[t.id] = dm
+
             for t in deck_ties:
                 if t.id in matched:
                     continue
                 for i, dm in enumerate(dms):
                     if i not in consumed and self._mkey(dm) == self._tkey(t) or (i not in consumed and self._mkey(dm, f"#{dm.slide}") == self._tkey(t)):
                         if dm.number.raw != t.raw:
-                            held_now[t.id] = dm
+                            retyped(t, dm)
                             consumed.add(i)
                         break
+            # pass 4: words were added or removed before a number that was also retyped, so its place moved; within one paragraph, when the
+            # leftover links and the leftover numbers are equally many, they pair in order
+            left = [t for t in deck_ties if t.id not in matched and t.id not in held_now and t.id not in adopted]
+            if left:
+                tgroups: dict[tuple, list[Tie]] = {}
+                for t in left:
+                    tgroups.setdefault((t.slide_uid or f"#{t.slide}", t.shape_id, t.para, t.cell_rc), []).append(t)
+                dgroups: dict[tuple, list[tuple[int, DocMention]]] = {}
+                for i, dm in enumerate(dms):
+                    if i not in consumed:
+                        dgroups.setdefault((dm.slide_uid or f"#{dm.slide}", dm.shape_id, dm.para, dm.cell), []).append((i, dm))
+                for key, ts in tgroups.items():
+                    ds = sorted(dgroups.get(key, []), key=lambda x: (x[1].seg, x[1].offset))
+                    ts.sort(key=lambda t: (t.seg, t.offset))
+                    if len(ts) != len(ds):
+                        continue
+                    for t, (i, dm) in zip(ts, ds):
+                        consumed.add(i)
+                        if dm.number.raw == t.raw:
+                            matched[t.id] = dm
+                            via_fingerprint.add(t.id)
+                        else:
+                            retyped(t, dm)
             for tid, dm in matched.items():
                 old = next(t for t in deck_ties if t.id == tid)
                 state = old.state
@@ -489,6 +532,26 @@ class Project:
                 kept_ids.add(tid)
                 kept += 1
                 reanchored += tid in via_fingerprint
+            for tid, (dm, now_v, moved) in adopted.items():
+                old = next(t for t in deck_ties if t.id == tid)
+                formula = old.formula
+                if moved is not None:
+                    f_, sh_, rf_ = moved["src"]
+                    self.db.execute("UPDATE ties SET src_file=?, sheet=?, ref=?, src_labels=NULL WHERE id=?", (f_, sh_, rf_, tid))
+                    if moved.get("formula"):
+                        formula = moved["formula"]
+                if old.kind == "derived":
+                    from .meaning.calc import direction_cue
+
+                    text = dm.context[0] if dm.context else ""
+                    pos = dm.para_offset if dm.para_offset is not None else max(text.find(dm.number.raw), 0)
+                    formula = json.dumps({**json.loads(formula), "cue": direction_cue(text, pos, pos + len(dm.number.raw))})
+                self.db.execute(
+                    "UPDATE ties SET slide=?, slide_uid=?, shape_id=?, para=?, seg=?, offset=?, cell_rc=?, fp_near=?, anchor='exact', context=?, raw=?, linked_value=?, formula=? WHERE id=?",
+                    (dm.slide, dm.slide_uid, dm.shape_id, dm.para, dm.seg, dm.offset, json.dumps(dm.cell), self._fp_near(dm), dm.context[0] if dm.context else "", dm.number.raw, now_v, formula, tid),
+                )
+                kept_ids.add(tid)
+                kept += 1
             for tid, dm in held_now.items():
                 old = next(t for t in deck_ties if t.id == tid)
                 prior = old.prior_state if old.state == "held" else old.state
@@ -513,6 +576,7 @@ class Project:
         for tie in existing:
             if tie.id not in kept_ids and tie.kind != "scene":
                 self.db.execute("DELETE FROM ties WHERE id=?", (tie.id,))
+        self.relocate_sources()  # remembers the headings of the ties just made
         held = self.db.execute("SELECT COUNT(*) FROM ties WHERE state='held'").fetchone()[0]
         return Discovery(found=found, no_source=no_source, kept=kept, unreadable=tuple(unreadable) + tuple(getattr(self, "unreadable_sources", [])), reanchored=reanchored, held=held)
 
@@ -526,11 +590,23 @@ class Project:
             ties.append(Tie(row["id"], row["deck"], row["slide"], row["shape_id"], row["para"], row["seg"], row["offset"], tuple(cell) if cell else None,
                             row["raw"], row["state"], row["src_file"], row["sheet"], row["ref"], row["transform"], row["linked_value"], row["label_score"],
                             row.get("context") or "", row.get("slide_uid") or "", row.get("fp_near") or "", row.get("anchor") or "exact",
-                            row.get("prior_state") or "", row.get("held_note") or "", row.get("basis") or "matched", row.get("receipt") or "", row.get("kind") or "text", row.get("chart") or "", row.get("formula") or ""))
+                            row.get("prior_state") or "", row.get("held_note") or "", row.get("basis") or "matched", row.get("receipt") or "", row.get("kind") or "text", row.get("chart") or "", row.get("formula") or "", row.get("src_labels") or ""))
         return [t for t in ties if states is None or t.state in states]
 
     def confirm(self, tie_id: int) -> None:
-        self.db.execute("UPDATE ties SET state='confirmed' WHERE id=? AND state='confirm'", (tie_id,))
+        """The owner says the source cell is the right one: it becomes the reference for its headings from now on."""
+        t = self.tie(tie_id)
+        if t is None or t.state != "confirm":
+            return
+        if t.kind == "derived":
+            try:
+                f = json.loads(t.formula)
+                f.pop("labels", None)
+                self.db.execute("UPDATE ties SET formula=? WHERE id=?", (json.dumps(f), tie_id))
+            except ValueError:
+                pass
+        self.db.execute("UPDATE ties SET state='confirmed', src_labels=NULL, held_note='' WHERE id=?", (tie_id,))
+        self.relocate_sources()
 
     def skip(self, tie_id: int) -> None:
         """The owner says this number is not tied to that cell; it is left alone from now on."""
@@ -538,6 +614,13 @@ class Project:
 
     def tie(self, tie_id: int):
         return next((t for t in self.ties() if t.id == tie_id), None)
+
+    def relocate_sources(self) -> list[str]:
+        """Check each tie's source cell against its remembered headings; follow cells that moved. Writes only this project's own database."""
+        from .meaning.anchors import relocate_sources
+
+        self.last_notes = relocate_sources(self)
+        return self.last_notes
 
     # ---- calculated numbers ----
     def calculations(self):
@@ -555,6 +638,18 @@ class Project:
         from .meaning.scan import dismiss_calculation
 
         dismiss_calculation(self, candidate_id)
+
+    @staticmethod
+    def _edit_number(doc, dm: DocMention, new_text: str) -> None:
+        """Replace the number the mention points at. A figure written with an explicit plus that turns negative gives up its plus."""
+        from dataclasses import replace
+
+        text = dm.context[0] if dm.context else ""
+        po = dm.para_offset
+        if new_text.startswith(("-", "−")) and po is not None and po >= 1 and text[po - 1] == "+":
+            doc.edit_mention(replace(dm, number=replace(dm.number, raw="+" + dm.number.raw, start=dm.number.start - 1), offset=dm.offset - 1), new_text)
+        else:
+            doc.edit_mention(dm, new_text)
 
     def plan_rollforward(self, steps: int = 1):
         """Everything needed to roll the project's documents to the next reporting period, as new file bytes. Writes nothing."""
@@ -576,11 +671,65 @@ class Project:
         """What the planned update means for the sentences around the numbers: claims it makes false, and what could not be checked."""
         from .meaning.claimscan import claim_findings
         from .meaning.findings import sort_findings
-        from .meaning.surfaces import clipped_charts, stale_mentions
+        from .meaning.surfaces import clipped_charts, stale_mentions, stale_period_words
 
         found, cov = claim_findings(self, plan, roll)
-        merged = {f.id: f for f in found + stale_mentions(self, plan) + clipped_charts(self, plan)}
+        merged = {f.id: f for f in found + stale_mentions(self, plan, roll) + stale_period_words(self, plan, roll) + clipped_charts(self, plan)}
         return sort_findings(list(merged.values())), cov
+
+    def _hand_rolled(self, t: Tie, dm: DocMention, index, values: dict[tuple[str, str, str], float]) -> dict | None:
+        """A person retyped a number to the value the same series holds in another period (they rolled it forward or back by hand).
+        When exactly one such period fits, the tie moves to it instead of being held."""
+        from .meaning.calc import evaluate
+        from .meaning.timeline import Timeline
+
+        tl = Timeline(index.cells)
+        cells = {(c.file, c.sheet, c.ref): c for c in index.cells}
+        found: list[dict] = []
+        for k in (1, 2, 3, 4, -1, -2, -3, -4):
+            if t.kind == "derived":
+                try:
+                    f = json.loads(t.formula)
+                except ValueError:
+                    return None
+                terms, ok = [], True
+                for term in f["terms"]:
+                    c = cells.get(tuple(term))
+                    nxt = tl.shifted(c, k) if c is not None else None
+                    if nxt is None:
+                        ok = False
+                        break
+                    terms.append([nxt.file, nxt.sheet, nxt.ref])
+                if not ok:
+                    continue
+                nf = json.dumps({**{a: b for a, b in f.items() if a != "labels"}, "terms": terms})
+                v = evaluate(nf, values)
+                if v is not None and self._shows(dm.number, t, v):
+                    found.append({"src": tuple(terms[0]), "value": v, "formula": nf})
+            else:
+                c = cells.get((t.src_file, t.sheet, t.ref))
+                nxt = tl.shifted(c, k) if c is not None else None
+                if nxt is not None and consistent_with_source(dm.number, nxt.value)[0]:
+                    found.append({"src": (nxt.file, nxt.sheet, nxt.ref), "value": nxt.value, "formula": None})
+        return found[0] if len(found) == 1 else None
+
+    @staticmethod
+    def _display_value(t: Tie, value: float) -> float:
+        """A calculated change written beside "up" or "down" shows its size, not its sign."""
+        if t.kind == "derived":
+            try:
+                if json.loads(t.formula).get("cue"):
+                    return abs(value)
+            except ValueError:
+                pass
+        return value
+
+    @staticmethod
+    def _shows(number, t: Tie, value: float) -> bool:
+        """Is the number a person typed exactly what the source (or the calculation) says now?"""
+        if consistent_with_source(number, value)[0]:
+            return True
+        return t.kind == "derived" and consistent_with_source(number, abs(value))[0]
 
     @staticmethod
     def _sign_fits(t: Tie, new: float) -> bool:
@@ -597,18 +746,38 @@ class Project:
     def _current_values(self) -> dict[tuple[str, str, str], float]:
         return {(c.file, c.sheet, c.ref): c.value for c in self.source_index().cells}
 
-    def snapshot_values(self) -> dict[tuple[str, str, str], float]:
-        """Every source cell as it stood at the last release (or when it was first seen): the baseline that "changed" is measured against."""
-        return {(f, s, r): v for f, s, r, v in self.db.execute("SELECT file, sheet, ref, value FROM snapshot")}
+    @staticmethod
+    def _snapshot_keys(cells) -> dict[tuple[str, str, str], str]:
+        """A key for each source cell that survives rows and columns being inserted or the window of periods sliding: its headings
+        (or its address, for a cell whose headings are not unique on its sheet)."""
+        from .meaning.anchors import label_key
 
-    def _seed_snapshot(self, values: dict[tuple[str, str, str], float]) -> None:
+        count: dict[tuple[str, str, str], int] = {}
+        for c in cells:
+            k = (c.file, c.sheet, label_key(c))
+            count[k] = count.get(k, 0) + 1
+        return {(c.file, c.sheet, c.ref): (label_key(c) if count[(c.file, c.sheet, label_key(c))] == 1 else f"@{c.ref}") for c in cells}
+
+    def snapshot_values(self) -> dict[tuple[str, str, str], float]:
+        """Every source cell as it stood at the last release (or when it was first seen): the baseline that "changed" is measured against.
+        Found by the cell's headings, so a cell that moved keeps its own baseline."""
+        cells = self.source_index().cells
+        keys = self._snapshot_keys(cells)
+        stored = {(f, s, k): v for f, s, k, v in self.db.execute("SELECT file, sheet, key, value FROM snapshot2")}
+        return {ref: stored.get((ref[0], ref[1], keys[ref]), c.value) for ref, c in ((((c.file, c.sheet, c.ref)), c) for c in cells)}
+
+    def _seed_snapshot(self, cells) -> None:
+        keys = self._snapshot_keys(cells)
         self.db.execute("BEGIN")
-        self.db.executemany("INSERT OR IGNORE INTO snapshot (file, sheet, ref, value) VALUES (?,?,?,?)", [(f, s, r, v) for (f, s, r), v in values.items()])
+        self.db.executemany("INSERT OR IGNORE INTO snapshot2 (file, sheet, key, value) VALUES (?,?,?,?)", [(c.file, c.sheet, keys[(c.file, c.sheet, c.ref)], c.value) for c in cells])
         self.db.execute("COMMIT")
 
     def _write_snapshot(self, values: dict[tuple[str, str, str], float]) -> None:
+        cells = self.source_index().cells
+        keys = self._snapshot_keys(cells)
         self.db.execute("BEGIN")
-        self.db.executemany("INSERT OR REPLACE INTO snapshot (file, sheet, ref, value) VALUES (?,?,?,?)", [(f, s, r, v) for (f, s, r), v in values.items()])
+        self.db.executemany("INSERT OR REPLACE INTO snapshot2 (file, sheet, key, value) VALUES (?,?,?,?)",
+                            [(c.file, c.sheet, keys[(c.file, c.sheet, c.ref)], values.get((c.file, c.sheet, c.ref), c.value)) for c in cells])
         self.db.execute("COMMIT")
 
     @staticmethod
@@ -623,6 +792,7 @@ class Project:
 
     def plan_refresh(self) -> Plan:
         plan = Plan()
+        plan.notes = self.relocate_sources()
         values = self._current_values()
         by_deck: dict[str, list[tuple[Tie, float]]] = {}
         for t in self.ties(("held",)):
@@ -666,14 +836,15 @@ class Project:
                 if dm is None or dm.number.raw != t.raw:
                     plan.skipped.append(f"{deck_rel} slide {t.slide}: '{t.raw}' is no longer where it was linked (edited by hand?); held")
                     continue
-                new_text = format_like(dm.number, new, t.transform)
-                ok, _ = consistent_with_source(_reparse(new_text), new)
+                shown = self._display_value(t, new)
+                new_text = format_like(dm.number, shown, t.transform)
+                ok, _ = consistent_with_source(_reparse(new_text), shown)
                 if new_text == t.raw:
                     continue
                 if not ok:
                     plan.skipped.append(f"{deck_rel} slide {t.slide}: could not write {new} as '{new_text}' faithfully; held")
                     continue
-                deck.edit_mention(dm, new_text)
+                self._edit_number(deck, dm, new_text)
                 applied += 1
                 plan.impacts.append(Impact(deck_rel, t.slide, t.raw, new_text, f"{t.src_file}!{t.sheet}!{t.ref}", t.linked_value, new))
             if applied:

@@ -64,6 +64,7 @@ def _worth_explaining(number) -> bool:
 def find_calculations(project: "Project") -> Scan:
     from ..project import DECK_EXT, open_document
 
+    project.relocate_sources()
     index = project.source_index()
     cells = {(c.file, c.sheet, c.ref): c for c in index.cells}
     tl = Timeline(index.cells)
@@ -144,7 +145,9 @@ def accept_calculation(project: "Project", candidate_id: str, option: int = 0) -
         " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (cand.deck, dm.slide, dm.shape_id, dm.para, dm.seg, dm.offset, json.dumps(dm.cell), dm.number.raw, "accepted", first.file, first.sheet, first.ref,
          calc.transform, calc.value, 1.0, dm.context[0] if dm.context else "", dm.slide_uid, project._fp_near(dm), "exact", "calculated", "derived", calc.formula))
-    return int(project.db.execute("SELECT last_insert_rowid()").fetchone()[0])
+    new_id = int(project.db.execute("SELECT last_insert_rowid()").fetchone()[0])
+    project.relocate_sources()  # remembers the headings of the cells it uses
+    return new_id
 
 
 def dismiss_calculation(project: "Project", candidate_id: str) -> None:

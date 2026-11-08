@@ -113,8 +113,9 @@ def format_like(old: NumberMention, new_source_value: float, transform: str) -> 
     use_commas = "," in old.raw
     body = f"{rounded:,.{old.decimals}f}" if use_commas else f"{rounded:.{old.decimals}f}"
     m = _NUM_IN_RAW.search(old.raw)
-    prefix = old.raw[: m.start()].replace("(", "").replace("-", "").replace("−", "").replace("–", "")
+    prefix = old.raw[: m.start()].replace("(", "").replace("-", "").replace("−", "").replace("–", "").replace("+", "")
     suffix = old.raw[m.end():].replace(")", "")
+    explicit = old.raw.lstrip()[:1] in ("+", "-", "−", "–")  # a column of changes written with its sign keeps its sign style
     if shown < 0 and rounded != 0:
         return f"({prefix}{body}{suffix})" if old.raw.lstrip().startswith("(") else f"-{prefix}{body}{suffix}"
-    return f"{prefix}{body}{suffix}"
+    return f"{'+' if explicit and rounded != 0 else ''}{prefix}{body}{suffix}"

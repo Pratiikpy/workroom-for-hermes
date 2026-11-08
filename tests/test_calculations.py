@@ -131,3 +131,46 @@ def test_a_calculation_that_turned_over_is_reported_in_percent_words(tmp_path: P
     findings, _ = proj.consequences(proj.plan_refresh())
     turned = [f for f in findings if f.kind == "calculated_turned_over"]
     assert len(turned) == 1 and turned[0].evidence == ("It was +7.9% and would now be -7.1%",)
+
+
+def _retype(root: Path, old: str, new: str) -> None:
+    prs = Presentation(root / "board.pptx")
+    for slide in prs.slides:
+        for sh in slide.shapes:
+            if sh.has_text_frame and old in sh.text_frame.text:
+                for p in sh.text_frame.paragraphs:
+                    for r in p.runs:
+                        if old in r.text:
+                            r.text = r.text.replace(old, new)
+    prs.save(str(root / "board.pptx"))
+
+
+def test_a_number_a_person_corrects_to_exactly_what_the_source_says_stays_managed(tmp_path: Path) -> None:
+    proj = _project(tmp_path, [SENTENCE])
+    _sources(proj.root, 14_000_000, 13_000_000)  # the source moved; the owner fixes the sentence by hand before any release
+    _retype(proj.root, "$15.1 million", "$13.0 million")
+    proj.discover()
+    tie = next(t for t in proj.ties() if t.kind == "text" and t.raw == "$13.0 million")
+    assert tie.state == "accepted" and tie.linked_value == 13_000_000
+    assert proj.plan_refresh().impacts == [], "nothing left to update, and the tie is not held"
+
+
+def test_a_calculation_the_owner_corrects_follows_the_new_direction_and_stays_managed(tmp_path: Path) -> None:
+    proj = _project(tmp_path, [SENTENCE])
+    proj.accept_calculation(proj.calculations().candidates[0].id)
+    _sources(proj.root, 14_000_000, 13_000_000)
+    _retype(proj.root, "$15.1 million", "$13.0 million")
+    _retype(proj.root, "up 7.9%", "down 7.1%")
+    proj.discover()
+    derived = next(t for t in proj.ties() if t.kind == "derived")
+    assert derived.state == "accepted" and derived.raw == "7.1%" and '"cue": "down"' in derived.formula
+    _sources(proj.root, 14_000_000, 12_600_000)
+    texts = {i.old_text: i.new_text for i in proj.plan_refresh().impacts}
+    assert texts == {"$13.0 million": "$12.6 million", "7.1%": "10.0%"}
+
+
+def test_a_number_retyped_to_some_other_value_is_still_held(tmp_path: Path) -> None:
+    proj = _project(tmp_path, [SENTENCE])
+    _retype(proj.root, "$15.1 million", "$15.9 million")
+    proj.discover()
+    assert next(t for t in proj.ties() if t.raw == "$15.1 million").state == "held"

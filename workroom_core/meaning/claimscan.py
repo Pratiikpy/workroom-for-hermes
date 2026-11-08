@@ -73,15 +73,16 @@ def claim_findings(project: "Project", plan: "Plan", roll: dict | None = None) -
     decisions = Decisions(project.db)
     findings: list[Finding] = []
     cov = Coverage()
+    para_text: dict[tuple, tuple[str, str]] = {}  # (file, paragraph key) -> the sentence before and after this release
 
     def tie_for(dm):
         return tied_at.get(project._mkey(dm)) or tied_at.get(project._mkey(dm, f"#{dm.slide}"))
 
-    def make(kind: str, severity: str, rel: str, slide: int, text_b: str, text_a: str, summary: str, evidence: list[str], claim: Claim | None = None, uid: str = "") -> Finding:
+    def make(kind: str, severity: str, rel: str, slide: int, text_b: str, text_a: str, summary: str, evidence: list[str], claim: Claim | None = None, uid: str = "", fid: str = "") -> Finding:
         sug = ""
         if claim and kind in ("claim_flip", "baseline_flip", "record_flip") and opposite_word(claim.cue):
             sug = f"The figures now say the opposite: consider \"{opposite_word(claim.cue)}\" in place of \"{claim.cue}\"."
-        fid = Decisions.key(kind, rel, mask_digits(text_b), text_a)
+        fid = fid or Decisions.key(kind, rel, mask_digits(text_b), text_a)
         return Finding(fid, kind, severity, rel, slide, text_b, text_a, summary, tuple(evidence), sug)
 
     moved = {k for k in now if now[k] != then[k]} or ({"roll"} if roll else set())
@@ -96,6 +97,7 @@ def claim_findings(project: "Project", plan: "Plan", roll: dict | None = None) -
             continue
         for key, (text_b, mentions_b) in old.items():
             text_a, mentions_a = new.get(key, ("", []))
+            para_text[(rel, key)] = (text_b, text_a or text_b)
             if not text_a or len(mentions_a) != len(mentions_b) or not any(tie_for(d) for d in mentions_b):
                 continue
             changed_text = text_a != text_b
@@ -106,6 +108,15 @@ def claim_findings(project: "Project", plan: "Plan", roll: dict | None = None) -
                 cov.not_checked.append(f"{rel} slide {mentions_b[0].slide}: the number of figures changed in the sentence, so it was not compared")
                 continue
             cov.sentences_checked += 1
+            if changed_text:
+                for f in figs_b:
+                    dm0 = next((d for d in mentions_b if d.para_offset == f.start), None) or next((d for d in mentions_b if d.number.raw == f.raw), None)
+                    if dm0 is None or tie_for(dm0) is not None or (f.unit == "plain" and f.raw.replace(",", "").replace(".", "").isdigit() and abs(f.value) < 10):
+                        continue
+                    findings.append(make("untied_figure", "medium", rel, mentions_b[0].slide, text_b, text_a,
+                                         f"\"{f.raw}\" in a sentence this release changes is not tied to any source, so nothing updates it",
+                                         ["Check whether it still holds; if a calculation over the tied figures reproduces it, accept that calculation so it follows"],
+                                         fid=Decisions.key("untied", rel, mask_digits(text_b), f.raw)))
             reading = read_claims(text_b, figs_b)
             cov.not_checked.extend(f"{rel} slide {mentions_b[0].slide}: {n}" for n in reading.not_checked)
             vb, va = [f.value for f in figs_b], [f.value for f in figs_a]
@@ -161,8 +172,17 @@ def claim_findings(project: "Project", plan: "Plan", roll: dict | None = None) -
                 if hb and not ha:
                     findings.append(make("baseline_flip", "medium", rel, slide, text_b, text_a, f"\"{claim.cue}\" about {f.raw} no longer holds against either earlier period",
                                          [f"{_tag(cell_a)}: {_num(val_a)}; " + "; ".join(f"{_tag(b)} {_num(now[(b.file, b.sheet, b.ref)])}" for b in bases_a)], claim))
+    for item in (roll or {}).get("turned", []):
+        t = next((x for x in ties if x.id == item["id"]), None)
+        if t is None:
+            continue
+        key = (t.slide_uid or f"#{t.slide}", t.shape_id, t.para, t.cell_rc)
+        before, after = para_text.get((t.deck, key), (t.context, t.context))
+        findings.append(Finding(Decisions.key("calc_turned", t.deck, t.slide_uid, t.shape_id, t.para, t.raw), "calculated_turned_over", "high", t.deck, t.slide, before, after,
+                                f"\"{t.raw}\" is a calculated change that would turn the other way next period, so it was not rolled",
+                                (f"It was {_calc_shown(t, item['old'])} and would now be {_calc_shown(t, item['new'])}",), ""))
     for t in ties:
-        if t.kind == "derived" and t.state in ("accepted", "confirmed"):
+        if t.kind == "derived" and not roll and t.state in ("accepted", "confirmed"):
             new_value = project._tie_value(t, now)
             if new_value is not None and new_value != t.linked_value and not project._sign_fits(t, new_value):
                 findings.append(Finding(Decisions.key("calc_turned", t.deck, t.slide_uid, t.shape_id, t.para, t.raw), "calculated_turned_over", "high", t.deck, t.slide, t.context, t.context,

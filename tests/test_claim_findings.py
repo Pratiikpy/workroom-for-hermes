@@ -99,7 +99,7 @@ def test_a_claim_about_a_figure_with_no_source_is_reported_as_not_checked(tmp_pa
     proj = _project(tmp_path, "Net revenue reached $15.1 million in Q3 2026. Headcount grew to 241.")
     _sources(proj.root, q3=13_000_000)
     findings, cov = proj.consequences(proj.plan_refresh())
-    assert findings == []
+    assert [f.kind for f in findings] == ["untied_figure"] and "241" in findings[0].summary and findings[0].severity == "medium"
     assert [n for n in cov.not_checked if "241" in n and "not tied to a source cell" in n], cov.not_checked
 
 

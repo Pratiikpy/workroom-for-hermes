@@ -142,7 +142,7 @@ def explain(number: NumberMention, para_pool: list[Operand], slide_pool: list[Op
 
 
 def _search(number: NumberMention, pool: list[Operand], cue: str, scope: str) -> list[Calc]:
-    pool = list({o.key: o for o in pool}.values())[:12]
+    pool = list({o.key: o for o in pool}.values())[:30]
     out: dict[tuple, Calc] = {}
     pairs = list(itertools.permutations(pool, 2))
     for a, b in pairs:
@@ -156,7 +156,7 @@ def _search(number: NumberMention, pool: list[Operand], cue: str, scope: str) ->
             t = _fits(number, op, v, a.family, cue)
             if t:
                 out[(op, a.key, b.key)] = Calc(op, (a, b), v, t, scope, cue)
-    if number.unit not in ("percent", "pp") and len(pool) <= 8:
+    if number.unit not in ("percent", "pp") and len([o for o in pool if o.role == "cell"]) <= 8:
         for size in (2, 3):
             for combo in itertools.combinations(pool, size):
                 if len({o.family for o in combo}) != 1 or any(o.role != "cell" for o in combo):

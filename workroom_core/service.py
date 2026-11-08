@@ -257,7 +257,7 @@ class Service:
     @staticmethod
     def _tie_view(t) -> dict[str, Any]:
         return {"id": t.id, "deck": t.deck, "slide": t.slide, "text": t.raw, "sentence": t.context,
-                "source": f"{t.src_file} {t.sheet}!{t.ref}", "state": t.state}
+                "source": f"{t.src_file} {t.sheet}!{t.ref}", "state": t.state, "note": t.held_note if t.state == "confirm" else ""}
 
     @_closing
     def ties(self, pid: str) -> list[dict[str, Any]]:
@@ -1024,7 +1024,7 @@ class Service:
         meta_dir.mkdir(parents=True, exist_ok=True)
         flags, coverage = self._flags(proj, plan)
         (meta_dir / f"{rid}.json").write_text(
-            json.dumps({"changes": self._changes(proj, plan), "held": plan.skipped, "flags": flags, "coverage": coverage}), encoding="utf-8")
+            json.dumps({"changes": self._changes(proj, plan), "held": plan.skipped, "flags": flags, "coverage": coverage, "notes": plan.notes}), encoding="utf-8")
         try:
             ctl.mark_verified(rid, findings)
         except NotReady:
@@ -1051,7 +1051,7 @@ class Service:
         meta_dir = self.data_dir / "projects" / pid / "meta"
         meta_dir.mkdir(parents=True, exist_ok=True)
         flags, coverage = self._flags(proj, plan, plan.meta())
-        meta = {"changes": self._changes(proj, plan), "held": plan.not_rolled, "kept": plan.kept, "flags": flags, "coverage": coverage, "rolled": plan.meta()}
+        meta = {"changes": self._changes(proj, plan), "held": plan.not_rolled, "kept": plan.kept, "flags": flags, "coverage": coverage, "rolled": plan.meta(), "notes": plan.notes}
         (meta_dir / f"{rid}.json").write_text(json.dumps(meta), encoding="utf-8")
         try:
             ctl.mark_verified(rid, findings)
@@ -1158,6 +1158,7 @@ class Service:
                 found = proj.locate_born(rel, staged[rel], [tuple(o) for o in created["occurrences"]], values)
                 proj.register_born_ties(rel, found, created["receipts"], values)
                 proj.register_chart_ties(rel, proj.locate_charts(rel, staged[rel], created.get("chart_points", []), values), values)
+            proj.relocate_sources()  # the new ties remember the headings of their source cells
         else:
             rolled = json.loads(meta_path.read_text(encoding="utf-8")).get("rolled") if meta_path.exists() else None
             if rolled:
@@ -1209,7 +1210,7 @@ class Service:
         flags = [{**f, "decision": decided.get(f["id"]) or ""} for f in meta.get("flags", [])]
         return {"release_id": release_id, "state": state, "digest": digest, "changes": meta["changes"], "held": meta["held"], "findings": findings,
                 "created": bool(meta.get("created")), "figures": meta.get("figures", []), "edited_page": bool(meta.get("edited_page")),
-                "flags": flags, "coverage": meta.get("coverage", {}), "rolled": self._rolled_summary(meta.get("rolled")), "kept": meta.get("kept", []),
+                "flags": flags, "coverage": meta.get("coverage", {}), "rolled": self._rolled_summary(meta.get("rolled")), "kept": meta.get("kept", []), "notes": meta.get("notes", []),
                 "needs_acknowledgement": [f["id"] for f in flags if f["severity"] == "high" and not f["decision"]]}
 
     @_closing
