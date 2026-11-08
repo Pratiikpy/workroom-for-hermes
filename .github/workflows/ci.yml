@@ -1,0 +1,21 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  kernel:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.11", "3.14"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: workroom
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          allow-prereleases: true
+      - run: pip install -r workroom/requirements-dev.txt
+      - run: python -m pytest workroom/tests -q
+      - run: python -c "import json,sys; sys.path.insert(0,'.'); from workroom.workroom_core import selftest; r=selftest.run(); print(json.dumps(r)); sys.exit(0 if r['passed'] else 1)"

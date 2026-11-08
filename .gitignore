@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+bench/*_result.json
+.playwright-mcp/
+bench/ui_shots/
+bench/ui_harness/

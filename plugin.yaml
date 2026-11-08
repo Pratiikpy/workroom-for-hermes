@@ -1,0 +1,26 @@
+name: workroom
+version: 0.1.0
+manifest_version: 2
+api_version: 1
+description: "Workroom: keeps reports and decks tied to their source numbers, edits only what must change, protects your own edits, and releases one approved, recoverable update."
+license: MIT
+tags: [documents, office, verification]
+requires_hermes: ">=0.23.0"
+python_dependencies:
+  - "lxml>=5.0,<7"
+provides_tools:
+  - workroom_status
+  - workroom_add_project
+  - workroom_discover
+  - workroom_plan
+  - workroom_explain_figure
+  - workroom_selftest
+  - workroom_stage_release
+provides_hooks:
+  - pre_tool_call
+config_schema:
+  approvers:
+    type: list
+    default: []
+    label: People allowed to approve releases from a messaging chat
+    description: "Entries look like telegram:123456789. Local CLI and Desktop sessions are always allowed."
