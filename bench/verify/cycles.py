@@ -92,11 +92,22 @@ class QuarterlyDeck:
             pct = abs(cur / prev - 1) * 100
             P, Pp = self.labels[i], self.labels[i - 1]
             out[f"A {nm}"] = f"{nm} reached {fmt(cur)} in {P}, {'up' if cur > prev else 'down'} {pct:.1f}% from {fmt(prev)} in {Pp}."
-            out[f"B {nm}"] = f"{nm} {'rose' if cur > prev else 'fell'} to {fmt(cur)} in {P}."
+            out[f"B {nm}"] = f"{nm} {'held steady at' if fmt(cur) == fmt(prev) else 'rose to' if cur > prev else 'fell to'} {fmt(cur)} in {P}."
             history = [self.value(sid, j) for j in range(max(0, i - 8), i)]
             out[f"R {nm}"] = f"Record {nm.lower()} of {fmt(cur)} in {P}." if cur >= max(history) else None
             out[f"N {nm}"] = f"Say: {nm.lower()} was {fmt(cur)} in {P}."
         return out
+
+    def b_wording_true(self, key: str, text: str, n: int) -> bool | None:
+        """Is the direction word in a "rose to / fell to / held steady at" sentence true of the data? None when the key is not such a sentence."""
+        if not key.startswith("B "):
+            return None
+        nm = key[2:]
+        sid = next(sid for name, sid, _ in QUARTERLY if name == nm)
+        fmt = next(f for name, _, f in QUARTERLY if name == nm)
+        i = self.first + n
+        cur, prev = self.value(sid, i), self.value(sid, i - 1)
+        return ("rose to" in text and cur > prev) or ("fell to" in text and cur < prev) or ("held steady at" in text and fmt(cur) == fmt(prev))
 
     def build(self, root: Path) -> None:
         prs = Presentation()
@@ -259,8 +270,17 @@ class MonthlyReport:
             cur, prev = self.value(sid, i), self.value(sid, i - 1)
             P, Pp = self.labels[i], self.labels[i - 1]
             out[f"A {nm}"] = f"The {nm.lower()} was {self.fmt(sid, cur)} in {P}, {'up' if cur > prev else 'down'} {self.delta(sid, cur, prev)} from {self.fmt(sid, prev)} in {Pp}."
-            out[f"B {nm}"] = f"The {nm.lower()} {'rose' if cur > prev else 'fell'} to {self.fmt(sid, cur)} in {P}."
+            out[f"B {nm}"] = f"The {nm.lower()} {'held steady at' if self.fmt(sid, cur) == self.fmt(sid, prev) else 'rose to' if cur > prev else 'fell to'} {self.fmt(sid, cur)} in {P}."
         return out
+
+    def b_wording_true(self, key: str, text: str, n: int) -> bool | None:
+        if not key.startswith("B "):
+            return None
+        nm = key[2:]
+        sid = next(sid for name, sid in MONTHLY if name == nm)
+        i = self.first + n
+        cur, prev = self.value(sid, i), self.value(sid, i - 1)
+        return ("rose to" in text and cur > prev) or ("fell to" in text and cur < prev) or ("held steady at" in text and self.fmt(sid, cur) == self.fmt(sid, prev))
 
     def build(self, root: Path) -> None:
         doc = Document()
@@ -359,7 +379,7 @@ def run(kind, folder: Path, cycles: int, mode: str) -> dict:
             acked = True
         releases.append(staged["release_id"])
         got, want = kind.read(root), {**kind.sentences(n), **kind.table_expected(n)}
-        wrong_silent, wrong_reported, ok = [], [], 0
+        wrong_silent, wrong_reported, ok, equivalent = [], [], 0, 0
         for key, expect in want.items():
             actual = got.get(key)
             if actual is None and expect is None:
@@ -369,13 +389,16 @@ def run(kind, folder: Path, cycles: int, mode: str) -> dict:
                 continue
             if actual is None:
                 continue  # a sentence the template now writes that the owner's document never had: nothing for Workroom to roll
+            if kind.b_wording_true(key, actual, n) and nums(actual) == nums(expect or ""):
+                equivalent += 1  # the sentence says something else than the template does, but it is still true of the data
+                continue
             told = [f for f in flags if f["sentence_after"] and (f["sentence_after"] == actual or f["sentence_after"] in actual or f["sentence_before"] == actual)]
             (wrong_reported if told else wrong_silent).append({"element": key, "found": actual, "expected": expect})
         correct = {got[k] for k in got if got.get(k) is not None and got.get(k) == want.get(k)}
         false_alarms = [f["summary"][:80] for f in flags if f["severity"] in ("high", "medium") and f["sentence_after"] in correct]
         row.update({"seconds": round(time.time() - t0, 1), "figures_rolled": staged["figures"], "period_words": staged["period_words"], "flags": {s: sum(1 for f in flags if f["severity"] == s) for s in ("high", "medium", "info")},
-                    "acknowledged": acked, "elements_exact": ok, "differences_reported": len(wrong_reported), "differences_silent": len(wrong_silent), "false_alarms": len(false_alarms),
-                    "claims_read": staged["coverage"].get("claims_read"), "not_checked": staged["coverage"].get("not_checked_count"), "silent_detail": wrong_silent[:3]})
+                    "acknowledged": acked, "elements_exact": ok, "still_true_other_wording": equivalent, "differences_reported": len(wrong_reported), "differences_silent": len(wrong_silent), "false_alarms": len(false_alarms),
+                    "claims_read": staged["coverage"].get("claims_read"), "not_checked": staged["coverage"].get("not_checked_count"), "silent_detail": wrong_silent[:3], "false_alarm_detail": false_alarms[:2]})
         saved[n] = (root / kind.file).read_bytes()
         if mode == "owner":
             fixed = kind.rewrite(root, want)
@@ -418,6 +441,8 @@ def main() -> None:
             print("  ", json.dumps({a: b for a, b in c.items() if a != "silent_detail"}))
             for d in c.get("silent_detail", []):
                 print("      SILENT:", json.dumps(d)[:420])
+            for d in c.get("false_alarm_detail", []):
+                print("      FALSE ALARM:", d)
     if ns.out:
         Path(ns.out).write_text(json.dumps(results, indent=1), encoding="utf-8")
 

@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from ..match.numbers import format_like
-from .calc import Calc, Operand, direction_cue, explain
+from .calc import Calc, Operand, direction_cue, explain, sign_style
 from .decisions import Decisions
 from .timeline import Timeline
 
@@ -105,7 +105,7 @@ def find_calculations(project: "Project") -> Scan:
             text = dm.context[0] if dm.context else ""
             pos = dm.para_offset if dm.para_offset is not None else max(text.find(dm.number.raw), 0)
             cue = direction_cue(text, pos, pos + len(dm.number.raw))
-            scope, found = explain(dm.number, _operands(project, para_ties, cells, tl), _operands(project, slide_ties, cells, tl), cue)
+            scope, found = explain(dm.number, _operands(project, para_ties, cells, tl), _operands(project, slide_ties, cells, tl), cue, sign_style(text, pos, dm.number))
             if not found:
                 if dm.number.unit == "percent":
                     unexplained.append({"deck": rel, "slide": dm.slide, "figure": dm.number.raw, "sentence": text[:160]})

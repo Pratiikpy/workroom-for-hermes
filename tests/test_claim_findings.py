@@ -60,7 +60,7 @@ def test_a_record_that_a_restated_earlier_period_breaks_is_found_even_though_the
     assert "Q2 2026 Net revenue 15,500,000" in " ".join(findings[0].evidence) and "Q3 2026 Net revenue: 15,100,000" in " ".join(findings[0].evidence)
 
 
-def _two_baselines(tmp_path: Path, q3: float) -> Project:
+def _baseline_project(tmp_path: Path, q3: float, text: str = "Net revenue grew to $15.1 million in Q3 2026.") -> Project:
     root = tmp_path / "proj"
     root.mkdir(parents=True)
     with Workbook(str(root / "results.xlsx")) as wb:
@@ -70,29 +70,44 @@ def _two_baselines(tmp_path: Path, q3: float) -> Project:
     prs = Presentation()
     slide = prs.slides.add_slide(prs.slide_layouts[5])
     slide.shapes.title.text = "Review"
-    slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(9), Inches(1)).text_frame.text = "Net revenue grew to $15.1 million in Q3 2026."
+    slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(9), Inches(1)).text_frame.text = text
     prs.save(str(root / "board.pptx"))
     proj = Project(root, tmp_path / "state")
     proj.discover()
     return proj
 
 
-def test_a_direction_against_an_unnamed_baseline_is_flagged_only_when_every_baseline_disagrees(tmp_path: Path) -> None:
-    both_fail = _two_baselines(tmp_path / "a", 15_100_000)
-    with Workbook(str(both_fail.root / "results.xlsx")) as wb:
+def _restate(proj: Project, q3: float) -> None:
+    with Workbook(str(proj.root / "results.xlsx")) as wb:
         ws = wb.add_worksheet("Results")
         ws.write_row(0, 0, ["Metric", "Q3 2025", "Q2 2026", "Q3 2026"])
-        ws.write_row(1, 0, ["Net revenue", 14_000_000, 13_000_000, 12_000_000])
-    findings, _ = both_fail.consequences(both_fail.plan_refresh())
-    assert [f.kind for f in findings] == ["baseline_flip"] and findings[0].severity == "medium"
-    assert "Q2 2026" in " ".join(findings[0].evidence) and "Q3 2025" in " ".join(findings[0].evidence)
+        ws.write_row(1, 0, ["Net revenue", 14_000_000, 13_000_000, q3])
 
-    one_holds = _two_baselines(tmp_path / "b", 15_100_000)
-    with Workbook(str(one_holds.root / "results.xlsx")) as wb:
-        ws = wb.add_worksheet("Results")
-        ws.write_row(0, 0, ["Metric", "Q3 2025", "Q2 2026", "Q3 2026"])
-        ws.write_row(1, 0, ["Net revenue", 14_000_000, 13_000_000, 13_500_000])  # below the year earlier, above the previous quarter
-    assert one_holds.consequences(one_holds.plan_refresh())[0] == [], "a claim that holds against one plausible baseline is not flagged"
+
+def test_an_unqualified_direction_is_checked_against_the_previous_period(tmp_path: Path) -> None:
+    proj = _baseline_project(tmp_path / "a", 15_100_000)
+    _restate(proj, 12_000_000)  # below the previous quarter (13.0)
+    findings, _ = proj.consequences(proj.plan_refresh())
+    assert [f.kind for f in findings] == ["baseline_flip"] and findings[0].severity == "medium" and "the previous period" in findings[0].summary
+    assert "Q2 2026" in " ".join(findings[0].evidence)
+
+    still = _baseline_project(tmp_path / "b", 15_100_000)
+    _restate(still, 13_500_000)  # below the year earlier (14.0) but above the previous quarter, which is what "grew" means here
+    assert still.consequences(still.plan_refresh())[0] == []
+
+
+def test_a_sentence_that_says_year_over_year_is_checked_against_the_year_earlier(tmp_path: Path) -> None:
+    proj = _baseline_project(tmp_path, 15_100_000, "Net revenue grew to $15.1 million in Q3 2026, year over year.")
+    _restate(proj, 13_500_000)
+    findings, _ = proj.consequences(proj.plan_refresh())
+    assert [f.kind for f in findings] == ["baseline_flip"] and "the year earlier" in findings[0].summary and "Q3 2025" in " ".join(findings[0].evidence)
+
+
+def test_held_steady_is_read_and_checked(tmp_path: Path) -> None:
+    proj = _baseline_project(tmp_path, 13_004_000, "Net revenue held steady at $13.0 million in Q3 2026.")
+    _restate(proj, 14_500_000)
+    findings, _ = proj.consequences(proj.plan_refresh())
+    assert [f.kind for f in findings] == ["baseline_flip"] and '"held steady"' in findings[0].summary
 
 
 def test_a_claim_about_a_figure_with_no_source_is_reported_as_not_checked(tmp_path: Path) -> None:

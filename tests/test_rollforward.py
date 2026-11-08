@@ -117,3 +117,12 @@ def test_the_chat_card_describes_a_roll(tmp_path: Path) -> None:
 
     out = make_approve_command(lambda: svc, ask, lambda: [])("", platform=None)
     assert out.startswith("Published") and "rolls your documents forward 1 period" in asked[0] and "Restore undoes the whole roll" in asked[0]
+
+
+def test_a_roll_that_makes_two_figures_read_the_same_does_not_call_a_true_comparison_false(tmp_path: Path) -> None:
+    rows = [["Net revenue", 13_000_000, 14_000_000, 15_000_000, 15_040_000], ROWS[1]]  # Q4 is above Q3 on the source values, yet both will read $15.0 million
+    svc, pid, root = _setup(tmp_path, body=["Net revenue reached $15.0 million in Q3 2026, up from $14.0 million in Q2 2026."], rows=rows)
+    staged = svc.stage_rollforward(pid)
+    assert staged["state"] == "awaiting_approval" and all(f["kind"] != "claim_flip" for f in staged["flags"]), staged["flags"]
+    svc.approve_and_publish(pid, staged["release_id"], staged["digest"], acknowledge=True)
+    assert "Net revenue reached $15.0 million in Q4 2026, up from $15.0 million in Q3 2026." in _texts(root)

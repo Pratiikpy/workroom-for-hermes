@@ -671,10 +671,10 @@ class Project:
         """What the planned update means for the sentences around the numbers: claims it makes false, and what could not be checked."""
         from .meaning.claimscan import claim_findings
         from .meaning.findings import sort_findings
-        from .meaning.surfaces import clipped_charts, stale_mentions, stale_period_words
+        from .meaning.surfaces import clipped_charts, surface_findings
 
         found, cov = claim_findings(self, plan, roll)
-        merged = {f.id: f for f in found + stale_mentions(self, plan, roll) + stale_period_words(self, plan, roll) + clipped_charts(self, plan)}
+        merged = {f.id: f for f in found + surface_findings(self, plan, roll) + clipped_charts(self, plan)}
         return sort_findings(list(merged.values())), cov
 
     def _hand_rolled(self, t: Tie, dm: DocMention, index, values: dict[tuple[str, str, str], float]) -> dict | None:
@@ -685,7 +685,7 @@ class Project:
 
         tl = Timeline(index.cells)
         cells = {(c.file, c.sheet, c.ref): c for c in index.cells}
-        found: list[dict] = []
+        found: list[tuple[int, dict]] = []
         for k in (1, 2, 3, 4, -1, -2, -3, -4):
             if t.kind == "derived":
                 try:
@@ -705,13 +705,20 @@ class Project:
                 nf = json.dumps({**{a: b for a, b in f.items() if a != "labels"}, "terms": terms})
                 v = evaluate(nf, values)
                 if v is not None and self._shows(dm.number, t, v):
-                    found.append({"src": tuple(terms[0]), "value": v, "formula": nf})
+                    found.append((k, {"src": tuple(terms[0]), "value": v, "formula": nf}))
             else:
                 c = cells.get((t.src_file, t.sheet, t.ref))
                 nxt = tl.shifted(c, k) if c is not None else None
                 if nxt is not None and consistent_with_source(dm.number, nxt.value)[0]:
-                    found.append({"src": (nxt.file, nxt.sheet, nxt.ref), "value": nxt.value, "formula": None})
-        return found[0] if len(found) == 1 else None
+                    found.append((k, {"src": (nxt.file, nxt.sheet, nxt.ref), "value": nxt.value, "formula": None}))
+        if not found:
+            return None
+        # the nearest period wins, forward before backward; two equally near periods are not guessed between
+        found.sort(key=lambda kv: (abs(kv[0]), -kv[0]))
+        if len(found) > 1 and abs(found[0][0]) == abs(found[1][0]):
+            return None
+        return found[0][1]
+
 
     @staticmethod
     def _display_value(t: Tie, value: float) -> float:

@@ -11,6 +11,7 @@ class Decisions:
     def __init__(self, db: sqlite3.Connection) -> None:
         self.db = db
         db.execute("CREATE TABLE IF NOT EXISTS decisions (key TEXT PRIMARY KEY, kind TEXT, decision TEXT, note TEXT, at REAL)")
+        db.execute("CREATE TABLE IF NOT EXISTS open_items (key TEXT PRIMARY KEY, payload TEXT)")
 
     @staticmethod
     def key(*parts: object) -> str:
@@ -29,3 +30,13 @@ class Decisions:
     def all(self, kind: str | None = None) -> list[tuple[str, str, str, str]]:
         q = "SELECT key, kind, decision, note FROM decisions" + (" WHERE kind=?" if kind else "") + " ORDER BY at"
         return self.db.execute(q, (kind,) if kind else ()).fetchall()
+
+    # Findings about text Workroom does not rewrite stay open until the owner changes that text or dismisses them.
+    def open_put(self, key: str, payload: str) -> None:
+        self.db.execute("INSERT OR REPLACE INTO open_items (key, payload) VALUES (?,?)", (key, payload))
+
+    def open_drop(self, key: str) -> None:
+        self.db.execute("DELETE FROM open_items WHERE key=?", (key,))
+
+    def open_all(self) -> list[tuple[str, str]]:
+        return self.db.execute("SELECT key, payload FROM open_items").fetchall()

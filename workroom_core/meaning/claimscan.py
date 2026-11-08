@@ -38,6 +38,21 @@ def _calc_shown(t, value: float) -> str:
     return f"{value * 100:+.1f}%" if t.transform == "fraction_to_percent" else format(value, "+,.10g")
 
 
+_YEAR_WORDS = re.compile(r"year[- ]over[- ]year|\byoy\b|\by/y\b|a year (?:ago|earlier)|annual|last year|prior year|same (?:month|quarter) (?:a year |last year)", re.I)
+
+
+def _same_shown(a: float, b: float, raw: str, transform: str) -> bool:
+    """Do two source values read as the same figure once written the way the sentence writes it (same unit, same rounding)?"""
+    from ..match.numbers import _TRANSFORMS, parse_numbers
+
+    found = parse_numbers(raw)
+    if not found:
+        return a == b
+    m = found[0]
+    f = _TRANSFORMS.get(transform) or _TRANSFORMS["exact"]
+    return round(f(a, m.scale), m.decimals) == round(f(b, m.scale), m.decimals)
+
+
 def _num(v: float) -> str:
     return format(v, ",.10g")
 
@@ -127,7 +142,23 @@ def claim_findings(project: "Project", plan: "Plan", roll: dict | None = None) -
                 if claim.pattern in ("direction_from_to", "direction_to_from", "figure_direction_from", "figure_than", "figure_compared"):
                     if not changed_text:
                         continue
-                    hb, ha = holds(claim, vb), holds(claim, va)
+                    vb2, va2 = list(vb), list(va)
+                    both = []
+                    for idx in (claim.a, claim.b):
+                        fi = figs_b[idx]
+                        dmi = by_start.get(fi.start) or next((d for d in mentions_b if d.number.raw == fi.raw), None)
+                        ti = tie_for(dmi) if dmi is not None else None
+                        ci = cells.get((ti.src_file, ti.sheet, ti.ref)) if ti is not None and ti.kind == "text" else None
+                        if ci is None:
+                            both.append(None)
+                            continue
+                        ca = cells.get(roll_to[ti.id]) if ti.id in roll_to else ci
+                        both.append((ti.linked_value if ti.id in roll_to else then[(ci.file, ci.sheet, ci.ref)], now[(ca.file, ca.sheet, ca.ref)]))
+                    if all(both):
+                        # both figures are tied: judge the comparison on the source values, not on the rounded numbers the sentence shows
+                        vb2[claim.a], va2[claim.a] = both[0]
+                        vb2[claim.b], va2[claim.b] = both[1]
+                    hb, ha = holds(claim, vb2), holds(claim, va2)
                     if hb and not ha:
                         findings.append(make("claim_flip", "high", rel, slide, text_b, text_a,
                                              f"\"{_phrase(text_b, figs_b, claim)}\" was true and is not true after this update",
@@ -161,16 +192,19 @@ def claim_findings(project: "Project", plan: "Plan", roll: dict | None = None) -
                     elif not pb and not pa:
                         findings.append(make("claim_already_false", "info", rel, slide, text_b, text_a, f"\"{claim.cue}\" for {f.raw} did not hold before this update either", shown, claim))
                     continue
-                bases_b = [b for b in (tl.previous(cell_b), tl.year_ago(cell_b)) if b is not None]
-                bases_a = [b for b in (tl.previous(cell_a), tl.year_ago(cell_a)) if b is not None]
+                yoy = bool(_YEAR_WORDS.search(text_b))
+                pick = tl.year_ago if yoy else tl.previous
+                bases_b = [b for b in (pick(cell_b),) if b is not None]
+                bases_a = [b for b in (pick(cell_a),) if b is not None]
+                which = "the year earlier" if yoy else "the previous period"
                 if not bases_a:
-                    cov.not_checked.append(f"{rel} slide {slide}: \"{claim.cue}\" about {f.raw} was not checked: no earlier period in the workbook to compare with")
+                    cov.not_checked.append(f"{rel} slide {slide}: \"{claim.cue}\" about {f.raw} was not checked: no {'year-earlier' if yoy else 'earlier'} period in the workbook to compare with")
                     continue
-                cmp = (lambda a, b: a > b) if claim.relation == "gt" else (lambda a, b: a < b)
+                cmp = {"gt": lambda a, b: a > b, "lt": lambda a, b: a < b, "eq": lambda a, b: _same_shown(a, b, f.raw, tie.transform)}[claim.relation]
                 hb = any(cmp(val_b, then[(b.file, b.sheet, b.ref)]) for b in bases_b)
                 ha = any(cmp(val_a, now[(b.file, b.sheet, b.ref)]) for b in bases_a)
                 if hb and not ha:
-                    findings.append(make("baseline_flip", "medium", rel, slide, text_b, text_a, f"\"{claim.cue}\" about {f.raw} no longer holds against either earlier period",
+                    findings.append(make("baseline_flip", "medium", rel, slide, text_b, text_a, f"\"{claim.cue}\" about {f.raw} no longer holds against {which}",
                                          [f"{_tag(cell_a)}: {_num(val_a)}; " + "; ".join(f"{_tag(b)} {_num(now[(b.file, b.sheet, b.ref)])}" for b in bases_a)], claim))
     for item in (roll or {}).get("turned", []):
         t = next((x for x in ties if x.id == item["id"]), None)

@@ -36,11 +36,13 @@ _UNANCHORED: list[tuple[str, re.Pattern[str]]] = [
     ("direction_to", re.compile(rf"\b(?P<v>{_UP}|{_DOWN})\b{_G(40)}\bto\b{_G(15)}⟦(?P<a>\d+)⟧", re.I)),
     ("figure_direction", re.compile(rf"⟦(?P<a>\d+)⟧{_G(25)}\b(?P<v>{_UP}|{_DOWN})\b", re.I)),
 ]
+_STABLE = r"(?:held steady|held flat|remained (?:steady|stable|flat|unchanged)|unchanged|flat|steady|stable|little changed)"
+_UNANCHORED.append(("stable_at", re.compile(rf"\b(?P<v>{_STABLE})\b{_G(25)}\bat\b{_G(10)}⟦(?P<a>\d+)⟧", re.I)))
 _RANK_BEFORE = re.compile(rf"\b(?P<c>{_HIGH}|{_LOW})\b{_G(40)}⟦(?P<a>\d+)⟧", re.I)
 _RANK_AFTER = re.compile(rf"⟦(?P<a>\d+)⟧{_G(40)}\b(?P<c>{_HIGH}|{_LOW})\b", re.I)
 _UP_WORDS = re.compile(rf"^(?:{_UP}|higher|greater|more|larger|bigger|{_ABOVE})$", re.I)
 _SIGN_AMBIGUOUS = re.compile(r"\b(?:loss(?:es)?|deficit|negative|burn)\b", re.I)
-_CUE = re.compile(rf"\b(?:{_UP}|{_DOWN}|{_ABOVE}|{_BELOW}|{_HIGH}|{_LOW})\b", re.I)
+_CUE = re.compile(rf"\b(?:{_UP}|{_DOWN}|{_ABOVE}|{_BELOW}|{_HIGH}|{_LOW}|{_STABLE})\b", re.I)
 
 
 @dataclass(frozen=True)
@@ -55,8 +57,8 @@ class Figure:
 
 @dataclass(frozen=True)
 class Claim:
-    pattern: str  # direction_from_to | direction_to_from | figure_direction_from | figure_than | figure_compared | direction_to | figure_direction | rank
-    relation: str  # gt | lt | max | min (for direction_to and figure_direction, gt and lt mean: against the previous period)
+    pattern: str  # direction_from_to | direction_to_from | figure_direction_from | figure_than | figure_compared | direction_to | figure_direction | stable_at | rank
+    relation: str  # gt | lt | eq | max | min (for direction_to, figure_direction and stable_at, the comparison is against the previous period, or the year earlier when the sentence says so)
     a: int  # the figure the sentence is about
     b: int | None  # the figure it is compared with (none for a rank claim)
     cue: str
@@ -149,6 +151,10 @@ def read_claims(text: str, figs: list[Figure] | None = None) -> Reading:
                 if any(c.a == a or c.b == a for c in claims) or _SIGN_AMBIGUOUS.search(_sentence(token, m)):
                     continue
                 word = m.group("v")
+                if name == "stable_at":
+                    claims.append(Claim(name, "eq", a, None, word, (m.start(), m.end()), token[m.start():m.end()]))
+                    cues_used.add(word.lower())
+                    continue
                 add(name, m, bool(_UP_WORDS.match(word)), a, None, word)
     token = _tokenised(text, figs, False)
     for m in _CUE.finditer(token):

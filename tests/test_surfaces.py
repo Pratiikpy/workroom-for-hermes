@@ -88,3 +88,35 @@ def test_an_automatic_axis_or_a_value_inside_the_limit_raises_nothing(tmp_path: 
     proj = Project(root, tmp_path / "state")
     assert clipped_charts(proj, Plan(files={"c.pptx": _chart_deck(None, 99.0)})) == []
     assert clipped_charts(proj, Plan(files={"c.pptx": _chart_deck(20.0, 15.8)})) == []
+
+
+def test_a_stale_note_stays_reported_every_cycle_until_the_owner_changes_it(tmp_path: Path) -> None:
+    from workroom.workroom_core.service import NeedsAcknowledgement, Service
+
+    root = tmp_path / "proj"
+    root.mkdir()
+    _sources(root, 15_100_000)
+    _deck_with_hidden_numbers(root)
+    svc = Service(tmp_path / "state")
+    pid = svc.add_project(str(root))["project"]
+    svc.discover(pid)
+
+    def release(q3: float) -> list[dict]:
+        _sources(root, q3)
+        staged = svc.stage(pid)
+        try:
+            svc.approve_and_publish(pid, staged["release_id"], staged["digest"])
+        except NeedsAcknowledgement:
+            svc.approve_and_publish(pid, staged["release_id"], staged["digest"], acknowledge=True)
+        return [f for f in staged["flags"] if f["kind"] == "stale_mention"]
+
+    assert len(release(13_000_000)) == 1
+    again = release(12_000_000)  # the note still says $15.1 million, which is not the value that just changed
+    assert len(again) == 1 and "$15.1 million" in again[0]["summary"], "the open item carries forward"
+    prs = Presentation(root / "board.pptx")
+    prs.slides[0].notes_slide.notes_text_frame.text = "Say: net revenue was $12.0 million this quarter."
+    prs.save(str(root / "board.pptx"))
+    svc.discover(pid)
+    after = release(11_000_000)
+    assert all("$15.1 million" not in f["summary"] for f in after), "once the owner changes the note, the old item is no longer reported"
+    assert len(after) == 1 and "$12.0 million" in after[0]["summary"], "the note now holds the value that has just been superseded, which is its own new finding"

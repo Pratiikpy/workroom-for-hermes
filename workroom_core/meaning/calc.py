@@ -45,10 +45,11 @@ class Calc:
     transform: str
     scope: str  # paragraph | slide
     cue: str  # up | down | ""
+    signed: bool = False  # the figure carries its own sign (+0.8%, -0.8%, (0.8%)); the calculation's sign is shown, not turned into words
 
     @property
     def formula(self) -> str:
-        return json.dumps({"op": self.op, "terms": [list(t.key) for t in self.terms], "cue": self.cue})
+        return json.dumps({"op": self.op, "terms": [list(t.key) for t in self.terms], "cue": self.cue, **({"signed": True} if self.signed else {})})
 
     def words(self) -> str:
         names = [f"{t.label}" + ("" if t.role == "cell" else f" ({t.role.replace('_', ' ')})") for t in self.terms]
@@ -115,16 +116,22 @@ def direction_cue(text: str, start: int, end: int) -> str:
     return best[0]
 
 
-def _fits(number: NumberMention, op: str, value: float, family: str, cue: str) -> str | None:
+def _fits(number: NumberMention, op: str, value: float, family: str, cue: str, sign: str = "") -> str | None:
     """The display transform under which `value` is what the mention shows, or None."""
-    if cue == "up" and value <= 0 and op in ("pct_change", "diff") or cue == "down" and value >= 0 and op in ("pct_change", "diff"):
-        return None
+    if op in ("pct_change", "diff"):
+        if cue == "up" and value <= 0 or cue == "down" and value >= 0:
+            return None
+        if not cue and (sign == "plus" and value <= 0 or sign == "minus" and value >= 0):
+            return None
+    if number.unit in ("percent", "pp"):
+        if op not in ("pct_change", "ratio", "diff"):
+            return None
+        tol = 0.5 * 10 ** (-number.decimals)
+        return "fraction_to_percent" if abs(abs(number.value) - abs(value) * 100.0) <= tol * 1.0001 + 1e-12 else None
     shown = NumberMention(number.raw, abs(number.value), abs(number.scaled), number.decimals, number.unit, number.scale, False, number.start, number.end)
     ok, transform = consistent_with_source(shown, abs(value))
     if not ok:
         return None
-    if number.unit in ("percent", "pp"):
-        return transform if transform == "fraction_to_percent" and op in ("pct_change", "ratio", "diff") else None
     if op in ("pct_change", "ratio"):
         return None  # a dimensionless result cannot be a money or count figure
     if transform not in _SCALED or (family and transform != family and not (family == "exact" and transform == "exact")):
@@ -132,16 +139,23 @@ def _fits(number: NumberMention, op: str, value: float, family: str, cue: str) -
     return transform
 
 
-def explain(number: NumberMention, para_pool: list[Operand], slide_pool: list[Operand], cue: str) -> tuple[str, list[Calc]]:
+def sign_style(text: str, start: int, number: NumberMention) -> str:
+    """plus or minus when the figure is written with its own sign (+0.8%, -0.8%, (0.8%)), else empty."""
+    if number.negative:
+        return "minus"
+    return "plus" if start >= 1 and text[start - 1] == "+" else ""
+
+
+def explain(number: NumberMention, para_pool: list[Operand], slide_pool: list[Operand], cue: str, sign: str = "") -> tuple[str, list[Calc]]:
     """Every way the figure can be calculated from the nearest pool that explains it at all (the paragraph first, then the slide)."""
     for scope, pool in (("paragraph", para_pool), ("slide", slide_pool)):
-        found = _search(number, pool, cue, scope)
+        found = _search(number, pool, cue, scope, sign)
         if found:
             return scope, found
     return "", []
 
 
-def _search(number: NumberMention, pool: list[Operand], cue: str, scope: str) -> list[Calc]:
+def _search(number: NumberMention, pool: list[Operand], cue: str, scope: str, sign: str = "") -> list[Calc]:
     pool = list({o.key: o for o in pool}.values())[:30]
     out: dict[tuple, Calc] = {}
     pairs = list(itertools.permutations(pool, 2))
@@ -153,16 +167,16 @@ def _search(number: NumberMention, pool: list[Operand], cue: str, scope: str) ->
             v = compute(op, [a.value, b.value])
             if v is None:
                 continue
-            t = _fits(number, op, v, a.family, cue)
+            t = _fits(number, op, v, a.family, cue, sign)
             if t:
-                out[(op, a.key, b.key)] = Calc(op, (a, b), v, t, scope, cue)
+                out[(op, a.key, b.key)] = Calc(op, (a, b), v, t, scope, cue, bool(sign) and not cue)
     if number.unit not in ("percent", "pp") and len([o for o in pool if o.role == "cell"]) <= 8:
         for size in (2, 3):
             for combo in itertools.combinations(pool, size):
                 if len({o.family for o in combo}) != 1 or any(o.role != "cell" for o in combo):
                     continue
                 v = sum(o.value for o in combo)
-                t = _fits(number, "sum", v, combo[0].family, cue)
+                t = _fits(number, "sum", v, combo[0].family, cue, sign)
                 if t:
-                    out[("sum", tuple(sorted(o.key for o in combo)))] = Calc("sum", combo, v, t, scope, cue)
+                    out[("sum", tuple(sorted(o.key for o in combo)))] = Calc("sum", combo, v, t, scope, cue, False)
     return list(out.values())

@@ -174,3 +174,28 @@ def test_a_number_retyped_to_some_other_value_is_still_held(tmp_path: Path) -> N
     _retype(proj.root, "$15.1 million", "$15.9 million")
     proj.discover()
     assert next(t for t in proj.ties() if t.raw == "$15.1 million").state == "held"
+
+
+SIGNED = "Net revenue was $15.1 million in Q3 2026 (+7.9% against $14.0 million in Q2 2026)."
+
+
+def test_a_figure_written_with_its_own_sign_has_one_reading_and_may_change_sign(tmp_path: Path) -> None:
+    proj = _project(tmp_path, [SIGNED])
+    cands = proj.calculations().candidates
+    assert len(cands) == 1 and len(cands[0].options) == 1 and cands[0].options[0].signed and cands[0].options[0].value > 0
+    proj.accept_calculation(cands[0].id)
+    _sources(proj.root, 14_000_000, 13_000_000)
+    plan = proj.plan_refresh()
+    texts = {i.old_text: i.new_text for i in plan.impacts}
+    assert texts == {"$15.1 million": "$13.0 million", "7.9%": "-7.1%"}, "a signed figure follows its sign; nothing is held"
+    data = plan.files["board.pptx"]
+    import io
+
+    shown = " ".join(sh.text_frame.text for sh in Presentation(io.BytesIO(data)).slides[0].shapes if sh.has_text_frame)
+    assert "(-7.1% against $14.0 million" in shown and "+-" not in shown
+
+
+def test_a_zero_percent_change_is_explained(tmp_path: Path) -> None:
+    proj = _project(tmp_path, ["Net revenue reached $15.101 billion in Q3 2026, up 0.0% from $15.100 billion in Q2 2026."], q2=15_100_000_000, q3=15_101_000_000)
+    c = proj.calculations().candidates
+    assert len(c) == 1 and c[0].raw.startswith("0.0%") and c[0].options[0].op == "pct_change"

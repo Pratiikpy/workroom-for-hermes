@@ -151,3 +151,30 @@ def stale_period_words(project: "Project", plan: "Plan", roll: dict | None) -> l
                                            ("Workroom advances period words in slide text and tables, not in notes, chart text or picture descriptions; change this one yourself",)))
                         break
     return out
+
+
+def surface_findings(project: "Project", plan: "Plan", roll: dict | None) -> list[Finding]:
+    """Stale numbers and period words in notes, chart text and picture descriptions: found now, and carried forward until the text changes."""
+    import json
+
+    fresh = stale_mentions(project, plan, roll) + stale_period_words(project, plan, roll)
+    store = Decisions(project.db)
+    for f in fresh:
+        store.open_put(f.id, json.dumps(f.view()))
+    out = {f.id: f for f in fresh}
+    for key, payload in store.open_all():
+        if key in out:
+            continue
+        item = json.loads(payload)
+        rel = item["deck"]
+        path = project.root / rel
+        if not path.is_file():
+            store.open_drop(key)
+            continue
+        deck = Deck(plan.files.get(rel) or path.read_bytes())
+        still = any(text[:200] == item["sentence_before"] for n in range(1, len(deck.slide_parts()) + 1) for _w, text in _hidden_text(deck, n))
+        if not still:
+            store.open_drop(key)  # the owner changed that text
+            continue
+        out[key] = Finding(item["id"], item["kind"], item["severity"], rel, item["slide"], item["sentence_before"], item["sentence_after"], item["summary"], tuple(item["evidence"]), item.get("suggestion", ""))
+    return list(out.values())
