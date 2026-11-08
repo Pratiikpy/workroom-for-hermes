@@ -327,11 +327,72 @@ class Service:
             return {**asdict(e), "where": where(e.deck, e.slide, e.sentence)}
 
         inbox = proj.impact()
+        flags, coverage = self._flags(proj, proj.plan_refresh()) if inbox.changes else ([], {})
         return {
             "changes": [{**{k: v for k, v in asdict(c).items() if k != "elements"}, "elements": [view(e) for e in c.elements],
                          "counts": {d: sum(1 for e in c.elements if e.decision == d) for d in ("auto", "hold")}} for c in inbox.changes],
             "blocked": [view(e) for e in inbox.blocked],
+            "flags": [f for f in flags if f["decision"] != "dismissed"],
+            "coverage": coverage,
         }
+
+    # ---- calculated numbers and findings ----
+    @_closing
+    def calculations(self, pid: str) -> dict[str, Any]:
+        """Numbers in the documents that a calculation over tied cells reproduces, for the owner to accept or dismiss."""
+        from .meaning.calc import describe
+
+        proj, _ = self._open(pid)
+        scan = proj.calculations()
+        docs: dict[str, Any] = {}
+        out = []
+        for c in scan.candidates:
+            if c.deck not in docs:
+                docs[c.deck] = open_document((proj.root / c.deck).read_bytes(), c.deck)
+            out.append({"id": c.id, "deck": c.deck, "slide": c.slide, "where": location_label(docs[c.deck], c.slide), "figure": c.raw, "sentence": c.sentence,
+                        "scope": c.scope, "certainty": c.certainty, "reason": c.reason,
+                        "options": [{"op": o.op, "words": o.words(), "values": describe(o)} for o in c.options]})
+        return {"candidates": out, "unexplained": scan.unexplained[:20], "unexplained_count": len(scan.unexplained), "dismissed": scan.dismissed}
+
+    @_closing
+    def accept_calculation(self, pid: str, candidate_id: str, option: int = 0) -> dict[str, Any]:
+        proj, _ = self._open(pid)
+        try:
+            proj.accept_calculation(candidate_id, int(option))
+        except (KeyError, IndexError) as exc:
+            raise ServiceError(str(exc.args[0]) if exc.args else "that calculation cannot be accepted") from exc
+        return {"accepted": 1}
+
+    @_closing
+    def accept_certain_calculations(self, pid: str) -> dict[str, Any]:
+        """Accept every calculation that exactly one reading reproduces in the same sentence. Others still need the owner's choice."""
+        proj, _ = self._open(pid)
+        n = 0
+        for c in proj.calculations().candidates:
+            if c.certainty == "certain":
+                try:
+                    proj.accept_calculation(c.id, 0)
+                    n += 1
+                except KeyError:
+                    continue
+        return {"accepted": n}
+
+    @_closing
+    def dismiss_calculation(self, pid: str, candidate_id: str) -> dict[str, Any]:
+        proj, _ = self._open(pid)
+        proj.dismiss_calculation(candidate_id)
+        return {"dismissed": 1}
+
+    @_closing
+    def decide_finding(self, pid: str, finding_id: str, decision: str) -> dict[str, Any]:
+        """The owner's answer to one finding: dismissed (it is not a problem here, do not raise it again) or acknowledged."""
+        import re
+
+        if decision not in ("dismissed", "acknowledged") or not re.fullmatch(r"[0-9a-f]{20}", finding_id or ""):
+            raise ServiceError("not a finding decision")
+        proj, _ = self._open(pid)
+        Decisions(proj.db).set(finding_id, "finding", decision)
+        return {"finding": finding_id, "decision": decision}
 
     @staticmethod
     def _changes(proj: Project, plan: Plan) -> list[dict[str, Any]]:

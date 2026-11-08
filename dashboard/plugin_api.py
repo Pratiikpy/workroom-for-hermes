@@ -40,6 +40,18 @@ class ReleaseBody(BaseModel):
     release_id: str = Field(pattern=r"^[0-9a-f]{16}$")
 
 
+class CalcBody(BaseModel):
+    project: str = Field(min_length=1, max_length=64)
+    candidate: str = Field(pattern=r"^[0-9a-f]{20}$")
+    option: int = Field(default=0, ge=0, le=9)
+
+
+class FindingBody(BaseModel):
+    project: str = Field(min_length=1, max_length=64)
+    finding: str = Field(pattern=r"^[0-9a-f]{20}$")
+    decision: str = Field(pattern=r"^(dismissed|acknowledged)$")
+
+
 class ApproveBody(BaseModel):
     project: str = Field(min_length=1, max_length=64)
     release_id: str = Field(min_length=1, max_length=64)
@@ -249,3 +261,29 @@ async def restore(body: ReleaseBody) -> dict:
 async def approve(body: ApproveBody) -> dict:
     """The only route that approves and publishes. It is not an agent tool; it needs an authenticated Hermes session."""
     return _guard(lambda: _service().approve_and_publish(body.project, body.release_id, body.digest, acknowledge=body.acknowledge))
+
+
+@router.post("/calculations")
+async def calculations(body: ProjectBody) -> dict:
+    return _guard(lambda: _service().calculations(body.project))
+
+
+@router.post("/calculation-accept")
+async def calculation_accept(body: CalcBody) -> dict:
+    return _guard(lambda: _service().accept_calculation(body.project, body.candidate, body.option))
+
+
+@router.post("/calculations-accept-certain")
+async def calculations_accept_certain(body: ProjectBody) -> dict:
+    return _guard(lambda: _service().accept_certain_calculations(body.project))
+
+
+@router.post("/calculation-dismiss")
+async def calculation_dismiss(body: CalcBody) -> dict:
+    return _guard(lambda: _service().dismiss_calculation(body.project, body.candidate))
+
+
+@router.post("/finding-decision")
+async def finding_decision(body: FindingBody) -> dict:
+    """Owner action: like /approve it is not an agent tool and needs an authenticated Hermes session."""
+    return _guard(lambda: _service().decide_finding(body.project, body.finding, body.decision))

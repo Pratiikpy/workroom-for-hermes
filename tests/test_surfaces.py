@@ -1,0 +1,90 @@
+"""Numbers in places the editor does not rewrite, and charts whose axes would clip a new value."""
+from pathlib import Path
+
+from pptx import Presentation
+from pptx.chart.data import CategoryChartData
+from pptx.enum.chart import XL_CHART_TYPE
+from pptx.util import Inches
+from xlsxwriter import Workbook
+
+from workroom.workroom_core.meaning.surfaces import clipped_charts
+from workroom.workroom_core.project import Plan, Project
+
+
+def _sources(root: Path, q3: float) -> None:
+    with Workbook(str(root / "results.xlsx")) as wb:
+        ws = wb.add_worksheet("Results")
+        ws.write_row(0, 0, ["Metric", "Q2 2026", "Q3 2026"])
+        ws.write_row(1, 0, ["Net revenue", 14_000_000, q3])
+
+
+def _deck_with_hidden_numbers(root: Path) -> None:
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[5])
+    slide.shapes.title.text = "Review"
+    slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(9), Inches(1)).text_frame.text = "Net revenue was $15.1 million in Q3 2026."
+    slide.notes_slide.notes_text_frame.text = "Say: net revenue hit $15.1 million this quarter, our best result."
+    pic = slide.shapes.add_textbox(Inches(0.5), Inches(3), Inches(2), Inches(1))
+    pic._element.nvSpPr.cNvPr.set("descr", "Headcount grew to 241 people")
+    prs.save(str(root / "board.pptx"))
+
+
+def test_a_number_in_the_speaker_notes_that_matches_the_old_value_is_reported_not_rewritten(tmp_path: Path) -> None:
+    root = tmp_path / "proj"
+    root.mkdir()
+    _sources(root, 15_100_000)
+    _deck_with_hidden_numbers(root)
+    proj = Project(root, tmp_path / "state")
+    proj.discover()
+    _sources(root, 13_000_000)
+    plan = proj.plan_refresh()
+    findings, _ = proj.consequences(plan)
+    stale = [f for f in findings if f.kind == "stale_mention"]
+    assert len(stale) == 1 and stale[0].severity == "medium" and "speaker notes" in stale[0].summary and "$15.1 million" in stale[0].summary
+    assert "Net revenue" in stale[0].summary or "revenue" in stale[0].summary.lower()
+    assert not any("241" in f.summary for f in findings), "a number that matches no changed cell is left alone"
+
+
+def test_nothing_is_reported_when_the_hidden_number_already_shows_the_new_value(tmp_path: Path) -> None:
+    root = tmp_path / "proj"
+    root.mkdir()
+    _sources(root, 15_100_000)
+    _deck_with_hidden_numbers(root)
+    proj = Project(root, tmp_path / "state")
+    proj.discover()
+    _sources(root, 15_100_000)
+    assert [f for f in proj.consequences(proj.plan_refresh())[0] if f.kind == "stale_mention"] == []
+
+
+def _chart_deck(top: float | None, value: float) -> bytes:
+    prs = Presentation()
+    slide = prs.slides.add_slide(prs.slide_layouts[5])
+    data = CategoryChartData()
+    data.categories = ["Q2 2026", "Q3 2026"]
+    data.add_series("Net revenue", (14.0, value))
+    chart = slide.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED, Inches(1), Inches(1.5), Inches(6), Inches(4), data).chart
+    if top is not None:
+        chart.value_axis.maximum_scale = top
+    path = Path(__file__).parent / "_axis_tmp.pptx"
+    prs.save(str(path))
+    try:
+        return path.read_bytes()
+    finally:
+        path.unlink()
+
+
+def test_a_fixed_axis_that_a_new_value_would_exceed_is_a_high_finding(tmp_path: Path) -> None:
+    root = tmp_path / "proj"
+    root.mkdir()
+    proj = Project(root, tmp_path / "state")
+    findings = clipped_charts(proj, Plan(files={"c.pptx": _chart_deck(15.0, 15.8)}))
+    assert len(findings) == 1 and findings[0].kind == "chart_axis_clipped" and findings[0].severity == "high"
+    assert "maximum 15" in findings[0].summary and "Q3 2026" in findings[0].summary
+
+
+def test_an_automatic_axis_or_a_value_inside_the_limit_raises_nothing(tmp_path: Path) -> None:
+    root = tmp_path / "proj"
+    root.mkdir()
+    proj = Project(root, tmp_path / "state")
+    assert clipped_charts(proj, Plan(files={"c.pptx": _chart_deck(None, 99.0)})) == []
+    assert clipped_charts(proj, Plan(files={"c.pptx": _chart_deck(20.0, 15.8)})) == []

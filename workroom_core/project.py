@@ -557,8 +557,12 @@ class Project:
     def consequences(self, plan: "Plan"):
         """What the planned update means for the sentences around the numbers: claims it makes false, and what could not be checked."""
         from .meaning.claimscan import claim_findings
+        from .meaning.findings import sort_findings
+        from .meaning.surfaces import clipped_charts, stale_mentions
 
-        return claim_findings(self, plan)
+        found, cov = claim_findings(self, plan)
+        merged = {f.id: f for f in found + stale_mentions(self, plan) + clipped_charts(self, plan)}
+        return sort_findings(list(merged.values())), cov
 
     @staticmethod
     def _sign_fits(t: Tie, new: float) -> bool:
