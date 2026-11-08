@@ -110,6 +110,8 @@ class SourceChange:
     new_value: float
     delta_pct: float
     elements: tuple[Element, ...]
+    kind: str = "source"  # source (a cell changed) | calculation (a number calculated from cells follows them)
+    unit: str = ""  # "%" when the old and new values are shown as percentages
 
 
 @dataclass(frozen=True)
@@ -692,8 +694,18 @@ class Project:
         groups: dict[str, list[Element]] = {}
         blocked: list[Element] = []
         meta: dict[str, tuple[float, float]] = {}
+        from .meaning.calc import formula_words
+
+        def label_of(k):
+            c = cells.get(k)
+            return " ".join(dict.fromkeys(c.row_labels + c.col_labels))[:40] if c is not None else "?"
+
+        calc_meta: dict[str, tuple[str, str]] = {}
         for t in self.ties(("accepted", "confirmed", "held")):
             key = f"{t.src_file}!{t.sheet}!{t.ref}"
+            if t.kind == "derived":
+                key = "calculation: " + formula_words(t.formula, label_of)
+                calc_meta[key] = (t.transform, formula_words(t.formula, label_of))
             cell = cells.get((t.src_file, t.sheet, t.ref))
             now = self._tie_value(t, cell_values) if t.kind == "derived" else (cell.value if cell is not None else None)
             if cell is None or now is None:
@@ -715,6 +727,11 @@ class Project:
         out = []
         for key, els in groups.items():
             old, new = meta[key]
+            if key in calc_meta:
+                transform, words = calc_meta[key]
+                scale = 100.0 if transform == "fraction_to_percent" else 1.0
+                out.append(SourceChange(key, words, old * scale, new * scale, abs(new - old) * scale, tuple(els), "calculation", "%" if scale == 100.0 else ""))
+                continue
             cell = cells[tuple(key.split("!"))]
             label = " ".join(dict.fromkeys(cell.row_labels + cell.col_labels))
             pct = abs(new - old) / abs(old) * 100 if old else 100.0

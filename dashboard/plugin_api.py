@@ -40,6 +40,11 @@ class ReleaseBody(BaseModel):
     release_id: str = Field(pattern=r"^[0-9a-f]{16}$")
 
 
+class RollBody(BaseModel):
+    project: str = Field(min_length=1, max_length=64)
+    periods: int = Field(default=1, ge=1, le=4)
+
+
 class CalcBody(BaseModel):
     project: str = Field(min_length=1, max_length=64)
     candidate: str = Field(pattern=r"^[0-9a-f]{20}$")
@@ -287,3 +292,9 @@ async def calculation_dismiss(body: CalcBody) -> dict:
 async def finding_decision(body: FindingBody) -> dict:
     """Owner action: like /approve it is not an agent tool and needs an authenticated Hermes session."""
     return _guard(lambda: _service().decide_finding(body.project, body.finding, body.decision))
+
+
+@router.post("/stage-rollforward")
+async def stage_rollforward(body: RollBody) -> dict:
+    """Prepares a release that moves the documents to the next reporting period. It approves nothing."""
+    return _guard(lambda: _service().stage_rollforward(body.project, body.periods))

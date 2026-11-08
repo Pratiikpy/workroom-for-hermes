@@ -40,6 +40,8 @@ def test_a_comparison_that_stops_being_true_is_a_high_finding(tmp_path: Path) ->
     assert [f.kind for f in findings] == ["claim_flip"] and findings[0].severity == "high"
     assert "$13.0 million" in findings[0].sentence_after and "up from" in findings[0].summary
     assert findings[0].suggestion.endswith('"down" in place of "up".') and cov.claims_read == 1
+    assert findings[0].summary == '"$15.1 million in Q3 2026, up from $14.0 million" was true and is not true after this update', "the owner's own words, never the internal token form"
+    assert not any(ch in findings[0].summary + "".join(findings[0].evidence) for ch in "⟦⟧⟪⟫")
 
 
 def test_a_comparison_that_still_holds_raises_nothing(tmp_path: Path) -> None:

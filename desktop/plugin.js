@@ -45,8 +45,10 @@ function Inbox({ inbox }) {
   const tag = (d) => d === 'auto' ? 'will update' : d === 'hold' ? 'held for you' : 'blocked'
   return h('div', { role: 'region', 'aria-label': 'Changes inbox', style: { marginTop: 10 } },
     inbox.changes.map(c => h('div', { key: c.src, style: { ...css.card, marginBottom: 8 } },
-      h('div', { style: { fontWeight: 600 } }, `${c.label || c.src}: ${num(c.old_value)} → ${num(c.new_value)} (${c.delta_pct.toFixed(1)}%)`),
-      h('div', { style: css.muted }, `${c.src} · ${c.counts.auto} will update, ${c.counts.hold} held for you`),
+      c.kind === 'calculation'
+        ? h('div', { style: { fontWeight: 600 } }, `Calculated figure: ${Number(c.old_value).toFixed(c.unit === '%' ? 1 : 2)}${c.unit} → ${Number(c.new_value).toFixed(c.unit === '%' ? 1 : 2)}${c.unit}`)
+        : h('div', { style: { fontWeight: 600 } }, `${c.label || c.src}: ${num(c.old_value)} → ${num(c.new_value)} (${c.delta_pct.toFixed(1)}%)`),
+      h('div', { style: css.muted }, c.kind === 'calculation' ? `${c.label} · ${c.counts.auto} will update, ${c.counts.hold} held for you` : `${c.src} · ${c.counts.auto} will update, ${c.counts.hold} held for you`),
       h('ul', { style: { margin: '6px 0 0', paddingLeft: 18 } }, c.elements.map(e => h('li', { key: e.tie_id },
         `${e.deck}, ${e.where || 'slide ' + e.slide}: “${(e.sentence || '').slice(0, 90)}” ${e.text_before}${e.text_after ? ' → ' + e.text_after : ''} (${tag(e.decision)}; ${e.reason})`))))),
     inbox.blocked.length ? h('div', { style: { ...css.card, marginBottom: 8 } },
@@ -213,6 +215,56 @@ function Links({ ties, onConfirm, onSkip, onWhy, why, busy }) {
     why ? h(Why, { info: why.info, onClose: why.close }) : null)
 }
 
+const SEVERITY = { high: 'Check', medium: 'Look', info: 'Note' }
+
+// Sentences an update has made false, and what could not be checked. Dismiss means: this is not a problem here, do not raise it again.
+function Flags({ flags, coverage, onDismiss, busy, compact }) {
+  const important = (flags || []).filter(f => f.severity !== 'info' && f.decision !== 'dismissed')
+  const noted = (flags || []).filter(f => f.severity === 'info' && f.decision !== 'dismissed')
+  const cov = coverage || {}
+  return h('div', { role: 'region', 'aria-label': 'Sentences to read', style: { marginTop: 12 } },
+    h('div', { style: { fontWeight: 600, marginBottom: 4 } }, important.length ? `${important.length} sentence${important.length === 1 ? '' : 's'} to read before you approve` : 'No sentence is made false by this update'),
+    important.map(f => h('div', { key: f.id, style: { ...css.card, marginBottom: 6, borderColor: f.severity === 'high' ? 'var(--ui-red, #dc2626)' : 'var(--ui-amber, #d97706)' } },
+      h('div', { style: css.row }, h('span', { style: { ...css.chip, borderColor: f.severity === 'high' ? 'var(--ui-red, #dc2626)' : 'var(--ui-amber, #d97706)' } }, SEVERITY[f.severity]), h('strong', null, f.summary)),
+      compact ? null : h('div', { style: { margin: '4px 0', fontSize: 13 } }, h('span', { style: css.muted }, 'It will read: '), f.sentence_after),
+      compact ? null : (f.evidence || []).map((e, i) => h('div', { key: i, style: { ...css.muted, fontSize: 12 } }, e)),
+      compact || !f.suggestion ? null : h('div', { style: { ...css.muted, fontSize: 12, marginTop: 2 } }, f.suggestion),
+      h('div', { style: { ...css.row, marginTop: 6, justifyContent: 'space-between' } },
+        h('span', { style: { ...css.muted, fontSize: 12 } }, f.where || ''),
+        onDismiss ? btn('This is not a problem here', () => onDismiss(f.id), { disabled: busy }) : null))),
+    noted.length ? h('details', { style: { marginTop: 4 } }, h('summary', { style: css.muted }, `${noted.length} more note${noted.length === 1 ? '' : 's'}`),
+      noted.map(f => h('div', { key: f.id, style: { ...css.muted, fontSize: 12, padding: '2px 0' } }, `${f.summary}. ${f.sentence_after}`))) : null,
+    cov.sentences_checked !== undefined ? h('details', { style: { marginTop: 6 } },
+      h('summary', { style: css.muted }, `Checked ${cov.sentences_checked} sentence${cov.sentences_checked === 1 ? '' : 's'}, read ${cov.claims_read} claim${cov.claims_read === 1 ? '' : 's'}${cov.not_checked_count ? `, ${cov.not_checked_count} could not be checked` : ''}`),
+      h('div', { style: { ...css.muted, fontSize: 12 } }, 'Workroom reads claims of the kind "up from", "grew from X to Y", "exceeded", "record" and "grew to". It does not guess at any other wording.'),
+      (cov.not_checked || []).map((n, i) => h('div', { key: i, style: { ...css.muted, fontSize: 12 } }, n))) : null)
+}
+
+// Numbers in the documents that a calculation over tied cells reproduces. Accepting one makes it follow its sources like any other tie.
+function Calculations({ api, pid, busy, run }) {
+  const [info, setInfo] = useState(null)
+  const find = () => run(async () => { const r = await api('/calculations', { project: pid }); setInfo(r); return r })
+  const act = (route, body, okText) => run(async () => { await api(route, { project: pid, ...body }); setInfo(await api('/calculations', { project: pid })) }, () => okText)
+  const certain = info ? info.candidates.filter(c => c.certainty === 'certain') : []
+  return h('div', { style: { marginTop: 12 } },
+    btn('Find calculated numbers', find, { disabled: busy }),
+    h('span', { style: { ...css.muted, marginLeft: 8, fontSize: 12 } }, 'A percent change, a margin, a difference or a total that the sources reproduce. Nothing is written.'),
+    info ? h('div', { role: 'region', 'aria-label': 'Calculated numbers', style: { marginTop: 8 } },
+      info.candidates.length ? null : h('div', { style: css.muted }, 'No other number in your documents is reproduced by a calculation over the cells they are tied to.'),
+      certain.length > 1 ? h('div', { style: { margin: '0 0 6px' } }, btn(`Accept the ${certain.length} that are certain`, () => act('/calculations-accept-certain', {}, `${certain.length} calculations will now follow their sources.`), { disabled: busy, primary: true })) : null,
+      info.candidates.map(c => h('div', { key: c.id, style: { ...css.card, marginBottom: 6 } },
+        h('div', { style: css.row }, h('strong', null, c.figure), h('span', { style: css.muted }, `${c.deck}, ${c.where}`), h('span', { style: { ...css.chip, borderColor: c.certainty === 'certain' ? 'var(--ui-green, #16a34a)' : 'var(--ui-amber, #d97706)' } }, c.certainty === 'certain' ? 'certain' : 'choose')),
+        h('div', { style: { ...css.muted, fontSize: 12, margin: '2px 0' } }, c.sentence),
+        c.options.map((o, i) => h('div', { key: i, style: { ...css.row, justifyContent: 'space-between', padding: '2px 0' } },
+          h('span', { style: { fontSize: 12 } }, h('span', null, o.words), h('br'), h('span', { style: css.muted }, o.values)),
+          btn(c.options.length > 1 ? 'Use this one' : 'Accept', () => act('/calculation-accept', { candidate: c.id, option: i }, 'That calculation will now follow its sources.'), { disabled: busy }))),
+        h('div', { style: { ...css.row, justifyContent: 'space-between' } },
+          h('span', { style: { ...css.muted, fontSize: 12 } }, c.reason),
+          btn('Not a calculation', () => act('/calculation-dismiss', { candidate: c.id }, 'Dismissed. It will not be offered again.'), { disabled: busy })))),
+      info.unexplained_count ? h('details', null, h('summary', { style: css.muted }, `${info.unexplained_count} percentage${info.unexplained_count === 1 ? '' : 's'} no calculation reproduces`),
+        info.unexplained.map((u, i) => h('div', { key: i, style: { ...css.muted, fontSize: 12 } }, `${u.figure} on slide ${u.slide} of ${u.deck}: ${u.sentence}`))) : null) : null)
+}
+
 const STATE_TEXT = {
   awaiting_approval: 'Waiting for your approval',
   published: 'Published',
@@ -229,6 +281,7 @@ function ReleaseCard({ ctx, attrs }) {
   const [view, setView] = useState(null)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [ack, setAck] = useState(false)
   const load = useCallback(
     () => ctx.rest('/release', { method: 'POST', body: { project: attrs.project, release_id: attrs.release } }).then(setView).catch(e => setError(String(e && e.message ? e.message : e))),
     [ctx, attrs.project, attrs.release]
@@ -238,7 +291,7 @@ function ReleaseCard({ ctx, attrs }) {
   const approve = async () => {
     setBusy(true)
     try {
-      await ctx.rest('/approve', { method: 'POST', body: { project: attrs.project, release_id: attrs.release, digest: view.digest } })
+      await ctx.rest('/approve', { method: 'POST', body: { project: attrs.project, release_id: attrs.release, digest: view.digest, acknowledge: ack } })
       await load()
     } catch (e) {
       setError(String(e && e.message ? e.message : e))
@@ -263,6 +316,9 @@ function ReleaseCard({ ctx, attrs }) {
         h('ul', { style: { margin: '4px 0', paddingLeft: 18 } }, groupFigures(view.figures).slice(0, 8).map((f, i) => h('li', { key: i },
           h('strong', null, f.text), h('span', { style: css.muted }, ` ${f.concept || ''} ${f.period || ''} · ${f.source}${f.count > 1 ? ` · in ${f.count} places` : ''}`)))),
         view.figures.length > 8 ? h('div', { style: css.muted }, `and ${view.figures.length - 8} more figures`) : null)
+      : view.rolled ? h('p', { style: { margin: '6px 0' } }, view.state === 'published'
+        ? `Rolled forward: ${view.rolled.figures} figures now show the next period and ${view.rolled.period_words} period words advanced. Restore undoes the whole roll.`
+        : `Roll forward: ${view.rolled.figures} figures move to the next period and ${view.rolled.period_words} period words advance (${view.rolled.from.join(', ')} to ${view.rolled.to.join(', ')}). Nothing has been changed yet; Restore undoes the whole roll.`)
       : h('p', { style: { margin: '6px 0' } }, view.state === 'published'
         ? `${view.changes.length} number${view.changes.length === 1 ? '' : 's'} updated. A backup of each replaced file is kept.`
         : `${view.changes.length} number${view.changes.length === 1 ? '' : 's'} would change. Nothing has been changed yet.`),
@@ -274,8 +330,12 @@ function ReleaseCard({ ctx, attrs }) {
       !view.created && !view.edited_page && view.changes.length > shown.length ? h('div', { style: css.muted }, `and ${view.changes.length - shown.length} more`) : null,
       view.held && view.held.length ? h('div', { style: { ...css.muted, marginTop: 6 } }, `${view.held.length} held for you`) : null,
       view.findings && view.findings.length ? h('ul', null, view.findings.map((f, i) => h('li', { key: i }, f))) : null,
+      view.state === 'awaiting_approval' && view.flags && view.flags.length ? h(Flags, { flags: view.flags, coverage: view.coverage, busy }) : null,
+      view.state === 'awaiting_approval' && view.needs_acknowledgement && view.needs_acknowledgement.length ? h('label', { style: { ...css.row, margin: '8px 0 0', fontSize: 13 } },
+        h('input', { type: 'checkbox', checked: ack, onChange: e => setAck(e.target.checked), 'aria-label': 'I have read the flagged sentences' }),
+        h('span', null, 'I have read the sentences above and still want to release.')) : null,
       view.state === 'awaiting_approval' ? h('div', { style: { ...css.row, marginTop: 10 } },
-        btn('Approve and publish', approve, { disabled: busy, primary: true }),
+        btn('Approve and publish', approve, { disabled: busy || (view.needs_acknowledgement && view.needs_acknowledgement.length > 0 && !ack), primary: true }),
         h('span', { style: { ...css.muted, fontSize: 11 } }, `Applies to exactly this release (${view.digest.slice(0, 12)}).`)) : null) : null)
 }
 
@@ -296,6 +356,7 @@ function WorkroomPage({ ctx }) {
   const [past, setPast] = useState([])
   const [tracked, setTracked] = useState(false)
   const [confirmRestore, setConfirmRestore] = useState(null)
+  const [ack, setAck] = useState(false)
 
   const run = useCallback(async (fn, okText) => {
     setBusy(true)
@@ -378,14 +439,20 @@ function WorkroomPage({ ctx }) {
     return p
   })
 
-  const stage = () => run(async () => {
-    const r = await api('/stage', { project: pid })
-    setRelease(r)
+  const showRelease = async (r) => {
+    setAck(false)
+    setRelease(r.state === 'blocked' ? r : await api('/release', { project: pid, release_id: r.release_id }))
     return r
-  }, r => r.state === 'blocked' ? 'This release is blocked.' : 'Release prepared. Review it, then approve.')
+  }
+
+  const stage = () => run(async () => showRelease(await api('/stage', { project: pid })), r => r.state === 'blocked' ? 'This release is blocked.' : 'Release prepared. Review it, then approve.')
+
+  const rollForward = () => run(async () => showRelease(await api('/stage-rollforward', { project: pid, periods: 1 })), r => r.state === 'blocked' ? 'This release is blocked.' : 'The roll is prepared. Review it, then approve. Restore undoes the whole roll.')
+
+  const dismissFinding = (id) => run(async () => { await api('/finding-decision', { project: pid, finding: id, decision: 'dismissed' }); setInbox(await api('/changes', { project: pid })) })
 
   const approve = () => run(async () => {
-    const r = await api('/approve', { project: pid, release_id: release.release_id, digest: release.digest })
+    const r = await api('/approve', { project: pid, release_id: release.release_id, digest: release.digest, acknowledge: ack })
     setRelease(null); setPlan(null)
     await loadPast(pid)
     return r
@@ -429,12 +496,14 @@ function WorkroomPage({ ctx }) {
           h('span', { style: css.chip }, `${ties.filter(t => t.state === 'confirm').length} need you`),
           h('span', { style: css.chip }, `${found.no_source} have no source`)),
         found.unreadable && found.unreadable.length ? h('p', { role: 'alert', style: { ...css.muted, margin: '6px 0 0', fontSize: 12, color: 'var(--ui-amber, #d97706)' } }, `${found.unreadable.length} file${found.unreadable.length === 1 ? '' : 's'} could not be read and ${found.unreadable.length === 1 ? 'was' : 'were'} left alone: ${found.unreadable.slice(0, 3).join(', ')}${found.unreadable.length > 3 ? ' and more' : ''}.`) : null,
-        h(Links, { ties, onConfirm: confirmTie, onSkip: skipTie, onWhy: why, why: whyInfo ? { info: whyInfo, close: () => setWhyInfo(null) } : null, busy })) : null) : null,
+        h(Links, { ties, onConfirm: confirmTie, onSkip: skipTie, onWhy: why, why: whyInfo ? { info: whyInfo, close: () => setWhyInfo(null) } : null, busy }),
+        h(Calculations, { api, pid, busy, run })) : null) : null,
     pid && found ? h('section', { style: css.card, 'aria-label': 'Changes' },
       h('h2', { style: css.h2 }, '2. See what would change'),
       btn('Check the sources', preview, { disabled: busy }),
       plan ? h('div', { style: { marginTop: 10 } },
         h(Inbox, { inbox }),
+        inbox && inbox.changes.length ? h(Flags, { flags: inbox.flags, coverage: inbox.coverage, onDismiss: dismissFinding, busy, compact: true }) : null,
         inbox && inbox.changes.length ? null : h(Changes, { changes: plan.changes }),
         plan.held.length ? h('div', { style: { marginTop: 10 } },
           h('div', { style: { fontWeight: 600 } }, 'Held for you'),
@@ -450,10 +519,21 @@ function WorkroomPage({ ctx }) {
               h('p', { style: { margin: '0 0 6px' } }, `Workroom will create ${release.changes[0].deck}. Every figure in it is tied to its source cell. Nothing else in your folder is touched.`),
               h('ul', { style: { margin: '0 0 8px', paddingLeft: 18 } }, groupFigures(release.figures).slice(0, 12).map((f, i) => h('li', { key: i },
                 h('strong', null, f.text), h('span', { style: css.muted }, ` ${f.concept || ''} ${f.period || ''} · ${f.source}${f.count > 1 ? ` · in ${f.count} places` : ''}`)))))
+            : release.rolled ? h('p', { style: { margin: '0 0 8px' } }, `Workroom will roll your documents forward: ${release.rolled.figures} figures move to the next period and ${release.rolled.period_words} period words advance (${release.rolled.from.join(', ')} to ${release.rolled.to.join(', ')}). Restore undoes the whole roll.`)
             : h('p', { style: { margin: '0 0 8px' } }, `${release.changes.length} number${release.changes.length === 1 ? '' : 's'} will change in your documents. Everything else stays exactly as it is, and a backup of each replaced file is kept.`),
+            release.changes && release.rolled ? h('ul', { style: { margin: '0 0 8px', paddingLeft: 18 } }, release.changes.slice(0, 8).map((c, i) => h('li', { key: i }, h('span', { style: css.muted }, `${c.old_text} `), '\u2192 ', h('strong', null, c.new_text), h('span', { style: css.muted }, `  ${c.deck}, ${c.where || 'slide ' + c.slide}`)))) : null,
+            release.held && release.held.length ? h('details', { style: { margin: '0 0 8px' } }, h('summary', { style: css.muted }, `${release.held.length} left for you`), release.held.map((t, i) => h('div', { key: i, style: { ...css.muted, fontSize: 12 } }, t))) : null,
+            (release.flags && release.flags.length) || (release.coverage && release.coverage.sentences_checked) ? h(Flags, { flags: release.flags, coverage: release.coverage, busy }) : null,
+            release.needs_acknowledgement && release.needs_acknowledgement.length ? h('label', { style: { ...css.row, margin: '8px 0', fontSize: 13 } },
+              h('input', { type: 'checkbox', checked: ack, onChange: e => setAck(e.target.checked), 'aria-label': 'I have read the flagged sentences' }),
+              h('span', null, 'I have read the sentences above and still want to release.')) : null,
             h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, `Release fingerprint ${release.digest.slice(0, 12)}. Your approval applies to exactly this release and nothing else.`),
             release.created || release.edited_page ? null : h(Proof, { api, pid, releaseId: release.release_id }),
-            btn('Approve and publish', approve, { disabled: busy, primary: true }))) : null,
+            btn('Approve and publish', approve, { disabled: busy || (release.needs_acknowledgement && release.needs_acknowledgement.length > 0 && !ack), primary: true }))) : null,
+    pid && found ? h('section', { style: css.card, 'aria-label': 'Next period' },
+      h('h2', { style: css.h2 }, 'Next period'),
+      h('p', { style: { ...css.muted, margin: '0 0 8px' } }, 'When the workbook has the next period, Workroom can move every tied figure to it and advance the period words beside them (Q3 2026 becomes Q4 2026). It is one release you approve, and Restore undoes the whole roll. It refuses, naming each figure, if any figure has no value for the next period.'),
+      btn('Roll forward one period', rollForward, { disabled: busy })) : null,
     !projects.length ? h('section', { style: { ...css.card, borderColor: 'var(--ui-accent, #3b82f6)' }, 'aria-label': 'Try the sample' },
       h('h2', { style: css.h2 }, 'New here? Try the sample'),
       h('p', { style: { margin: '0 0 8px' } }, 'Workroom makes a small sample project in its own storage (a results workbook and a board deck whose every figure is tied to a cell). Your own files are not touched. You approve the deck, then pretend a new quarter arrived and watch only the changed numbers update.'),

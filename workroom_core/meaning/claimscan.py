@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -33,12 +34,23 @@ def _group(mentions) -> dict[tuple, tuple[str, list]]:
     return out
 
 
+def _calc_shown(t, value: float) -> str:
+    return f"{value * 100:+.1f}%" if t.transform == "fraction_to_percent" else format(value, "+,.10g")
+
+
 def _num(v: float) -> str:
     return format(v, ",.10g")
 
 
 def _tag(cell) -> str:
     return " ".join(dict.fromkeys(cell.col_labels + cell.row_labels))[:40]
+
+
+def _phrase(text: str, figs, claim: Claim) -> str:
+    """The words of the sentence the claim was read from, as the owner wrote them (never the internal token form)."""
+    idx = [i for i in (claim.a, claim.b) if i is not None]
+    start, end = min(figs[i].start for i in idx), max(figs[i].end for i in idx)
+    return re.sub(r"\s+", " ", text[start:end]).strip()
 
 
 def _fmt(values: list[float], claim: Claim) -> str:
@@ -107,12 +119,12 @@ def claim_findings(project: "Project", plan: "Plan", roll: dict | None = None) -
                     hb, ha = holds(claim, vb), holds(claim, va)
                     if hb and not ha:
                         findings.append(make("claim_flip", "high", rel, slide, text_b, text_a,
-                                             f"\"{claim.text.strip()}\" was true and is not true after this update",
+                                             f"\"{_phrase(text_b, figs_b, claim)}\" was true and is not true after this update",
                                              [f"Before: {_fmt(vb, claim)} ({claim.cue})", f"After: {_fmt(va, claim)} (the words \"{claim.cue}\" no longer fit)"], claim))
                     elif not hb and not ha:
-                        findings.append(make("claim_already_false", "info", rel, slide, text_b, text_a, f"\"{claim.text.strip()}\" did not hold before this update either", [f"Figures: {_fmt(vb, claim)}"], claim))
+                        findings.append(make("claim_already_false", "info", rel, slide, text_b, text_a, f"\"{_phrase(text_b, figs_b, claim)}\" did not hold before this update either", [f"Figures: {_fmt(vb, claim)}"], claim))
                     elif not hb and ha:
-                        findings.append(make("claim_now_holds", "info", rel, slide, text_b, text_a, f"\"{claim.text.strip()}\" was false and now holds", [f"After: {_fmt(va, claim)}"], claim))
+                        findings.append(make("claim_now_holds", "info", rel, slide, text_b, text_a, f"\"{_phrase(text_b, figs_b, claim)}\" was false and now holds", [f"After: {_fmt(va, claim)}"], claim))
                     continue
                 f = figs_b[claim.a]
                 dm = by_start.get(f.start) or next((d for d in mentions_b if d.number.raw == f.raw), None)
@@ -155,5 +167,5 @@ def claim_findings(project: "Project", plan: "Plan", roll: dict | None = None) -
             if new_value is not None and new_value != t.linked_value and not project._sign_fits(t, new_value):
                 findings.append(Finding(Decisions.key("calc_turned", t.deck, t.slide_uid, t.shape_id, t.para, t.raw), "calculated_turned_over", "high", t.deck, t.slide, t.context, t.context,
                                         f"\"{t.raw}\" is a calculated change that has turned the other way, so it was not rewritten",
-                                        (f"It was {t.linked_value:+.4f} of its base and is now {new_value:+.4f}",), ""))
+                                        (f"It was {_calc_shown(t, t.linked_value)} and would now be {_calc_shown(t, new_value)}",), ""))
     return sort_findings(findings), cov

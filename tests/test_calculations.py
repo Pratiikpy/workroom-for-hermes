@@ -110,3 +110,24 @@ def test_a_difference_is_found(tmp_path: Path) -> None:
     proj = _project(tmp_path, ["Operating income of $2.6 million is $0.4 million above Q2 2026 ($2.2 million)."])
     figs = {c.raw: c for c in proj.calculations().candidates}
     assert any(o.op == "diff" for o in figs["$0.4 million"].options)
+
+
+def test_a_calculated_figure_is_its_own_group_in_the_inbox_in_percent_not_in_cell_units(tmp_path: Path) -> None:
+    proj = _project(tmp_path, [SENTENCE])
+    proj.accept_calculation(proj.calculations().candidates[0].id)
+    _sources(proj.root, 14_000_000, 13_000_000)
+    groups = {c.kind: c for c in proj.impact().changes}
+    assert set(groups) == {"source", "calculation"}
+    src, calc = groups["source"], groups["calculation"]
+    assert (src.old_value, src.new_value, src.unit) == (15_100_000, 13_000_000, "")
+    assert calc.unit == "%" and round(calc.old_value, 2) == 7.86 and round(calc.new_value, 2) == -7.14
+    assert "Net revenue" in calc.label and [e.decision for e in calc.elements] == ["hold"]
+
+
+def test_a_calculation_that_turned_over_is_reported_in_percent_words(tmp_path: Path) -> None:
+    proj = _project(tmp_path, [SENTENCE])
+    proj.accept_calculation(proj.calculations().candidates[0].id)
+    _sources(proj.root, 14_000_000, 13_000_000)
+    findings, _ = proj.consequences(proj.plan_refresh())
+    turned = [f for f in findings if f.kind == "calculated_turned_over"]
+    assert len(turned) == 1 and turned[0].evidence == ("It was +7.9% and would now be -7.1%",)

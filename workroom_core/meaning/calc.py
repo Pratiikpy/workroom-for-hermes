@@ -69,6 +69,18 @@ def describe(calc: "Calc") -> str:
     return f"{shown} = {format(result, ',.6g')}{'%' if calc.transform == 'fraction_to_percent' else ''}"
 
 
+def formula_words(formula: str, label_of) -> str:
+    """A stored calculation in words, naming each cell by its headings."""
+    try:
+        f = json.loads(formula)
+    except ValueError:
+        return "a calculation"
+    names = [label_of(tuple(t)) for t in f["terms"]]
+    if f["op"] == "pct_change" and len(names) == 2:
+        return f"({names[0]} - {names[1]}) / {names[1]}"
+    return {"ratio": " / ", "diff": " - ", "sum": " + "}.get(f["op"], ", ").join(names)
+
+
 def compute(op: str, values: list[float]) -> float | None:
     if op == "pct_change":
         return None if values[1] == 0 else (values[0] - values[1]) / abs(values[1])
