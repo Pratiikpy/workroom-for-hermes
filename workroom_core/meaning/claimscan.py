@@ -45,7 +45,7 @@ def _fmt(values: list[float], claim: Claim) -> str:
     return " vs ".join(_num(values[i]) for i in (claim.a, claim.b) if i is not None)
 
 
-def claim_findings(project: "Project", plan: "Plan") -> tuple[list[Finding], Coverage]:
+def claim_findings(project: "Project", plan: "Plan", roll: dict | None = None) -> tuple[list[Finding], Coverage]:
     from ..project import is_scene, open_document
 
     index = project.source_index()
@@ -72,7 +72,8 @@ def claim_findings(project: "Project", plan: "Plan") -> tuple[list[Finding], Cov
         fid = Decisions.key(kind, rel, mask_digits(text_b), text_a)
         return Finding(fid, kind, severity, rel, slide, text_b, text_a, summary, tuple(evidence), sug)
 
-    moved = {k for k in now if now[k] != then[k]}
+    moved = {k for k in now if now[k] != then[k]} or ({"roll"} if roll else set())
+    roll_to = {it["id"]: tuple(it["to"]) for it in (roll or {}).get("ties", [])}
     for rel in sorted({t.deck for t in ties if t.kind in ("text", "derived")}):
         if is_scene(rel) or not (project.root / rel).is_file():
             continue
@@ -116,34 +117,38 @@ def claim_findings(project: "Project", plan: "Plan") -> tuple[list[Finding], Cov
                 f = figs_b[claim.a]
                 dm = by_start.get(f.start) or next((d for d in mentions_b if d.number.raw == f.raw), None)
                 tie = tie_for(dm) if dm is not None else None
-                cell = cells.get((tie.src_file, tie.sheet, tie.ref)) if tie is not None and tie.kind == "text" else None
-                if cell is None:
+                cell_b = cells.get((tie.src_file, tie.sheet, tie.ref)) if tie is not None and tie.kind == "text" else None
+                if cell_b is None:
                     cov.not_checked.append(f"{rel} slide {slide}: \"{claim.cue}\" about {f.raw} was not checked because that figure is not tied to a source cell")
                     continue
-                key = (cell.file, cell.sheet, cell.ref)
+                cell_a = cells.get(roll_to[tie.id]) if tie.id in roll_to else cell_b
+                kb, ka = (cell_b.file, cell_b.sheet, cell_b.ref), (cell_a.file, cell_a.sheet, cell_a.ref)
+                val_b = tie.linked_value if tie.id in roll_to else then[kb]
+                val_a = now[ka]
                 if claim.pattern == "rank":
-                    peers = tl.history(cell)
-                    if len(peers) < 2:
+                    peers_b, peers_a = tl.history(cell_b), tl.history(cell_a)
+                    if len(peers_a) < 2:
                         cov.not_checked.append(f"{rel} slide {slide}: \"{claim.cue}\" was not checked: the workbook holds too little history for {f.raw}")
                         continue
-                    pb = rank_holds(then[key], [then[(c.file, c.sheet, c.ref)] for c in peers], claim.relation)
-                    pa = rank_holds(now[key], [now[(c.file, c.sheet, c.ref)] for c in peers], claim.relation)
-                    shown = [f"{_tag(cell)}: {_num(now[key])}; earlier: " + "; ".join(f"{_tag(c)} {_num(now[(c.file, c.sheet, c.ref)])}" for c in peers[-4:])]
+                    pb = rank_holds(val_b, [then[(c.file, c.sheet, c.ref)] for c in peers_b], claim.relation)
+                    pa = rank_holds(val_a, [now[(c.file, c.sheet, c.ref)] for c in peers_a], claim.relation)
+                    shown = [f"{_tag(cell_a)}: {_num(val_a)}; earlier: " + "; ".join(f"{_tag(c)} {_num(now[(c.file, c.sheet, c.ref)])}" for c in peers_a[-4:])]
                     if pb and not pa:
                         findings.append(make("record_flip", "high", rel, slide, text_b, text_a, f"\"{claim.cue}\" for {f.raw} is no longer true", shown, claim))
                     elif not pb and not pa:
                         findings.append(make("claim_already_false", "info", rel, slide, text_b, text_a, f"\"{claim.cue}\" for {f.raw} did not hold before this update either", shown, claim))
                     continue
-                bases = [b for b in (tl.previous(cell), tl.year_ago(cell)) if b is not None]
-                if not bases:
+                bases_b = [b for b in (tl.previous(cell_b), tl.year_ago(cell_b)) if b is not None]
+                bases_a = [b for b in (tl.previous(cell_a), tl.year_ago(cell_a)) if b is not None]
+                if not bases_a:
                     cov.not_checked.append(f"{rel} slide {slide}: \"{claim.cue}\" about {f.raw} was not checked: no earlier period in the workbook to compare with")
                     continue
                 cmp = (lambda a, b: a > b) if claim.relation == "gt" else (lambda a, b: a < b)
-                hb = any(cmp(then[key], then[(b.file, b.sheet, b.ref)]) for b in bases)
-                ha = any(cmp(now[key], now[(b.file, b.sheet, b.ref)]) for b in bases)
+                hb = any(cmp(val_b, then[(b.file, b.sheet, b.ref)]) for b in bases_b)
+                ha = any(cmp(val_a, now[(b.file, b.sheet, b.ref)]) for b in bases_a)
                 if hb and not ha:
                     findings.append(make("baseline_flip", "medium", rel, slide, text_b, text_a, f"\"{claim.cue}\" about {f.raw} no longer holds against either earlier period",
-                                         [f"{_tag(cell)}: {_num(now[key])}; " + "; ".join(f"{_tag(b)} {_num(now[(b.file, b.sheet, b.ref)])}" for b in bases)], claim))
+                                         [f"{_tag(cell_a)}: {_num(val_a)}; " + "; ".join(f"{_tag(b)} {_num(now[(b.file, b.sheet, b.ref)])}" for b in bases_a)], claim))
     for t in ties:
         if t.kind == "derived" and t.state in ("accepted", "confirmed"):
             new_value = project._tie_value(t, now)

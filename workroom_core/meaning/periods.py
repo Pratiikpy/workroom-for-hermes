@@ -180,3 +180,35 @@ def period_label(p: Period, template: str) -> str:
             ytxt = m.group(2)
             return out[:m.start(1)] + shown + out[m.end(1):m.start(2)] + fix_year(ytxt, y, len(ytxt) == 2) + out[m.end(2):]
     raise ValueError("cannot write this period in the style of the template")
+
+
+def find_periods(text: str) -> list[tuple[int, int, Period]]:
+    """Every period named in a stretch of prose, left to right, as (start, end, period). A match that does not read as exactly one period is skipped."""
+    spans: list[tuple[int, int]] = []
+    for rx in (_Q3, _Q1, _Q2, _H2, _H1, _FY, _MON):
+        for m in rx.finditer(text):
+            spans.append((m.start(), m.end()))
+    spans.sort(key=lambda x: (x[0], -(x[1] - x[0])))
+    out: list[tuple[int, int, Period]] = []
+    last_end = -1
+    for a, b in spans:
+        if a < last_end:
+            continue
+        p = parse_period(text[a:b])
+        if p is not None:
+            out.append((a, b, p))
+            last_end = b
+    return out
+
+
+def describe_period(p: Period) -> str:
+    """A plain name for a period, for messages: Q4 2026, Mar 2026, H2 2026, FY2026."""
+    if p.kind == "q":
+        return f"Q{p.index % 4 + 1} {p.index // 4}"
+    if p.kind == "m":
+        return f"{('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')[p.index % 12]} {p.index // 12}"
+    if p.kind == "h":
+        return f"H{p.index % 2 + 1} {p.index // 2}"
+    if p.kind == "y":
+        return f"FY{p.index}"
+    return f"{p.months} months to {(p.index % 12) + 1}/{p.index // 12}"

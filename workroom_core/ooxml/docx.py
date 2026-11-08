@@ -121,6 +121,27 @@ class Doc:
         self._rev += 1
         return self._rev
 
+    def paragraphs(self):
+        """Every paragraph of every part as (part number, 0, paragraph index, table cell, text)."""
+        for part_no, part in enumerate(self._parts, 1):
+            for pi, p in enumerate(self._paragraphs(part)):
+                tc = next((a for a in p.iterancestors() if a.tag == _w("tc")), None)
+                yield part_no, 0, pi, (0, 0) if tc is not None else None, self._plain(p)
+
+    def edit_label(self, slide: int, shape_id: int, para: int, cell, old: str, new: str, occurrence: int = 0) -> Replacement:
+        part = self._parts[slide - 1]
+        paras = self._paragraphs(part)
+        if para >= len(paras):
+            raise EditError("the paragraph is no longer there; the document changed since discovery")
+        p = paras[para]
+        hits = find_all(p, old, WORD)
+        if occurrence >= len(hits):
+            raise EditError(f"{old!r} is split across formatting or no longer in this paragraph; not changed")
+        res = replace_once(p, old, new, WORD, occurrence=occurrence if len(hits) > 1 else None)
+        self._merged = self._merged or res.formats_merged
+        self._dirty.add(part)
+        return res
+
     def edit_mention(self, dm: DocMention, new_text: str) -> Replacement:
         part = self._parts[dm.slide - 1]
         paras = self._paragraphs(part)

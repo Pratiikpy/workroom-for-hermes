@@ -14,6 +14,8 @@ TOOLS = (
     ("workroom_add_project", tools.ADD_PROJECT_SCHEMA, tools.workroom_add_project, "Register a folder of Office files as a project.", FULL_TOOLSET),
     ("workroom_discover", tools.DISCOVER_SCHEMA, tools.workroom_discover, "Link numbers in documents to their source cells.", FULL_TOOLSET),
     ("workroom_stage_release", tools.STAGE_SCHEMA, tools.workroom_stage_release, "Prepare a release for the owner to approve.", FULL_TOOLSET),
+    ("workroom_roll_forward", tools.ROLL_SCHEMA, tools.workroom_roll_forward, "Prepare a release that rolls the documents to the next reporting period.", FULL_TOOLSET),
+    ("workroom_find_calculations", tools.CALCULATIONS_SCHEMA, tools.workroom_find_calculations, "List calculated numbers (percent change, margin, difference, total) found in the documents.", READ_ONLY_TOOLSET),
     ("workroom_create", tools.CREATE_SCHEMA, tools.workroom_create, "Create a deck or report whose figures are tied to source cells, staged for approval.", FULL_TOOLSET),
     ("workroom_propose_instruction", tools.PROPOSE_INSTRUCTION_SCHEMA, tools.workroom_propose_instruction, "Propose a change to workroom.md for the owner to review.", FULL_TOOLSET),
     ("workroom_edit_page", tools.EDIT_PAGE_SCHEMA, tools.workroom_edit_page, "Edit a visual page as a draft for the owner to save.", FULL_TOOLSET),

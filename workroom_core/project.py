@@ -554,13 +554,29 @@ class Project:
 
         dismiss_calculation(self, candidate_id)
 
-    def consequences(self, plan: "Plan"):
+    def plan_rollforward(self, steps: int = 1):
+        """Everything needed to roll the project's documents to the next reporting period, as new file bytes. Writes nothing."""
+        from .meaning.rollforward import plan_rollforward
+
+        return plan_rollforward(self, steps)
+
+    def apply_rollforward(self, meta: dict) -> None:
+        from .meaning.rollforward import apply_rollforward
+
+        apply_rollforward(self, meta)
+
+    def revert_rollforward(self, meta: dict) -> dict:
+        from .meaning.rollforward import revert_rollforward
+
+        return revert_rollforward(self, meta)
+
+    def consequences(self, plan: "Plan", roll: dict | None = None):
         """What the planned update means for the sentences around the numbers: claims it makes false, and what could not be checked."""
         from .meaning.claimscan import claim_findings
         from .meaning.findings import sort_findings
         from .meaning.surfaces import clipped_charts, stale_mentions
 
-        found, cov = claim_findings(self, plan)
+        found, cov = claim_findings(self, plan, roll)
         merged = {f.id: f for f in found + stale_mentions(self, plan) + clipped_charts(self, plan)}
         return sort_findings(list(merged.values())), cov
 

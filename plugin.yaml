@@ -18,6 +18,8 @@ provides_tools:
   - workroom_explain_figure
   - workroom_selftest
   - workroom_stage_release
+  - workroom_roll_forward
+  - workroom_find_calculations
   - workroom_create
   - workroom_list_sources
   - workroom_instructions

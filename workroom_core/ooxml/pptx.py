@@ -190,6 +190,41 @@ class Deck:
             body = sh.find("{%s}txBody" % P_NS)
         return body.findall(_a("p"))[dm.para]
 
+    def paragraphs(self) -> Iterator[tuple[int, int, int, tuple[int, int] | None, str]]:
+        """Every paragraph of every text shape and table cell as (slide, shape id, paragraph index, table cell, text), whether or not it holds a number."""
+        for si in range(1, len(self.slide_parts()) + 1):
+            _, root = self._slide(si)
+            for nv in root.iter("{%s}cNvPr" % P_NS):
+                sh = nv.getparent().getparent()
+                sid = int(nv.get("id"))
+                if sh.tag == "{%s}sp" % P_NS:
+                    tx = sh.find("{%s}txBody" % P_NS)
+                    if tx is not None:
+                        for pi, p in enumerate(tx.findall(_a("p"))):
+                            yield si, sid, pi, None, "".join(t.text or "" for t in p.iter(_a("t")))
+                elif sh.tag == "{%s}graphicFrame" % P_NS:
+                    tbl = sh.find(".//{%s}tbl" % A_NS)
+                    if tbl is None:
+                        continue
+                    for r, tr in enumerate(tbl.findall(_a("tr"))):
+                        for c, tc in enumerate(tr.findall(_a("tc"))):
+                            tb = tc.find(_a("txBody"))
+                            if tb is not None:
+                                for pi, p in enumerate(tb.findall(_a("p"))):
+                                    yield si, sid, pi, (r, c), "".join(t.text or "" for t in p.iter(_a("t")))
+
+    def edit_label(self, slide: int, shape_id: int, para: int, cell: tuple[int, int] | None, old: str, new: str, occurrence: int = 0) -> Replacement:
+        """Replace one named occurrence of a word or phrase inside one paragraph (a period label, never a number)."""
+        probe = DocMention(slide, shape_id, para, 0, 0, NumberMention("", 0.0, 0.0, 0, "plain", 1.0, False, 0, 0), (), cell)
+        p = self._target_paragraph(probe)
+        hits = find_all(p, old, DRAWING)
+        if occurrence >= len(hits):
+            raise EditError(f"{old!r} is split across formatting or no longer in this paragraph; not changed")
+        result = replace_once(p, old, new, DRAWING, occurrence=occurrence if len(hits) > 1 else None)
+        self._merged = self._merged or result.formats_merged
+        self._dirty.add(self.slide_parts()[slide - 1])
+        return result
+
     def edit_mention(self, dm: DocMention, new_text: str) -> Replacement:
         """Replace exactly the number the mention points at, wherever else the same digits appear."""
         p = self._target_paragraph(dm)

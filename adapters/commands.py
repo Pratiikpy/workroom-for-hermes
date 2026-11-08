@@ -41,6 +41,17 @@ def _card(view: dict[str, Any]) -> str:
     elif view.get("edited_page"):
         lines = [f"Workroom release {view['release_id']}: your edits to {view['changes'][0]['deck']} will be written ({view['changes'][0]['new_text']}).",
                  "Nothing has been written yet. A backup of the replaced file is kept."]
+    elif view.get("rolled"):
+        r = view["rolled"]
+        span = f" ({', '.join(r['from'])} to {', '.join(r['to'])})" if r["from"] and r["to"] else ""
+        lines = [f"Workroom release {view['release_id']}: rolls your documents forward {r['steps']} period{'s' if r['steps'] != 1 else ''}{span}: {r['figures']} figures re-pointed to the next period, {r['period_words']} period words advanced."]
+        for c in view["changes"][:5]:
+            lines.append(f"  {c['old_text']} -> {c['new_text']}   ({c['deck']}, {c.get('where') or 'slide ' + str(c['slide'])})")
+        if len(view["changes"]) > 5:
+            lines.append(f"  and {len(view['changes']) - 5} more")
+        if view.get("held"):
+            lines.append(f"{len(view['held'])} left for you")
+        lines.append("Nothing has changed yet. A backup of every replaced file is kept, and Restore undoes the whole roll.")
     else:
         lines = [f"Workroom release {view['release_id']}: {len(view['changes'])} number(s) will change in your documents."]
         for c in view["changes"][:6]:
@@ -49,15 +60,15 @@ def _card(view: dict[str, Any]) -> str:
             lines.append(f"  and {len(view['changes']) - 6} more")
         if view.get("held"):
             lines.append(f"{len(view['held'])} held for you")
-        flags = [f for f in view.get("flags", []) if f["severity"] in ("high", "medium")]
-        if flags:
-            lines.append(f"{len(flags)} sentence{'s' if len(flags) != 1 else ''} to read before you approve:")
-            for f in flags[:4]:
-                lines.append(f"  [{f['severity']}] {f['summary']}")
-                lines.append(f"      now reads: {f['sentence_after'][:140]}")
-            if len(flags) > 4:
-                lines.append(f"  and {len(flags) - 4} more")
         lines.append("Nothing has changed yet. A backup of every replaced file is kept.")
+    flags = [f for f in view.get("flags", []) if f["severity"] in ("high", "medium")]
+    if flags and not view.get("created") and not view.get("edited_page"):
+        lines.append(f"{len(flags)} sentence{'s' if len(flags) != 1 else ''} to read before you approve:")
+        for f in flags[:4]:
+            lines.append(f"  [{f['severity']}] {f['summary']}")
+            lines.append(f"      now reads: {f['sentence_after'][:140]}")
+        if len(flags) > 4:
+            lines.append(f"  and {len(flags) - 4} more")
     lines.append(f"Fingerprint {view['digest'][:12]}; your answer applies to exactly this release.")
     return chr(10).join(lines)
 

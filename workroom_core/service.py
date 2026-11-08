@@ -460,6 +460,10 @@ class Service:
             return {"release_id": release_id, "state": "restored", "files": sorted(files)}
         restored = {rel: (proj.root / rel).read_bytes() for rel in files if (proj.root / rel).is_file()}
         override = {}
+        rolled = json.loads(meta_path.read_text(encoding="utf-8")).get("rolled") if meta_path.exists() else None
+        if rolled:
+            override = proj.revert_rollforward(rolled)
+            changes = []
         for c in changes:
             if not c.get("src"):
                 continue
@@ -1028,9 +1032,37 @@ class Service:
         return {"release_id": rid, "state": "awaiting_approval", "digest": ctl.digest(rid),
                 "changes": self._changes(proj, plan), "held": plan.skipped, "flags": flags, "coverage": coverage}
 
-    def _flags(self, proj: Project, plan: Plan) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    @_closing
+    def stage_rollforward(self, pid: str, steps: int = 1) -> dict[str, Any]:
+        """Prepare one release that moves every tied figure to the next reporting period and advances the period words beside them.
+        Refused, naming each figure, when any tied figure has no next-period value. Nothing changes until the owner approves."""
+        if not isinstance(steps, int) or not 1 <= steps <= 4:
+            raise ServiceError("roll forward by 1 to 4 periods")
+        proj, ctl = self._open(pid)
+        self._integrity(pid, proj, ctl)
+        proj.discover()
+        plan = proj.plan_rollforward(steps)
+        if plan.blocked:
+            raise ServiceError("cannot roll forward: " + "; ".join(plan.blocked[:5]) + (f"; and {len(plan.blocked) - 5} more" if len(plan.blocked) > 5 else "") + ". Nothing was changed.")
+        if not plan.files:
+            raise ServiceError("nothing to roll forward")
+        rid = ctl.stage(plan.files, mode="inplace")
+        findings = self._check_staged(plan)
+        meta_dir = self.data_dir / "projects" / pid / "meta"
+        meta_dir.mkdir(parents=True, exist_ok=True)
+        flags, coverage = self._flags(proj, plan, plan.meta())
+        meta = {"changes": self._changes(proj, plan), "held": plan.not_rolled, "kept": plan.kept, "flags": flags, "coverage": coverage, "rolled": plan.meta()}
+        (meta_dir / f"{rid}.json").write_text(json.dumps(meta), encoding="utf-8")
+        try:
+            ctl.mark_verified(rid, findings)
+        except NotReady:
+            return {"release_id": rid, "state": "blocked", "findings": findings}
+        return {"release_id": rid, "state": "awaiting_approval", "digest": ctl.digest(rid), "changes": meta["changes"], "held": plan.not_rolled, "kept": plan.kept,
+                "flags": flags, "coverage": coverage, "figures": len(plan.items), "period_words": len(plan.labels)}
+
+    def _flags(self, proj: Project, plan: Plan, roll: dict | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """What the update means for the sentences around the numbers, each with the owner's earlier decision about it, if any."""
-        found, cov = proj.consequences(plan)
+        found, cov = proj.consequences(plan, roll)
         decided = Decisions(proj.db)
         docs: dict[str, Any] = {}
         out = []
@@ -1127,6 +1159,9 @@ class Service:
                 proj.register_born_ties(rel, found, created["receipts"], values)
                 proj.register_chart_ties(rel, proj.locate_charts(rel, staged[rel], created.get("chart_points", []), values), values)
         else:
+            rolled = json.loads(meta_path.read_text(encoding="utf-8")).get("rolled") if meta_path.exists() else None
+            if rolled:
+                proj.apply_rollforward(rolled)
             proj.commit_snapshot(Plan(files=staged))
         return {"release_id": release_id, "state": "published"}
 
@@ -1134,6 +1169,13 @@ class Service:
     def release_view(self, pid: str, release_id: str) -> dict[str, Any]:
         """What the owner is shown for one release: its state, its changes, and the digest they approve."""
         return self._release_view(pid, release_id)
+
+    @staticmethod
+    def _rolled_summary(rolled: dict | None) -> dict[str, Any] | None:
+        if not rolled:
+            return None
+        return {"kind": rolled["kind"], "steps": rolled["steps"], "figures": len(rolled["ties"]), "period_words": len(rolled["labels"]),
+                "from": sorted({lab["old"] for lab in rolled["labels"]})[:3], "to": sorted({lab["new"] for lab in rolled["labels"]})[:3]}
 
     def _release_view(self, pid: str, release_id: str) -> dict[str, Any]:
         import re
@@ -1167,7 +1209,7 @@ class Service:
         flags = [{**f, "decision": decided.get(f["id"]) or ""} for f in meta.get("flags", [])]
         return {"release_id": release_id, "state": state, "digest": digest, "changes": meta["changes"], "held": meta["held"], "findings": findings,
                 "created": bool(meta.get("created")), "figures": meta.get("figures", []), "edited_page": bool(meta.get("edited_page")),
-                "flags": flags, "coverage": meta.get("coverage", {}),
+                "flags": flags, "coverage": meta.get("coverage", {}), "rolled": self._rolled_summary(meta.get("rolled")), "kept": meta.get("kept", []),
                 "needs_acknowledgement": [f["id"] for f in flags if f["severity"] == "high" and not f["decision"]]}
 
     @_closing

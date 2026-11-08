@@ -64,6 +64,11 @@ class Timeline:
         p = self.placed(cell)
         return self._at(p, p.period.year_ago) if p else None
 
+    def shifted(self, cell: SourceCell, n: int) -> SourceCell | None:
+        """The cell of the same series n periods later (earlier when negative), or None when the series has no such period."""
+        p = self.placed(cell)
+        return self._at(p, p.period.shifted(n)) if p and p.period.kind != "ytd" else None
+
     def next(self, cell: SourceCell) -> SourceCell | None:
         p = self.placed(cell)
         return self._at(p, p.period.shifted(1)) if p and p.period.kind != "ytd" else None
