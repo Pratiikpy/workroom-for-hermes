@@ -1,0 +1,42 @@
+from workroom.workroom_core.match.engine import Mention, SourceIndex, match_mentions
+from workroom.workroom_core.match.numbers import parse_numbers
+from workroom.workroom_core.ooxml.xlsx import SourceCell
+
+
+def cell(ref: str, value: float, label: str, period: str = "Q2") -> SourceCell:
+    return SourceCell("S", ref, 2, 2, value, False, False, (label,), (period,), False, "b.xlsx")
+
+
+def decide(text: str, shown: str, cells: list[SourceCell], heads: tuple[str, ...] = ()):
+    pos = text.rfind(shown)
+    nm = parse_numbers(shown)[0]
+    return match_mentions([Mention("t", nm, (text,) + heads, (pos, pos + len(shown)))], SourceIndex(cells))[0]
+
+
+def test_a_bare_short_number_is_never_accepted_by_scaling_a_big_cell() -> None:
+    r = decide("Other income was 3 in the quarter", "3", [cell("B2", 3280.0, "Other income")])
+    assert r.decision == "confirm"
+
+
+def test_a_percentage_never_matches_a_scaled_money_cell() -> None:
+    r = decide("Operating income grew 7.3% in the quarter", "7.3%", [cell("B2", 7286.0, "Operating income")])
+    assert r.decision == "none"
+
+
+def test_a_long_number_that_fits_exactly_one_cell_is_accepted_when_the_text_names_the_row() -> None:
+    r = decide("Net sales 94,036", "94,036", [cell("B2", 94036.0, "Revenue from contract with customer net sales")])
+    assert r.decision == "accept"
+
+
+def test_a_long_number_that_fits_one_cell_but_whose_text_names_nothing_still_goes_to_a_person() -> None:
+    r = decide("Reference 94,036", "94,036", [cell("B2", 94036.0, "Gross profit")])
+    assert r.decision == "confirm"
+
+
+def test_only_the_words_near_a_number_describe_it_in_a_long_paragraph() -> None:
+    filler = "The quarter included many one-time items across regions and product lines, as described in the notes. " * 4
+    far = "Accounts receivable fell in the period. " + filler + "Another figure was 6.15 for the quarter."
+    near = "Accounts receivable fell in the period to 6.15"
+    cells = [cell("B2", 6.15, "Accounts receivable")]
+    assert decide(far, "6.15", cells).best.label_score == 0.0
+    assert decide(near, "6.15", cells).best.label_score > 0.0

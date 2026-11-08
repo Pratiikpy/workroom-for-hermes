@@ -145,12 +145,35 @@ class SourceIndex:
         return hit / total if total else 0.0
 
 
+UNIQUE_DIGITS = 5  # a number this long that fits exactly one source cell is a fingerprint, not a coincidence
+UNIQUE_LABEL = 0.15  # ...provided the text names at least part of that cell
+NEAR_CHARS = 160  # in a long paragraph only the words around the number describe it
+_IMPLICIT_SCALES = ("thousands", "millions", "billions")
+
+
+def _significant_digits(raw: str) -> int:
+    digits = re.sub(r"\D", "", raw).lstrip("0")
+    return len(digits)
+
+
+def _near(text: str, span: tuple[int, int] | None) -> tuple[str, tuple[int, int] | None]:
+    if span is None or len(text) <= 2 * NEAR_CHARS:
+        return text, span
+    lo = max(0, span[0] - NEAR_CHARS)
+    hi = min(len(text), span[1] + NEAR_CHARS)
+    return text[lo:hi], (span[0] - lo, span[1] - lo)
+
+
 def match_mentions(mentions: list[Mention], index: SourceIndex, top: int = 5) -> list[MatchResult]:
     results: list[MatchResult] = []
     for m in mentions:
         ctx = list(m.context)
-        if m.span and ctx and ctx[0][m.span[0] : m.span[1]] == m.number.raw:
-            ctx[0] = ctx[0][: m.span[0]] + " " + ctx[0][m.span[1] :]
+        span = m.span
+        if ctx:
+            ctx[0], span = _near(ctx[0], span)
+        if span and ctx and ctx[0][span[0] : span[1]] == m.number.raw:
+            ctx[0] = ctx[0][: span[0]] + " " + ctx[0][span[1] :]
+        short = _significant_digits(m.number.raw) < 3
         ctx_text = " ".join(ctx)
         ctx_tokens = set(tokens(ctx_text))
         ctx_periods = periods(ctx_text)
@@ -159,6 +182,8 @@ def match_mentions(mentions: list[Mention], index: SourceIndex, top: int = 5) ->
             ok, transform = consistent_with_source(m.number, cell.value)
             if not ok:
                 continue
+            if transform in _IMPLICIT_SCALES and m.number.unit in ("percent", "pp"):
+                continue  # a percentage is never a scaled money figure
             ls = index.label_score(i, ctx_tokens)
             cp = index.periods[i]
             conflict = bool(ctx_periods and cp and not (ctx_periods & cp))
@@ -171,8 +196,12 @@ def match_mentions(mentions: list[Mention], index: SourceIndex, top: int = 5) ->
         best = scored[0]
         runner = scored[1] if len(scored) > 1 else None
         margin = best.score - (runner.score if runner else -1.0)
-        if best.period_conflict:
+        if best.transform in _IMPLICIT_SCALES and short:
+            decision, reason = "confirm", "a short number fits many cells once scaled, so it needs a person"
+        elif best.period_conflict:
             decision, reason = "confirm", "the period in the text does not match the period of the closest cell"
+        elif runner is None and not short and _significant_digits(m.number.raw) >= UNIQUE_DIGITS and best.label_score >= UNIQUE_LABEL:
+            decision, reason = "accept", "this long number fits exactly one source cell and the text names part of it"
         elif best.label_score >= ACCEPT_LABEL and margin >= ACCEPT_MARGIN:
             decision, reason = "accept", "value, label and period agree with a clear margin"
         elif best.label_score >= ACCEPT_LABEL:
