@@ -35,7 +35,7 @@
   <div id="bar" role="toolbar" aria-label="Page tools"></div>
   <div id="stage"><svg id="svg" tabindex="0" role="application" aria-label="Page canvas. Arrow keys move the selected item, Tab selects the next, Enter edits text."></svg><textarea id="edit" aria-label="Edit text"></textarea></div>
   <div id="side"><span id="status" role="status" aria-live="polite"></span>
-    <input id="comment" type="text" maxlength="400" placeholder="Ask the agent about the selected item, then press Enter" aria-label="Comment for the agent about the selected item"></div>
+    <input id="comment" type="text" maxlength="400" placeholder="Write a note for the agent about the selected item, then press Enter" aria-label="Comment for the agent about the selected item"></div>
   <ul id="list" aria-label="Items on the page"></ul>
 </div>
 <script>
@@ -334,7 +334,7 @@
   });
   commentEl.addEventListener('keydown', function (e) {
     if (e.key !== 'Enter' || !commentEl.value.trim()) return; e.preventDefault();
-    post({ op: 'comment', node: selection[0] || '', text: commentEl.value.trim().slice(0, 400) }); commentEl.value = ''; say('Sent to the agent.');
+    post({ op: 'comment', node: selection[0] || '', text: commentEl.value.trim().slice(0, 400) }); commentEl.value = ''; say('Adding to your message box...');
   });
 
   // ---- messages from the host ----

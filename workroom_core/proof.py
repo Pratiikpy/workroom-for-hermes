@@ -6,38 +6,49 @@ release is touched. When PowerPoint is missing or fails, callers get None and sa
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
+from .childenv import child_env
+
 TIMEOUT_SECONDS = 90
 MAX_SLIDES = 4
 
+# The script is passed to PowerShell as the command text, so no script file is run and no execution-policy override is needed.
+# The paths arrive as environment variables, never spliced into the script text.
 _SCRIPT = r'''
-param([string]$Src, [string]$Out, [string]$Slides)
 $ErrorActionPreference = "Stop"
+$src = $env:WORKROOM_PROOF_SRC; $out = $env:WORKROOM_PROOF_OUT; $slides = $env:WORKROOM_PROOF_SLIDES
 $app = New-Object -ComObject PowerPoint.Application
 try {
-  $pres = $app.Presentations.Open($Src, $true, $false, $false)
-  foreach ($n in ($Slides -split ",")) {
+  $pres = $app.Presentations.Open($src, $true, $false, $false)
+  foreach ($n in ($slides -split ",")) {
     $i = [int]$n
-    if ($i -ge 1 -and $i -le $pres.Slides.Count) { $pres.Slides.Item($i).Export((Join-Path $Out ("slide" + $i + ".png")), "PNG", 960, 540) }
+    if ($i -ge 1 -and $i -le $pres.Slides.Count) { $pres.Slides.Item($i).Export((Join-Path $out ("slide" + $i + ".png")), "PNG", 960, 540) }
   }
   $pres.Close()
 } finally { $app.Quit() }
 '''
 
 
+def _powershell() -> Path | None:
+    exe = Path(os.environ.get("SYSTEMROOT", r"C:\Windows")) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+    return exe if exe.is_file() else None
+
+
 def available() -> bool:
-    if sys.platform != "win32":
+    if sys.platform != "win32" or _powershell() is None:
         return False
+    import winreg
+
     try:
-        out = subprocess.run(["powershell", "-NoProfile", "-Command", "Test-Path 'Registry::HKEY_CLASSES_ROOT\\PowerPoint.Application'"],
-                             capture_output=True, text=True, timeout=20)
-        return out.stdout.strip().lower() == "true"
-    except (OSError, subprocess.TimeoutExpired):
+        winreg.CloseKey(winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, "PowerPoint.Application"))
+        return True
+    except OSError:
         return False
 
 
@@ -52,12 +63,11 @@ def render_slides(pptx: Path, slides: list[int]) -> dict[int, bytes] | None:
     try:
         copy = work / "copy.pptx"
         shutil.copyfile(pptx, copy)
-        script = work / "render.ps1"
-        script.write_text(_SCRIPT, encoding="utf-8")
         out = work / "png"
         out.mkdir()
-        done = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script), "-Src", str(copy), "-Out", str(out), "-Slides", ",".join(map(str, wanted))],
-                              capture_output=True, text=True, timeout=TIMEOUT_SECONDS)
+        env = child_env("office", WORKROOM_PROOF_SRC=str(copy), WORKROOM_PROOF_OUT=str(out), WORKROOM_PROOF_SLIDES=",".join(map(str, wanted)))
+        done = subprocess.run([str(_powershell()), "-NoProfile", "-NonInteractive", "-Command", _SCRIPT], text=True,
+                              capture_output=True, timeout=TIMEOUT_SECONDS, env=env)
         if done.returncode != 0:
             return None
         return {n: (out / f"slide{n}.png").read_bytes() for n in wanted if (out / f"slide{n}.png").is_file()}

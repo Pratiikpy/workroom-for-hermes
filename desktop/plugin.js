@@ -108,12 +108,12 @@ function PageEditor({ ctx }) {
         catch (err) { send({ op: 'say', message: String(err && err.message ? err.message : err) }) }
       } else if (m.op === 'comment' && typeof m.text === 'string' && m.text.length <= 400) {
         const text = 'About ' + t.path + (typeof m.node === 'string' && m.node ? ', item ' + m.node.slice(0, 40) : '') + ': ' + m.text
-        const trySubmit = () => host.composer.submit(null, text) || host.composer.submit('new', text)
-        if (trySubmit()) send({ op: 'say', message: 'Sent to the agent.' })
-        else {
+        const put = () => Promise.resolve(host.composer.insertText(null, text, { mode: 'block' }))
+        put().then((ok) => {
+          if (ok) { send({ op: 'say', message: 'Added to your message box. Press Enter to send it.' }); return }
           host.newChat()
-          setTimeout(() => send({ op: 'say', message: trySubmit() ? 'Sent to the agent in a new chat.' : 'Could not reach a chat. Open one and send again.' }), 900)
-        }
+          setTimeout(() => put().then((ok2) => send({ op: 'say', message: ok2 ? 'Added to a new chat. Press Enter to send it.' : 'Could not reach a chat. Open one and try again.' })), 900)
+        })
       }
     }
     window.addEventListener('message', onMsg)

@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from ..childenv import child_env
+
 WORKER = Path(__file__).with_name("worker.py")
 TIMEOUT_SECONDS = 60
 MAX_OUTPUT_BYTES = 40_000_000
@@ -43,8 +45,7 @@ def _dependency_paths() -> str:
 
 def build_file(resolved_spec: dict[str, Any], timeout: float = TIMEOUT_SECONDS) -> bytes:
     """Build the Office file for an already validated and resolved spec. Raises BuildError; never returns a partial file."""
-    env = {k: v for k, v in os.environ.items() if k in ("SYSTEMROOT", "PATH", "TEMP", "TMP", "HOME", "USERPROFILE", "LOCALAPPDATA", "APPDATA")}
-    env.update({"PYTHONIOENCODING": "utf-8", "PYTHONDONTWRITEBYTECODE": "1", "PYTHONPATH": _dependency_paths()})
+    env = child_env(PYTHONIOENCODING="utf-8", PYTHONDONTWRITEBYTECODE="1", PYTHONPATH=_dependency_paths())
     try:
         proc = subprocess.run(
             [sys.executable, "-B", "-P", str(WORKER)],

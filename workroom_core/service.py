@@ -11,6 +11,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from .childenv import child_env
 from .controller.approvals import ApprovalError, sign
 from .build.formats import plain
 from .controller.release import Controller, NotReady, ReleaseError, StaleRelease
@@ -29,8 +30,9 @@ def _restrict_to_owner(path: Path) -> None:
     import getpass
     import subprocess
 
+    icacls = Path(os.environ.get("SYSTEMROOT", r"C:\Windows")) / "System32" / "icacls.exe"
     try:
-        subprocess.run(["icacls", str(path), "/inheritance:r", "/grant:r", f"{getpass.getuser()}:(R,W)"], check=True, capture_output=True, timeout=20)
+        subprocess.run([str(icacls), str(path), "/inheritance:r", "/grant:r", f"{getpass.getuser()}:(R,W)"], check=True, capture_output=True, timeout=20, env=child_env("office"))
     except (OSError, subprocess.SubprocessError):
         pass
 
