@@ -66,8 +66,9 @@ class Tie:
     held_note: str = ""
     basis: str = "matched"  # born (written by a Workroom builder from this very cell) | matched | confirmed
     receipt: str = ""  # JSON: the fact selection receipt of a born tie
-    kind: str = "text"  # text (a number in a text shape or table) | chart (one data point of a native chart)
+    kind: str = "text"  # text (a number in a text shape or table) | chart (one data point of a native chart) | derived (a number calculated from source cells)
     chart: str = ""  # JSON for a chart tie: {"series": index, "category": label}
+    formula: str = ""  # JSON for a derived tie: {"op": "pct_change"|"ratio"|"diff"|"sum", "terms": ["file!sheet!ref", ...], "cue": "up"|"down"|""}
 
 
 @dataclass(frozen=True)
@@ -138,7 +139,7 @@ class Project:
             " seg INT, offset INT, cell_rc TEXT, raw TEXT, state TEXT, src_file TEXT, sheet TEXT, ref TEXT, transform TEXT,"
             " linked_value REAL, label_score REAL, context TEXT)"
         )
-        for column in ("context TEXT", "slide_uid TEXT", "fp_near TEXT", "anchor TEXT", "prior_state TEXT", "held_note TEXT", "basis TEXT", "receipt TEXT", "kind TEXT", "chart TEXT"):
+        for column in ("context TEXT", "slide_uid TEXT", "fp_near TEXT", "anchor TEXT", "prior_state TEXT", "held_note TEXT", "basis TEXT", "receipt TEXT", "kind TEXT", "chart TEXT", "formula TEXT"):
             try:
                 self.db.execute(f"ALTER TABLE ties ADD COLUMN {column}")
             except sqlite3.OperationalError:
@@ -419,7 +420,7 @@ class Project:
         unreadable: list[str] = []
         for p in self._files(DECK_EXT):
             rel = self._rel(p)
-            deck_ties = [t for t in existing if t.deck == rel and t.kind == "text"]
+            deck_ties = [t for t in existing if t.deck == rel and t.kind in ("text", "derived")]
             kept_ids.update(t.id for t in existing if t.deck == rel and t.kind == "chart")
             try:
                 deck = open_document(p.read_bytes(), p.name)
@@ -521,7 +522,7 @@ class Project:
             ties.append(Tie(row["id"], row["deck"], row["slide"], row["shape_id"], row["para"], row["seg"], row["offset"], tuple(cell) if cell else None,
                             row["raw"], row["state"], row["src_file"], row["sheet"], row["ref"], row["transform"], row["linked_value"], row["label_score"],
                             row.get("context") or "", row.get("slide_uid") or "", row.get("fp_near") or "", row.get("anchor") or "exact",
-                            row.get("prior_state") or "", row.get("held_note") or "", row.get("basis") or "matched", row.get("receipt") or "", row.get("kind") or "text", row.get("chart") or ""))
+                            row.get("prior_state") or "", row.get("held_note") or "", row.get("basis") or "matched", row.get("receipt") or "", row.get("kind") or "text", row.get("chart") or "", row.get("formula") or ""))
         return [t for t in ties if states is None or t.state in states]
 
     def confirm(self, tie_id: int) -> None:
@@ -534,9 +535,47 @@ class Project:
     def tie(self, tie_id: int):
         return next((t for t in self.ties() if t.id == tie_id), None)
 
+    # ---- calculated numbers ----
+    def calculations(self):
+        """Numbers in the documents that a calculation over tied cells reproduces. Writes nothing."""
+        from .meaning.scan import find_calculations
+
+        return find_calculations(self)
+
+    def accept_calculation(self, candidate_id: str, option: int = 0) -> int:
+        from .meaning.scan import accept_calculation
+
+        return accept_calculation(self, candidate_id, option)
+
+    def dismiss_calculation(self, candidate_id: str) -> None:
+        from .meaning.scan import dismiss_calculation
+
+        dismiss_calculation(self, candidate_id)
+
+    @staticmethod
+    def _sign_fits(t: Tie, new: float) -> bool:
+        """A calculated change written as up or down keeps its direction; a change that has turned over is held, not rewritten."""
+        if t.kind != "derived":
+            return True
+        try:
+            cue = json.loads(t.formula).get("cue", "")
+        except ValueError:
+            return True
+        return not (cue == "up" and new <= 0 or cue == "down" and new >= 0)
+
     # ---- plan ----
     def _current_values(self) -> dict[tuple[str, str, str], float]:
         return {(c.file, c.sheet, c.ref): c.value for c in self.source_index().cells}
+
+    @staticmethod
+    def _tie_value(t: Tie, values: dict[tuple[str, str, str], float], default: float | None = None) -> float | None:
+        """What a tie should show now: its source cell's value, or, for a calculated number, the calculation over the current cells."""
+        if t.kind == "derived":
+            from .meaning.calc import evaluate
+
+            got = evaluate(t.formula, values)
+            return default if got is None else got
+        return values.get((t.src_file, t.sheet, t.ref), default)
 
     def plan_refresh(self) -> Plan:
         plan = Plan()
@@ -545,9 +584,12 @@ class Project:
         for t in self.ties(("held",)):
             plan.skipped.append(f"{t.deck} slide {t.slide}: '{t.raw}' was changed by hand ({t.held_note}); held for you, not updated")
         for t in self.ties(("accepted", "confirmed")):
-            new = values.get((t.src_file, t.sheet, t.ref))
+            new = self._tie_value(t, values)
             if new is None:
-                plan.skipped.append(f"{t.deck} slide {t.slide}: source {t.src_file}!{t.sheet}!{t.ref} is missing; not changed")
+                plan.skipped.append(f"{t.deck} slide {t.slide}: source {t.src_file}!{t.sheet}!{t.ref} is missing{' or the calculation cannot be made' if t.kind == 'derived' else ''}; not changed")
+                continue
+            if not self._sign_fits(t, new):
+                plan.skipped.append(f"{t.deck} slide {t.slide}: '{t.raw}' is a calculated change and its direction has turned over, so the words next to it no longer fit; held for you, not updated")
                 continue
             if new != t.linked_value:
                 by_deck.setdefault(t.deck, []).append((t, new))
@@ -575,7 +617,7 @@ class Project:
                     continue
                 applied += 1
                 plan.impacts.append(Impact(deck_rel, slide_no, t.raw, plain(new), f"{t.src_file}!{t.sheet}!{t.ref}", t.linked_value, new))
-            for t, new in sorted([x for x in items if x[0].kind == "text"], key=lambda x: (x[0].slide, x[0].shape_id, x[0].para, x[0].seg, -x[0].offset)):
+            for t, new in sorted([x for x in items if x[0].kind in ("text", "derived")], key=lambda x: (x[0].slide, x[0].shape_id, x[0].para, x[0].seg, -x[0].offset)):
                 dm = dms.get(self._tkey(t))
                 if dm is None or dm.number.raw != t.raw:
                     plan.skipped.append(f"{deck_rel} slide {t.slide}: '{t.raw}' is no longer where it was linked (edited by hand?); held")
@@ -602,6 +644,7 @@ class Project:
         faithfully, so it is left alone) or blocked (its source cell is missing). Links the owner skipped, and links still waiting for
         confirmation, are not part of the inbox."""
         cells = {(c.file, c.sheet, c.ref): c for c in self.source_index().cells}
+        cell_values = {k: c.value for k, c in cells.items()}
         plan = self.plan_refresh()
         auto = {(i.deck, i.slide, i.old_text, i.src): i for i in plan.impacts}
         groups: dict[str, list[Element]] = {}
@@ -610,12 +653,13 @@ class Project:
         for t in self.ties(("accepted", "confirmed", "held")):
             key = f"{t.src_file}!{t.sheet}!{t.ref}"
             cell = cells.get((t.src_file, t.sheet, t.ref))
-            if cell is None:
+            now = self._tie_value(t, cell_values) if t.kind == "derived" else (cell.value if cell is not None else None)
+            if cell is None or now is None:
                 blocked.append(Element(t.id, t.deck, t.slide, t.raw, "", "blocked", f"source {key} is missing; not changed", t.context))
                 continue
-            if cell.value == t.linked_value:
+            if now == t.linked_value:
                 continue
-            meta[key] = (t.linked_value, cell.value)
+            meta[key] = (t.linked_value, now)
             if t.state == "held":
                 el = Element(t.id, t.deck, t.slide, t.raw, "", "hold", f"changed by hand: {t.held_note}", t.context)
             else:
@@ -658,7 +702,7 @@ class Project:
             groups: dict[tuple, list[Tie]] = {}
             for t in self.ties():
                 if t.deck == deck_rel and t.kind == "chart":
-                    new = values.get((t.src_file, t.sheet, t.ref), t.linked_value)
+                    new = self._tie_value(t, values, t.linked_value)
                     self.db.execute("UPDATE ties SET linked_value=?, raw=? WHERE id=?", (new, plain(new), t.id))
                 elif t.deck == deck_rel:
                     groups.setdefault((t.slide_uid or f"#{t.slide}", t.shape_id, t.para, t.cell_rc), []).append(t)
@@ -673,11 +717,11 @@ class Project:
                 for t, d in zip(ts, nms):
                     if t.state == "held":
                         continue
-                    new = values.get((t.src_file, t.sheet, t.ref), t.linked_value)
+                    new = self._tie_value(t, values, t.linked_value)
                     self.db.execute("UPDATE ties SET seg=?, offset=?, raw=?, linked_value=?, fp_near=? WHERE id=?", (d.seg, d.offset, d.number.raw, new, self._fp_near(d), t.id))
         for t in self.ties():
             if t.deck not in plan.files:
-                new = current.get((t.src_file, t.sheet, t.ref))
+                new = self._tie_value(t, current)
                 if new is not None:
                     self.db.execute("UPDATE ties SET linked_value=? WHERE id=?", (new, t.id))
 
