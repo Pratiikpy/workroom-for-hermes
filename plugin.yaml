@@ -1,5 +1,5 @@
 name: workroom
-version: 0.1.0
+version: 0.2.0
 manifest_version: 2
 api_version: 1
 description: "Workroom: keeps reports and decks tied to their source numbers, edits only what must change, protects your own edits, and releases one approved, recoverable update."

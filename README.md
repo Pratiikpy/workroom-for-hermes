@@ -4,7 +4,7 @@ Workroom keeps your reports and decks in step with the numbers they came from, a
 
 You point it at a folder of Office files. It reads the numbers in your decks and Word reports, links each one to the spreadsheet cell it came from, and, when the source changes, prepares one release that shows exactly what will change. Nothing is written until you approve it. Your own edits are never overwritten, and a release can be restored from the Past releases list as long as you have not worked in those files since.
 
-Status: early build (version 0.1.0). Everything below says what has and has not been tested. The evidence is in [`bench/EVIDENCE.md`](bench/EVIDENCE.md); every claim here cites a line there.
+Status: early build (version 0.2.0). Everything below says what has and has not been tested. The evidence is in [`bench/EVIDENCE.md`](bench/EVIDENCE.md); every claim here cites a line there.
 
 ## Screenshots
 
