@@ -5,3 +5,5 @@ bench/*_result.json
 .playwright-mcp/
 bench/ui_shots/
 bench/ui_harness/
+bench/s2_out/
+docs/demo/frame_*.png

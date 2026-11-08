@@ -1,4 +1,5 @@
-import { createElement as h, useCallback, useEffect, useState } from 'react'
+import { createElement as h, useCallback, useEffect, useRef, useState } from 'react'
+import { SandboxedFrame, host } from '@hermes/plugin-sdk'
 import { TRANSCRIPT_DIRECTIVE_AREA } from '@hermes/plugin-sdk'
 
 const css = {
@@ -37,7 +38,147 @@ function Changes({ changes }) {
       h('td', { style: { padding: '6px 8px', ...css.muted } }, `${c.src}: ${c.old_value} → ${c.new_value}`)))))
 }
 
-const stateLabel = { accepted: 'linked automatically', confirmed: 'linked by you', confirm: 'needs you', skipped: 'left alone' }
+const num = (n) => Number(n).toLocaleString(undefined, { maximumFractionDigits: 4 })
+
+function Inbox({ inbox }) {
+  if (!inbox || (!inbox.changes.length && !inbox.blocked.length)) return null
+  const tag = (d) => d === 'auto' ? 'will update' : d === 'hold' ? 'held for you' : 'blocked'
+  return h('div', { role: 'region', 'aria-label': 'Changes inbox', style: { marginTop: 10 } },
+    inbox.changes.map(c => h('div', { key: c.src, style: { ...css.card, marginBottom: 8 } },
+      h('div', { style: { fontWeight: 600 } }, `${c.label || c.src}: ${num(c.old_value)} → ${num(c.new_value)} (${c.delta_pct.toFixed(1)}%)`),
+      h('div', { style: css.muted }, `${c.src} · ${c.counts.auto} will update, ${c.counts.hold} held for you`),
+      h('ul', { style: { margin: '6px 0 0', paddingLeft: 18 } }, c.elements.map(e => h('li', { key: e.tie_id },
+        `${e.deck}, ${e.where || 'slide ' + e.slide}: “${(e.sentence || '').slice(0, 90)}” ${e.text_before}${e.text_after ? ' → ' + e.text_after : ''} (${tag(e.decision)}; ${e.reason})`))))),
+    inbox.blocked.length ? h('div', { style: { ...css.card, marginBottom: 8 } },
+      h('div', { style: { fontWeight: 600 } }, 'Linked numbers whose source is missing'),
+      h('ul', { style: { margin: '6px 0 0', paddingLeft: 18 } }, inbox.blocked.map(e => h('li', { key: e.tie_id }, `${e.deck}, ${e.where || 'slide ' + e.slide}: ${e.text_before} (${e.reason})`)))) : null)
+}
+
+function groupFigures(figures) {
+  const out = []
+  for (const f of figures || []) {
+    const hit = out.find(g => g.source === f.source && g.text === f.text)
+    if (hit) hit.count += 1; else out.push({ ...f, count: 1 })
+  }
+  return out
+}
+
+let pluginCtx = null
+let editorHandle = null
+const editorTarget = { value: null, listeners: new Set() }
+function openEditor(target) {
+  setEditorTarget(target)
+  if (!pluginCtx) return
+  if (!editorHandle) {
+    editorHandle = pluginCtx.register({ id: 'editor', area: 'panes', title: 'Workroom page', data: { placement: 'floating', anchor: 'top-right', width: 760, height: 560 }, render: () => h(PageEditor, { ctx: pluginCtx }) })
+  } else {
+    if (host.undismissPane) host.undismissPane('workroom:editor')
+    if (host.revealPane) host.revealPane('workroom:editor')
+  }
+}
+const setEditorTarget = (v) => { editorTarget.value = v; editorTarget.listeners.forEach(fn => fn(v)) }
+const toDataUrl = (doc) => 'data:text/html;charset=utf-8,' + encodeURIComponent(doc)
+const MAX_OPS = 500
+
+function PageEditor({ ctx }) {
+  const [target, setTarget] = useState(editorTarget.value)
+  const [doc, setDoc] = useState(null)
+  const [note, setNote] = useState('')
+  const frameRef = useRef(null)
+  const targetRef = useRef(target)
+  targetRef.current = target
+  useEffect(() => { editorTarget.listeners.add(setTarget); return () => editorTarget.listeners.delete(setTarget) }, [])
+  useEffect(() => { ctx.rest('/scene-frame').then(d => setDoc(d.doc)).catch(e => setNote(String(e && e.message ? e.message : e))) }, [ctx])
+  const send = (msg) => { const w = frameRef.current && frameRef.current.contentWindow; if (w) w.postMessage(msg, '*') }
+  const call = (path, body) => ctx.rest(path, { method: 'POST', body })
+  useEffect(() => {
+    const onMsg = async (e) => {
+      const w = frameRef.current && frameRef.current.contentWindow
+      if (!w || e.source !== w) return
+      const m = e.data
+      const t = targetRef.current
+      if (!m || typeof m !== 'object' || typeof m.op !== 'string') return
+      if (m.op === 'ready') { if (t) load(t) }
+      else if (!t) return
+      else if (m.op === 'patch' && Array.isArray(m.ops) && m.ops.length <= MAX_OPS && Number.isInteger(m.rev)) {
+        try { const r = await call('/scene-apply', { project: t.project, path: t.path, rev: m.rev, ops: m.ops }); send({ op: 'ack', rev: r.rev, scene: r.scene }) }
+        catch (err) { try { const cur = await call('/scene-open', { project: t.project, path: t.path }); send({ op: 'error', message: String(err && err.message ? err.message : err), scene: cur.scene, rev: cur.rev }) } catch (e2) { send({ op: 'error', message: 'Could not reach Workroom.' }) } }
+      } else if (m.op === 'save') {
+        try { const r = await call('/scene-save', { project: t.project, path: t.path }); send({ op: 'say', message: 'Saved as a release. Approve it in the Workroom tab.' }); setNote('Release ' + r.release_id.slice(0, 8) + ' is waiting for your approval in the Workroom tab.') }
+        catch (err) { send({ op: 'say', message: String(err && err.message ? err.message : err) }) }
+      } else if (m.op === 'comment' && typeof m.text === 'string' && m.text.length <= 400) {
+        const text = 'About ' + t.path + (typeof m.node === 'string' && m.node ? ', item ' + m.node.slice(0, 40) : '') + ': ' + m.text
+        const trySubmit = () => host.composer.submit(null, text) || host.composer.submit('new', text)
+        if (trySubmit()) send({ op: 'say', message: 'Sent to the agent.' })
+        else {
+          host.newChat()
+          setTimeout(() => send({ op: 'say', message: trySubmit() ? 'Sent to the agent in a new chat.' : 'Could not reach a chat. Open one and send again.' }), 900)
+        }
+      }
+    }
+    window.addEventListener('message', onMsg)
+    return () => window.removeEventListener('message', onMsg)
+  }, [])
+  const load = async (t) => { try { const d = await call('/scene-open', { project: t.project, path: t.path }); send({ op: 'load', scene: d.scene, rev: d.rev }) } catch (err) { setNote(String(err && err.message ? err.message : err)) } }
+  useEffect(() => { if (target) { setNote(''); load(target) } }, [target])
+  return h('div', { style: { display: 'flex', flexDirection: 'column', height: '100%', fontSize: 12 } },
+    h('div', { style: { padding: '4px 8px', ...css.muted } }, target ? target.path : 'Choose a page in the Workroom tab'),
+    doc ? h(SandboxedFrame, { ref: frameRef, src: toDataUrl(doc), title: 'Workroom page editor', style: { flex: 1, width: '100%', border: 0 } }) : h('div', { style: { padding: 8 } }, 'Loading the editor'),
+    note ? h('div', { role: 'status', style: { padding: '4px 8px' } }, note) : null)
+}
+
+function PagesList({ api, pid }) {
+  const [pages, setPages] = useState([])
+  useEffect(() => { if (pid) api('/scenes', { project: pid }).then(setPages).catch(() => setPages([])); else setPages([]) }, [api, pid])
+  if (!pages.length) return null
+  return h('section', { style: css.card, 'aria-label': 'Visual pages' },
+    h('h2', { style: css.h2 }, 'Visual pages'),
+    pages.map(p => h('div', { key: p.path, style: { ...css.row, justifyContent: 'space-between', padding: '4px 0' } },
+      h('span', { style: { fontSize: 13 } }, p.path + (p.unsaved ? ' · unsaved edits' : '')),
+      btn('Edit', () => openEditor({ project: pid, path: p.path })))))
+}
+
+function Proof({ api, pid, releaseId }) {
+  const [state, setState] = useState(null)
+  useEffect(() => { setState(null) }, [releaseId])
+  const load = () => api('/proof', { project: pid, release_id: releaseId }).then(setState).catch(e => setState({ available: false, reason: String(e && e.message ? e.message : e), decks: [] }))
+  if (!state) return h('div', { style: { margin: '6px 0' } }, btn('Show before and after', load))
+  if (!state.available) return h('div', { style: { ...css.muted, margin: '6px 0' } }, state.reason)
+  if (!state.decks.length) return h('div', { style: { ...css.muted, margin: '6px 0' } }, 'There are no slides to compare for this release.')
+  return h('div', { role: 'region', 'aria-label': 'Before and after', style: { margin: '8px 0' } },
+    state.decks.map(d => h('div', { key: d.deck }, h('div', { style: { fontWeight: 600, margin: '4px 0' } }, d.deck),
+      d.slides.map(sl => h('div', { key: sl.slide, style: { display: 'flex', gap: 8, flexWrap: 'wrap', margin: '4px 0' } },
+        h('figure', { style: { margin: 0, flex: '1 1 280px' } }, h('img', { alt: 'Slide ' + sl.slide + ' before', src: 'data:image/png;base64,' + sl.before, style: { width: '100%', border: '1px solid var(--ui-stroke-tertiary, #8884)' } }), h('figcaption', { style: css.muted }, 'Slide ' + sl.slide + ' now')),
+        h('figure', { style: { margin: 0, flex: '1 1 280px' } }, h('img', { alt: 'Slide ' + sl.slide + ' after', src: 'data:image/png;base64,' + sl.after, style: { width: '100%', border: '1px solid var(--ui-accent, #3b82f6)' } }), h('figcaption', { style: css.muted }, 'Slide ' + sl.slide + ' after approval')))))))
+}
+
+const instrLabel = { authorised: 'authorised', pending: 'not yet authorised', changed: 'changed since you authorised it', too_large: 'too large to use' }
+
+function Instructions({ api, pid, busy, run }) {
+  const [info, setInfo] = useState(null)
+  const [open, setOpen] = useState(null)
+  const load = useCallback(() => pid ? api('/instructions', { project: pid }).then(setInfo).catch(() => setInfo(null)) : setInfo(null), [api, pid])
+  useEffect(() => { setOpen(null); load() }, [load])
+  if (!info || (!info.files.length && !info.proposals.length)) return null
+  return h('section', { style: css.card, 'aria-label': 'Project instructions' },
+    h('h2', { style: css.h2 }, 'Project instructions'),
+    h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'The agent only sees an instruction file after you have read and authorised its exact text. Instructions are preferences: they can never change who approves, what needs approval, or the release rule.'),
+    info.files.map(f => h('div', { key: f.name, style: { padding: '4px 0' } },
+      h('div', { style: { ...css.row, justifyContent: 'space-between' } },
+        h('span', { style: { fontSize: 13 } }, `${f.name} · ${instrLabel[f.state] || f.state}`),
+        f.state === 'too_large' ? null : btn(open && open.name === f.name ? 'Hide' : 'Read', () => open && open.name === f.name ? setOpen(null) : run(async () => { setOpen(await api('/instruction-read', { project: pid, name: f.name })) })),
+      ),
+      open && open.name === f.name ? h('div', null,
+        h('pre', { style: { whiteSpace: 'pre-wrap', maxHeight: 220, overflow: 'auto', fontSize: 12, margin: '6px 0' } }, open.text),
+        f.state !== 'authorised' ? btn('Authorise this text', () => run(async () => { await api('/instruction-authorise', { project: pid, name: f.name, sha: open.sha }); setOpen(null); await load() }, () => `${f.name} authorised.`), { disabled: busy, primary: true }) : null) : null)),
+    info.proposals.map(pr => h('div', { key: pr.proposal, style: { ...css.card, marginTop: 8 } },
+      h('div', { style: { fontWeight: 600 } }, `Proposed change to ${pr.name}`),
+      h('pre', { style: { whiteSpace: 'pre-wrap', maxHeight: 220, overflow: 'auto', fontSize: 12, margin: '6px 0' } }, pr.diff || '(no difference)'),
+      pr.stale ? h('div', { style: css.muted }, 'The file changed since this was proposed. Ask for a new proposal.')
+        : btn('Apply and authorise this text', () => run(async () => { await api('/instruction-apply', { project: pid, proposal: pr.proposal }); await load() }, () => 'Applied and authorised.'), { disabled: busy, primary: true }))))
+}
+
+const stateLabel = { accepted: 'linked automatically', confirmed: 'linked by you', confirm: 'needs you', skipped: 'left alone', held: 'you changed it by hand' }
 
 function Why({ info, onClose }) {
   const src = info.source
@@ -114,15 +255,23 @@ function ReleaseCard({ ctx, attrs }) {
     error ? h('div', { role: 'alert', style: { color: 'var(--ui-red, #dc2626)', margin: '6px 0' } }, error) : null,
     !view && !error ? h('div', { style: css.muted }, 'Loading') : null,
     view ? h('div', null,
-      h('p', { style: { margin: '6px 0' } }, view.state === 'published'
+      view.edited_page ? h('p', { style: { margin: '6px 0' } }, view.state === 'published' ? `Edits to ${view.changes[0].deck} were written.` : `Your edits to ${view.changes[0].deck} would be written. Nothing has changed yet.`)
+      : view.created ? h('div', null,
+        h('p', { style: { margin: '6px 0' } }, view.state === 'published'
+          ? `Created ${view.changes[0].deck}. Every figure in it is tied to its source.`
+          : `Workroom would create ${view.changes[0].deck}, with ${view.figures.length} figures each tied to its source cell. Nothing has been written yet.`),
+        h('ul', { style: { margin: '4px 0', paddingLeft: 18 } }, groupFigures(view.figures).slice(0, 8).map((f, i) => h('li', { key: i },
+          h('strong', null, f.text), h('span', { style: css.muted }, ` ${f.concept || ''} ${f.period || ''} · ${f.source}${f.count > 1 ? ` · in ${f.count} places` : ''}`)))),
+        view.figures.length > 8 ? h('div', { style: css.muted }, `and ${view.figures.length - 8} more figures`) : null)
+      : h('p', { style: { margin: '6px 0' } }, view.state === 'published'
         ? `${view.changes.length} number${view.changes.length === 1 ? '' : 's'} updated. A backup of each replaced file is kept.`
         : `${view.changes.length} number${view.changes.length === 1 ? '' : 's'} would change. Nothing has been changed yet.`),
-      shown.map((c, i) => h('div', { key: i, style: { display: 'flex', gap: 8, padding: '2px 0' } },
+      view.created || view.edited_page ? null : shown.map((c, i) => h('div', { key: i, style: { display: 'flex', gap: 8, padding: '2px 0' } },
         h('span', { style: { ...css.muted, textDecoration: view.state === 'published' ? 'none' : 'line-through', minWidth: 70 } }, c.old_text),
         h('span', null, '\u2192'),
         h('strong', null, c.new_text),
         h('span', { style: css.muted }, `${c.deck}, ${c.where || 'slide ' + c.slide}`))),
-      view.changes.length > shown.length ? h('div', { style: css.muted }, `and ${view.changes.length - shown.length} more`) : null,
+      !view.created && !view.edited_page && view.changes.length > shown.length ? h('div', { style: css.muted }, `and ${view.changes.length - shown.length} more`) : null,
       view.held && view.held.length ? h('div', { style: { ...css.muted, marginTop: 6 } }, `${view.held.length} held for you`) : null,
       view.findings && view.findings.length ? h('ul', null, view.findings.map((f, i) => h('li', { key: i }, f))) : null,
       view.state === 'awaiting_approval' ? h('div', { style: { ...css.row, marginTop: 10 } },
@@ -137,6 +286,7 @@ function WorkroomPage({ ctx }) {
   const [pid, setPid] = useState(null)
   const [found, setFound] = useState(null)
   const [plan, setPlan] = useState(null)
+  const [inbox, setInbox] = useState(null)
   const [release, setRelease] = useState(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState(null)
@@ -164,11 +314,25 @@ function WorkroomPage({ ctx }) {
 
   const checkHistory = useCallback((id) => id ? api('/history', { project: id }).then(setHistory).catch(() => setHistory(null)) : setHistory(null), [api])
   const loadPast = useCallback((id) => id ? api('/releases', { project: id }).then(setPast).catch(() => setPast([])) : setPast([]), [api])
-  useEffect(() => { checkHistory(pid); loadPast(pid); setConfirmRestore(null); if (pid) api('/settings', { project: pid }).then(s => setTracked(!!s.tracked_changes)).catch(() => {}) }, [pid, checkHistory, loadPast, api])
+  useEffect(() => { checkHistory(pid); loadPast(pid); setConfirmRestore(null); if (pid) api('/awaiting', { project: pid }).then(a => { if (a.length) setRelease(a[0]) }).catch(() => {}); if (pid) api('/settings', { project: pid }).then(s => setTracked(!!s.tracked_changes)).catch(() => {}) }, [pid, checkHistory, loadPast, api])
 
   useEffect(() => {
     api('/projects').then(list => { setProjects(list); if (list.length && !pid) setPid(list[0].project) }).catch(() => {})
   }, [api])
+
+  const trySample = () => run(async () => {
+    const r = await api('/sample', {})
+    setProjects(await api('/projects'))
+    setPid(r.project)
+    if (r.state === 'awaiting_approval') setRelease(r)
+    return r
+  }, r => r.state === 'awaiting_approval' ? 'A sample project is ready. Review the deck Workroom wants to create, then approve it.' : 'The sample project is already here.')
+
+  const nextQuarter = () => run(async () => {
+    await api('/sample-next', { project: pid })
+    setPlan(null); setInbox(null); setRelease(null)
+    return {}
+  }, () => 'New sample figures arrived. Press Check the sources to see what changes.')
 
   const addProject = () => run(async () => {
     const p = await api('/projects', { folder })
@@ -210,6 +374,7 @@ function WorkroomPage({ ctx }) {
   const preview = () => run(async () => {
     const p = await api('/plan', { project: pid })
     setPlan(p)
+    setInbox(await api('/changes', { project: pid }))
     return p
   })
 
@@ -224,7 +389,7 @@ function WorkroomPage({ ctx }) {
     setRelease(null); setPlan(null)
     await loadPast(pid)
     return r
-  }, () => 'Published. A backup of every replaced file is kept so you can restore it.')
+  }, () => release && release.created ? 'Published. The new file now exists in your folder. Restore removes it again, unless you have edited it since.' : 'Published. A backup of every replaced file is kept so you can restore it.')
 
 
   const current = projects.find(p => p.project === pid)
@@ -269,7 +434,8 @@ function WorkroomPage({ ctx }) {
       h('h2', { style: css.h2 }, '2. See what would change'),
       btn('Check the sources', preview, { disabled: busy }),
       plan ? h('div', { style: { marginTop: 10 } },
-        h(Changes, { changes: plan.changes }),
+        h(Inbox, { inbox }),
+        inbox && inbox.changes.length ? null : h(Changes, { changes: plan.changes }),
         plan.held.length ? h('div', { style: { marginTop: 10 } },
           h('div', { style: { fontWeight: 600 } }, 'Held for you'),
           h('ul', { style: { margin: '4px 0 0', paddingLeft: 18 } }, plan.held.map((t, i) => h('li', { key: i }, t)))) : null,
@@ -279,16 +445,32 @@ function WorkroomPage({ ctx }) {
       release.state === 'blocked'
         ? h('div', null, h('div', { style: { fontWeight: 600 } }, 'Blocked'), h('ul', null, (release.findings || []).map((f, i) => h('li', { key: i }, f))))
         : h('div', null,
-            h('p', { style: { margin: '0 0 8px' } }, `${release.changes.length} number${release.changes.length === 1 ? '' : 's'} will change in your documents. Everything else stays exactly as it is, and a backup of each replaced file is kept.`),
+            release.edited_page ? h('p', { style: { margin: '0 0 8px' } }, `Your edits to ${release.changes[0].deck} will be written (${release.changes[0].new_text}). Tied numbers keep their links to their sources.`)
+            : release.created ? h('div', null,
+              h('p', { style: { margin: '0 0 6px' } }, `Workroom will create ${release.changes[0].deck}. Every figure in it is tied to its source cell. Nothing else in your folder is touched.`),
+              h('ul', { style: { margin: '0 0 8px', paddingLeft: 18 } }, groupFigures(release.figures).slice(0, 12).map((f, i) => h('li', { key: i },
+                h('strong', null, f.text), h('span', { style: css.muted }, ` ${f.concept || ''} ${f.period || ''} · ${f.source}${f.count > 1 ? ` · in ${f.count} places` : ''}`)))))
+            : h('p', { style: { margin: '0 0 8px' } }, `${release.changes.length} number${release.changes.length === 1 ? '' : 's'} will change in your documents. Everything else stays exactly as it is, and a backup of each replaced file is kept.`),
             h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, `Release fingerprint ${release.digest.slice(0, 12)}. Your approval applies to exactly this release and nothing else.`),
+            release.created || release.edited_page ? null : h(Proof, { api, pid, releaseId: release.release_id }),
             btn('Approve and publish', approve, { disabled: busy, primary: true }))) : null,
+    !projects.length ? h('section', { style: { ...css.card, borderColor: 'var(--ui-accent, #3b82f6)' }, 'aria-label': 'Try the sample' },
+      h('h2', { style: css.h2 }, 'New here? Try the sample'),
+      h('p', { style: { margin: '0 0 8px' } }, 'Workroom makes a small sample project in its own storage (a results workbook and a board deck whose every figure is tied to a cell). Your own files are not touched. You approve the deck, then pretend a new quarter arrived and watch only the changed numbers update.'),
+      btn('Make the sample project', trySample, { disabled: busy, primary: true })) : null,
+    current && current.folder.replace(/[\\/]+$/, '').endsWith('sample-quarterly') ? h('section', { style: css.card, 'aria-label': 'Sample controls' },
+      h('div', { style: { ...css.row, justifyContent: 'space-between' } },
+        h('span', { style: { fontSize: 13 } }, 'This is the sample project.'),
+        btn('Pretend a new quarter arrived', nextQuarter, { disabled: busy }))) : null,
+    pid ? h(PagesList, { api, pid }) : null,
+    pid ? h(Instructions, { api, pid, busy, run }) : null,
     pid && past.length ? h('section', { style: css.card, 'aria-label': 'Past releases' },
       h('h2', { style: css.h2 }, 'Past releases'),
       h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'Restoring puts the files of that release back as they were before it. It is refused if you have worked in those files since, so nothing you did later is overwritten.'),
       past.map(r => h('div', { key: r.release_id, style: { ...css.row, justifyContent: 'space-between', padding: '4px 0' } },
-        h('span', { style: { fontSize: 13 } }, `${new Date(r.published_at * 1000).toLocaleString()} · ${r.changes.length} number${r.changes.length === 1 ? '' : 's'}${r.restored ? ' · restored' : ''}`),
+        h('span', { style: { fontSize: 13 } }, `${new Date(r.published_at * 1000).toLocaleString()} · ${r.created ? 'created ' + r.changes[0].deck : r.changes.length + ' number' + (r.changes.length === 1 ? '' : 's')}${r.restored ? ' · restored' : ''}`),
         r.restored ? null : confirmRestore === r.release_id
-          ? h('span', { style: css.row }, btn('Yes, restore these files', () => restoreRelease(r.release_id), { disabled: busy, primary: true }), btn('Cancel', () => setConfirmRestore(null), { disabled: busy }))
+          ? h('span', { style: css.row }, btn(r.created ? 'Yes, remove this file' : 'Yes, restore these files', () => restoreRelease(r.release_id), { disabled: busy, primary: true }), btn('Cancel', () => setConfirmRestore(null), { disabled: busy }))
           : btn('Restore', () => setConfirmRestore(r.release_id), { disabled: busy })))) : null,
     current ? h('div', { style: { ...css.muted, fontSize: 11 } }, `Working on ${current.folder}`) : null)
 }
@@ -304,6 +486,7 @@ export default {
       data: { placement: 'main' },
       render: () => h(WorkroomPage, { ctx })
     })
+    pluginCtx = ctx
     ctx.register({
       id: 'release-card',
       area: TRANSCRIPT_DIRECTIVE_AREA,

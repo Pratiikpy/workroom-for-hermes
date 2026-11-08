@@ -59,7 +59,7 @@ class Book:
             raw = node[0].find("{%s}v" % S_NS).text if node and node[0].find("{%s}v" % S_NS) is not None else repr(c.value)
             nm = NumberMention(raw, c.value, c.value, _decimals(raw), "plain", 1.0, c.value < 0, 0, len(raw))
             ctx = (" ".join(c.row_labels + c.col_labels),) + tuple(c.row_labels) + tuple(c.col_labels)
-            yield DocMention(sheet_no[c.sheet], 0, c.row, c.col, 0, nm, ctx, (c.row, c.col), None)
+            yield DocMention(sheet_no[c.sheet], 0, c.row, c.col, 0, nm, ctx, (c.row, c.col), None, c.sheet)
 
     def edit_mention(self, dm: DocMention, new_text: str) -> Replacement:
         sheet = self._sheets[dm.slide - 1]

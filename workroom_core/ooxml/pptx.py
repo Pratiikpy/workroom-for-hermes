@@ -41,6 +41,7 @@ class DocMention:
     context: tuple[str, ...]
     cell: tuple[int, int] | None  # (row, column) when the number sits in a table cell
     para_offset: int | None = None  # where the number starts inside the paragraph's visible text, when that can be told
+    slide_uid: str = ""  # the slide's own stable id (survives inserting, deleting and reordering slides); the part or sheet name for Word and Excel
 
 
 @dataclass(frozen=True)
@@ -65,6 +66,12 @@ class Deck:
         self._dirty: set[str] = set()
 
     # ---- structure ----
+    def slide_uids(self) -> list[str]:
+        """PowerPoint's own slide ids (p:sldId/@id), in slide order. They stay with a slide when others are inserted, deleted or reordered."""
+        pres = self._root("ppt/presentation.xml")
+        rels = rels_for(self.pkg, "ppt/presentation.xml")
+        return [sid.get("id") or "" for sid in pres.iter("{%s}sldId" % P_NS) if sid.get("{%s}id" % R_NS) in rels]
+
     def slide_parts(self) -> list[str]:
         pres = self._root("ppt/presentation.xml")
         rels = rels_for(self.pkg, "ppt/presentation.xml")
@@ -126,8 +133,10 @@ class Deck:
 
     def mentions(self) -> Iterator[DocMention]:
         """Every number written in a text shape or table cell, with the words around it. Years are skipped."""
+        uids = self.slide_uids()
         for si in range(1, len(self.slide_parts()) + 1):
             _, root = self._slide(si)
+            self._uid = uids[si - 1] if si - 1 < len(uids) else ""
             title = self._slide_title(root)
             for nv in root.iter("{%s}cNvPr" % P_NS):
                 sh = nv.getparent().getparent()
@@ -167,7 +176,7 @@ class Deck:
                         continue
                     po = consumed + nm.start
                     po = po if para_text[po : po + len(nm.raw)] == nm.raw else None
-                    yield DocMention(si, sid, pi, seg_i, nm.start, nm, (para_text,) + tuple(x for x in extra if x), cell_rc, po)
+                    yield DocMention(si, sid, pi, seg_i, nm.start, nm, (para_text,) + tuple(x for x in extra if x), cell_rc, po, getattr(self, "_uid", ""))
                 consumed += len(text)
 
     def _target_paragraph(self, dm: DocMention) -> etree._Element:
@@ -241,6 +250,19 @@ class Deck:
             raise EditError("chart relationship not found")
         cpart = rels[rid][1]
         return cpart, self._root(cpart)
+
+    def chart_shapes(self) -> list[tuple[int, str, int, str]]:
+        """Every chart in the deck as (slide number, slide stable id, shape id, shape name), in slide and document order."""
+        uids = self.slide_uids()
+        out = []
+        for si in range(1, len(self.slide_parts()) + 1):
+            _, root = self._slide(si)
+            for gf in root.iter("{%s}graphicFrame" % P_NS):
+                if gf.find(".//{%s}chart" % C_NS) is None:
+                    continue
+                nv = gf.find("./{%s}nvGraphicFramePr/{%s}cNvPr" % (P_NS, P_NS))
+                out.append((si, uids[si - 1] if si - 1 < len(uids) else "", int(nv.get("id")), nv.get("name") or ""))
+        return out
 
     def chart_series(self, slide: int, shape_id: int) -> list[ChartSeries]:
         _, croot = self._chart_part(slide, shape_id)

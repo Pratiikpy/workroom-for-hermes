@@ -160,7 +160,7 @@ def test_finding_links_again_keeps_what_the_owner_decided(tmp_path: Path) -> Non
     assert next(t for t in proj.ties() if t.id == ask.id).state == "skipped"
 
 
-def test_a_link_is_dropped_when_its_number_was_edited_by_hand(tmp_path: Path) -> None:
+def test_a_link_is_held_not_dropped_when_its_number_was_edited_by_hand(tmp_path: Path) -> None:
     from pptx import Presentation
 
     root, proj, _ = setup(tmp_path)
@@ -174,4 +174,6 @@ def test_a_link_is_dropped_when_its_number_was_edited_by_hand(tmp_path: Path) ->
                     r.text = r.text.replace("120", "999")
     prs.save(str(root / "deck.pptx"))
     proj.discover()
-    assert all(t.id != linked.id for t in proj.ties())
+    held = next(t for t in proj.ties() if t.id == linked.id)
+    assert held.state == "held"
+    assert held.id not in [t.id for t in proj.ties(("accepted", "confirmed"))]

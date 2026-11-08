@@ -24,8 +24,15 @@ def test_a_percentage_never_matches_a_scaled_money_cell() -> None:
 
 
 def test_a_long_number_that_fits_exactly_one_cell_is_accepted_when_the_text_names_the_row() -> None:
-    r = decide("Net sales 94,036", "94,036", [cell("B2", 94036.0, "Revenue from contract with customer net sales")])
+    r = decide("Q2 net sales 94,036", "94,036", [cell("B2", 94036.0, "Revenue from contract with customer net sales")])
     assert r.decision == "accept"
+
+
+def test_a_long_unique_number_is_accepted_even_when_the_text_names_no_period() -> None:
+    # measured on 10 real earnings releases: demanding a period in the sentence cut 265 auto links to 40 and added no measured precision
+    assert decide("Net sales 94,036", "94,036", [cell("B2", 94036.0, "Net sales")]).decision == "accept"
+    c = SourceCell("S", "B2", 2, 2, 94036.0, False, False, ("Net sales",), (), False, "b.xlsx")
+    assert decide("Net sales 94,036", "94,036", [c]).decision == "accept"
 
 
 def test_a_long_number_that_fits_one_cell_but_whose_text_names_nothing_still_goes_to_a_person() -> None:

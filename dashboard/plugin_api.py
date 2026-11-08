@@ -107,6 +107,97 @@ async def plan(body: ProjectBody) -> dict:
     return _guard(lambda: _service().plan(body.project))
 
 
+@router.post("/changes")
+async def changes(body: ProjectBody) -> dict:
+    return _guard(lambda: _service().changes_inbox(body.project))
+
+
+@router.post("/awaiting")
+async def awaiting(body: ProjectBody) -> list:
+    return _guard(lambda: _service().awaiting(body.project))
+
+
+class InstructionBody(BaseModel):
+    project: str
+    name: str = ""
+    sha: str = ""
+    proposal: str = ""
+
+
+@router.post("/instructions")
+async def instructions(body: ProjectBody) -> dict:
+    return _guard(lambda: {**_service().instructions(body.project), "proposals": _service().proposals(body.project)})
+
+
+@router.post("/instruction-read")
+async def instruction_read(body: InstructionBody) -> dict:
+    return _guard(lambda: _service().read_instruction(body.project, body.name))
+
+
+@router.post("/instruction-authorise")
+async def instruction_authorise(body: InstructionBody) -> dict:
+    return _guard(lambda: _service().authorise_instruction(body.project, body.name, body.sha))
+
+
+@router.post("/instruction-apply")
+async def instruction_apply(body: InstructionBody) -> dict:
+    return _guard(lambda: _service().apply_instruction_proposal(body.project, body.proposal))
+
+
+class SceneBody(BaseModel):
+    project: str
+    path: str = ""
+    rev: int = 0
+    ops: list = Field(default_factory=list)
+
+
+@router.get("/scene-frame")
+async def scene_frame() -> dict:
+    from pathlib import Path
+
+    return {"doc": (Path(__file__).with_name("canvas.html")).read_text(encoding="utf-8")}
+
+
+@router.post("/scenes")
+async def scenes(body: ProjectBody) -> list:
+    return _guard(lambda: _service().scene_list(body.project))
+
+
+@router.post("/scene-open")
+async def scene_open(body: SceneBody) -> dict:
+    return _guard(lambda: _service().scene_open(body.project, body.path))
+
+
+@router.post("/scene-apply")
+async def scene_apply(body: SceneBody) -> dict:
+    return _guard(lambda: _service().scene_apply(body.project, body.path, body.rev, body.ops))
+
+
+@router.post("/scene-save")
+async def scene_save(body: SceneBody) -> dict:
+    return _guard(lambda: _service().scene_save(body.project, body.path))
+
+
+@router.post("/scene-discard")
+async def scene_discard(body: SceneBody) -> dict:
+    return _guard(lambda: _service().scene_discard(body.project, body.path))
+
+
+@router.post("/sample")
+async def sample() -> dict:
+    return _guard(lambda: _service().create_sample())
+
+
+@router.post("/sample-next")
+async def sample_next(body: ProjectBody) -> dict:
+    return _guard(lambda: _service().sample_next_quarter(body.project))
+
+
+@router.post("/proof")
+async def proof(body: ReleaseBody) -> dict:
+    return _guard(lambda: _service().render_proof(body.project, body.release_id))
+
+
 @router.post("/stage")
 async def stage(body: ProjectBody) -> dict:
     return _guard(lambda: _service().stage(body.project))

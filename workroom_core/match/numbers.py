@@ -87,7 +87,7 @@ def consistent_with_source(mention: NumberMention, source_value: float) -> tuple
         candidates.append((name, source_value / factor))
     for name, v in candidates:
         shown = mention.value
-        if abs(shown - round(v, mention.decimals)) <= tol * 1.0001 and abs(shown - v) <= tol * 1.0001 + 1e-12:
+        if abs(shown - v) <= tol * 1.0001 + 1e-12:
             return True, name
     return False, ""
 

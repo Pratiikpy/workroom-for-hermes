@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workroom page editor</title>
+<style>
+  :root { --bg:#f3f4f6; --panel:#ffffff; --ink:#1f2937; --muted:#6b7280; --line:#d1d5db; --accent:#2563eb; --accent-soft:#dbeafe; --danger:#dc2626; --on-accent:#ffffff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111827; --panel:#1f2937; --ink:#f3f4f6; --muted:#9ca3af; --line:#374151; --accent:#60a5fa; --accent-soft:#1e3a5f; --danger:#f87171; --on-accent:#0b1220; } }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink); font:13px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #app { display:flex; flex-direction:column; height:100%; }
+  #bar { display:flex; flex-wrap:wrap; gap:4px; padding:6px; background:var(--panel); border-bottom:1px solid var(--line); align-items:center; }
+  #bar .sep { width:1px; height:22px; background:var(--line); margin:0 4px; }
+  button { font:inherit; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:4px 8px; cursor:pointer; min-height:28px; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:focus-visible, input:focus-visible, textarea:focus-visible, svg:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+  button[aria-pressed="true"] { background:var(--accent-soft); border-color:var(--accent); }
+  button:disabled { opacity:.45; cursor:default; }
+  button.primary { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
+  #stage { position:relative; flex:1; overflow:auto; display:flex; align-items:center; justify-content:center; padding:12px; }
+  svg { background:#fff; box-shadow:0 1px 6px rgba(0,0,0,.25); touch-action:none; }
+  #edit { position:absolute; display:none; resize:none; border:2px solid var(--accent); padding:0; margin:0; background:#fff; color:#111; font-family:Calibri, Arial, sans-serif; line-height:1.2; overflow:hidden; }
+  #side { display:flex; flex-wrap:wrap; gap:6px; padding:6px; background:var(--panel); border-top:1px solid var(--line); align-items:center; }
+  #side input { flex:1 1 200px; min-width:0; font:inherit; padding:4px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); }
+  #status { color:var(--muted); flex:0 1 auto; min-height:18px; }
+  #status.err { color:var(--danger); }
+  #list { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bar" role="toolbar" aria-label="Page tools"></div>
+  <div id="stage"><svg id="svg" tabindex="0" role="application" aria-label="Page canvas. Arrow keys move the selected item, Tab selects the next, Enter edits text."></svg><textarea id="edit" aria-label="Edit text"></textarea></div>
+  <div id="side"><span id="status" role="status" aria-live="polite"></span>
+    <input id="comment" type="text" maxlength="400" placeholder="Ask the agent about the selected item, then press Enter" aria-label="Comment for the agent about the selected item"></div>
+  <ul id="list" aria-label="Items on the page"></ul>
+</div>
+<script>
+(function () {
+  'use strict';
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var HEX = /^[0-9A-Fa-f]{6}$/;
+  var scene = null, rev = 0, selection = [], tool = 'select', undoStack = [], redoStack = [], pending = false, queue = [], seq = 0;
+  var svg = document.getElementById('svg'), edit = document.getElementById('edit'), statusEl = document.getElementById('status');
+  var commentEl = document.getElementById('comment'), listEl = document.getElementById('list');
+  var scale = 1, guides = [], drag = null;
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function say(msg, bad) { statusEl.textContent = msg || ''; statusEl.className = bad ? 'err' : ''; }
+  function post(msg) { parent.postMessage(msg, '*'); }
+  function byId(id) { for (var i = 0; i < scene.nodes.length; i++) if (scene.nodes[i].id === id) return scene.nodes[i]; return null; }
+  function indexOf(id) { for (var i = 0; i < scene.nodes.length; i++) if (scene.nodes[i].id === id) return i; return -1; }
+  function num(v, d) { return typeof v === 'number' && isFinite(v) ? v : d; }
+
+  // ---- local mirror of the server's op semantics (the server stays the authority) ----
+  function applyLocal(sc, ops) {
+    var next = clone(sc), inverse = [];
+    ops.forEach(function (op) {
+      var nodes = next.nodes, i;
+      if (op.op === 'add') { var at = op.index === undefined ? nodes.length : op.index; nodes.splice(at, 0, clone(op.node)); inverse.push({ op: 'delete', id: op.node.id }); }
+      else if (op.op === 'delete') { i = nodes.findIndex(function (n) { return n.id === op.id; }); inverse.push({ op: 'add', node: clone(nodes[i]), index: i }); nodes.splice(i, 1); }
+      else if (op.op === 'update') {
+        i = nodes.findIndex(function (n) { return n.id === op.id; }); var n = nodes[i], before = {}, added = [];
+        Object.keys(op.set || {}).forEach(function (k) { if (k in n) before[k] = clone(n[k]); else added.push(k); n[k] = clone(op.set[k]); });
+        (op.unset || []).forEach(function (k) { if (k in n) { before[k] = clone(n[k]); delete n[k]; } });
+        inverse.push(added.length ? { op: 'update', id: op.id, set: before, unset: added } : { op: 'update', id: op.id, set: before });
+      } else if (op.op === 'reorder') { i = nodes.findIndex(function (n) { return n.id === op.id; }); var nd = nodes.splice(i, 1)[0]; nodes.splice(op.index, 0, nd); inverse.push({ op: 'reorder', id: op.id, index: i }); }
+    });
+    inverse.reverse();
+    return { scene: next, inverse: inverse };
+  }
+
+  // ---- sending edits: one in flight at a time, in order ----
+  function commit(ops, label, fromHistory) {
+    var res;
+    try { res = applyLocal(scene, ops); } catch (e) { say('That edit is not possible.', true); return; }
+    scene = res.scene;
+    if (!fromHistory) { undoStack.push({ ops: ops, inverse: res.inverse, label: label }); redoStack = []; }
+    queue.push(ops); render(); flush();
+  }
+  function flush() { if (pending || !queue.length) return; pending = true; post({ op: 'patch', rev: rev, ops: queue.shift(), seq: ++seq }); }
+  function onAck(m) { pending = false; rev = m.rev; if (!queue.length) { scene = m.scene; } say('Saved to your draft.'); render(); flush(); updateButtons(); }
+  function onError(m) { pending = false; queue = []; say(String(m.message || 'The edit was refused.').slice(0, 160), true); if (m.scene) { scene = m.scene; rev = m.rev; undoStack = []; redoStack = []; selection = []; render(); } updateButtons(); }
+
+  function undo() { var e = undoStack.pop(); if (!e) return; redoStack.push(e); commit(e.inverse, 'Undo ' + e.label, true); prune(); }
+  function redo() { var e = redoStack.pop(); if (!e) return; undoStack.push(e); commit(e.ops, e.label, true); prune(); }
+  function prune() { selection = selection.filter(function (id) { return !!byId(id); }); render(); updateButtons(); }
+
+  // ---- rendering (SVG elements built with the DOM API; scene strings are only ever textContent or validated attribute values) ----
+  function el(tag, attrs) { var e = document.createElementNS(SVGNS, tag); Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, String(attrs[k])); }); return e; }
+  function color(v, d) { return typeof v === 'string' && HEX.test(v) ? '#' + v : d; }
+  function nodeEl(n) {
+    var g, t = n.type, tr = n.rotate ? 'rotate(' + num(n.rotate, 0) + ' ' + (n.x + n.w / 2) + ' ' + (n.y + n.h / 2) + ')' : null;
+    var paint = { fill: n.fill ? color(n.fill, 'none') : 'none' };
+    if (n.stroke) { paint.stroke = color(n.stroke, 'none'); paint['stroke-width'] = num(n.stroke_w, 1); }
+    if (n.opacity !== undefined) paint.opacity = num(n.opacity, 1);
+    if (t === 'rect') g = el('rect', Object.assign({ x: n.x, y: n.y, width: n.w, height: n.h, rx: num(n.radius, 0) }, paint));
+    else if (t === 'ellipse') g = el('ellipse', Object.assign({ cx: n.x + n.w / 2, cy: n.y + n.h / 2, rx: n.w / 2, ry: n.h / 2 }, paint));
+    else if (t === 'line') { delete paint.fill; g = el('line', Object.assign({ x1: n.x, y1: n.y, x2: n.x + n.w, y2: n.y + n.h, stroke: '#111' }, paint)); }
+    else {
+      var size = num(n.size, 24), anchor = n.align === 'center' ? 'middle' : n.align === 'right' ? 'end' : 'start';
+      var x = n.x + (anchor === 'start' ? 0 : anchor === 'middle' ? n.w / 2 : n.w);
+      g = el('text', { x: x, y: n.y + size, 'font-size': size, 'font-weight': n.bold ? 700 : 400, 'font-family': 'Calibri, Arial, sans-serif', 'text-anchor': anchor, fill: color(n.color, '#1F2937') });
+      g.textContent = typeof n.text === 'string' ? n.text : '';
+    }
+    if (tr) g.setAttribute('transform', tr);
+    g.setAttribute('data-id', n.id); g.style.cursor = tool === 'select' ? 'move' : 'crosshair';
+    return g;
+  }
+  function wrap(g, n) {
+    if (!g || typeof n.text !== 'string' || !n.w) return;
+    var size = num(n.size, 24), lines = [], paras = n.text.split(String.fromCharCode(10));
+    paras.forEach(function (para) {
+      var words = para.split(' '), cur = '';
+      words.forEach(function (w) {
+        var tryLine = cur ? cur + ' ' + w : w; g.textContent = tryLine;
+        if (cur && g.getComputedTextLength() > n.w) { lines.push(cur); cur = w; } else cur = tryLine;
+      });
+      lines.push(cur);
+    });
+    if (lines.length <= 1) { g.textContent = lines[0] || ''; return; }
+    g.textContent = '';
+    var x = g.getAttribute('x');
+    lines.forEach(function (line, i) { var t = el('tspan', { x: x, dy: i === 0 ? 0 : size * 1.2 }); t.textContent = line; g.appendChild(t); });
+  }
+  function bounds(ids) {
+    var x1 = 1e9, y1 = 1e9, x2 = -1e9, y2 = -1e9;
+    ids.forEach(function (id) { var n = byId(id); if (!n) return; x1 = Math.min(x1, n.x); y1 = Math.min(y1, n.y); x2 = Math.max(x2, n.x + n.w); y2 = Math.max(y2, n.y + n.h); });
+    return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+  }
+  var HANDLES = [['nw', 0, 0], ['n', .5, 0], ['ne', 1, 0], ['e', 1, .5], ['se', 1, 1], ['s', .5, 1], ['sw', 0, 1], ['w', 0, .5]];
+  function render() {
+    if (!scene) return;
+    var w = scene.canvas.w, h = scene.canvas.h;
+    svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h); svg.setAttribute('width', Math.round(w * scale)); svg.setAttribute('height', Math.round(h * scale));
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var layer = el('g', { id: 'nodes' }); scene.nodes.forEach(function (n) { layer.appendChild(nodeEl(n)); }); svg.appendChild(layer);
+    scene.nodes.forEach(function (n) { if (n.type === 'text') wrap(layer.querySelector('[data-id="' + n.id + '"]'), n); });
+    var over = el('g', { id: 'over', 'pointer-events': 'none' });
+    selection.forEach(function (id) { var n = byId(id); if (n) over.appendChild(el('rect', { x: n.x, y: n.y, width: n.w, height: n.h, fill: 'none', stroke: '#2563eb', 'stroke-width': 1.5 / scale, 'stroke-dasharray': selection.length > 1 ? (4 / scale) : 'none' })); });
+    guides.forEach(function (g) { over.appendChild(el('line', g.v ? { x1: g.at, y1: 0, x2: g.at, y2: h, stroke: '#ec4899', 'stroke-width': 1 / scale } : { x1: 0, y1: g.at, x2: w, y2: g.at, stroke: '#ec4899', 'stroke-width': 1 / scale })); });
+    svg.appendChild(over);
+    if (selection.length) {
+      var b = bounds(selection), hs = 9 / scale, hg = el('g', { id: 'handles' });
+      HANDLES.forEach(function (hd) { var r = el('rect', { x: b.x + b.w * hd[1] - hs / 2, y: b.y + b.h * hd[2] - hs / 2, width: hs, height: hs, fill: '#fff', stroke: '#2563eb', 'stroke-width': 1.5 / scale }); r.setAttribute('data-handle', hd[0]); r.style.cursor = hd[0] + '-resize'; hg.appendChild(r); });
+      svg.appendChild(hg);
+    }
+    while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+    scene.nodes.forEach(function (n) { var li = document.createElement('li'); li.textContent = n.type + ' ' + n.id + (n.text ? ': ' + n.text : ''); listEl.appendChild(li); });
+    updateButtons();
+  }
+  function fit() {
+    if (!scene) return; var st = document.getElementById('stage');
+    scale = Math.max(0.1, Math.min((st.clientWidth - 24) / scene.canvas.w, (st.clientHeight - 24) / scene.canvas.h, 2)); render();
+  }
+
+  // ---- toolbar ----
+  var bar = document.getElementById('bar'), buttons = {};
+  function mk(id, label, title, fn, toggle) { var b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.title = title; b.setAttribute('aria-label', title); if (toggle) b.setAttribute('aria-pressed', 'false'); b.addEventListener('click', fn); bar.appendChild(b); buttons[id] = b; return b; }
+  function sep() { var s = document.createElement('span'); s.className = 'sep'; bar.appendChild(s); }
+  function setTool(t) { tool = t; ['select', 'rect', 'ellipse', 'text', 'line'].forEach(function (k) { buttons[k].setAttribute('aria-pressed', k === t ? 'true' : 'false'); }); render(); }
+  mk('select', 'Select', 'Select tool', function () { setTool('select'); }, true);
+  mk('rect', 'Rectangle', 'Draw a rectangle', function () { setTool('rect'); }, true);
+  mk('ellipse', 'Ellipse', 'Draw an ellipse', function () { setTool('ellipse'); }, true);
+  mk('text', 'Text', 'Add a text box', function () { setTool('text'); }, true);
+  mk('line', 'Line', 'Draw a line', function () { setTool('line'); }, true);
+  sep();
+  mk('undo', 'Undo', 'Undo (Ctrl+Z)', undo); mk('redo', 'Redo', 'Redo (Ctrl+Shift+Z)', redo);
+  sep();
+  [['al', 'Left', 'left'], ['ac', 'Center', 'hcenter'], ['ar', 'Right', 'right'], ['at', 'Top', 'top'], ['am', 'Middle', 'vcenter'], ['ab', 'Bottom', 'bottom']].forEach(function (a) { mk(a[0], a[1], 'Align ' + a[1].toLowerCase(), function () { align(a[2]); }); });
+  mk('dh', 'Spread H', 'Distribute horizontally', function () { distribute('x'); }); mk('dv', 'Spread V', 'Distribute vertically', function () { distribute('y'); });
+  sep();
+  mk('front', 'Forward', 'Bring forward', function () { reorder(1); }); mk('back', 'Back', 'Send backward', function () { reorder(-1); });
+  mk('dup', 'Duplicate', 'Duplicate (Ctrl+D)', duplicate); mk('del', 'Delete', 'Delete (Delete key)', remove);
+  sep();
+  mk('fit', 'Fit', 'Fit the page to the window', fit);
+  mk('save', 'Save for approval', 'Save these edits as a release for approval', function () { post({ op: 'save' }); }).className = 'primary';
+
+  function updateButtons() {
+    var some = selection.length > 0;
+    ['dup', 'del', 'front', 'back'].forEach(function (k) { buttons[k].disabled = !some; });
+    ['al', 'ac', 'ar', 'at', 'am', 'ab'].forEach(function (k) { buttons[k].disabled = selection.length < 2; });
+    ['dh', 'dv'].forEach(function (k) { buttons[k].disabled = selection.length < 3; });
+    buttons.undo.disabled = !undoStack.length; buttons.redo.disabled = !redoStack.length;
+  }
+
+  // ---- edit commands ----
+  function uid() { var i = 1; while (byId('n' + i)) i++; return 'n' + i; }
+  function updateOps(ids, fn) { return ids.map(function (id) { return { op: 'update', id: id, set: fn(byId(id)) }; }); }
+  function align(mode) {
+    if (selection.length < 2) return; var b = bounds(selection);
+    commit(updateOps(selection, function (n) {
+      if (mode === 'left') return { x: b.x }; if (mode === 'right') return { x: b.x + b.w - n.w }; if (mode === 'hcenter') return { x: b.x + (b.w - n.w) / 2 };
+      if (mode === 'top') return { y: b.y }; if (mode === 'bottom') return { y: b.y + b.h - n.h }; return { y: b.y + (b.h - n.h) / 2 };
+    }), 'align');
+  }
+  function distribute(axis) {
+    if (selection.length < 3) return; var size = axis === 'x' ? 'w' : 'h';
+    var ns = selection.map(byId).sort(function (a, b) { return a[axis] - b[axis]; });
+    var first = ns[0][axis], last = ns[ns.length - 1][axis] + ns[ns.length - 1][size], total = ns.reduce(function (s, n) { return s + n[size]; }, 0);
+    var gap = (last - first - total) / (ns.length - 1), at = first, ops = [];
+    ns.forEach(function (n) { var set = {}; set[axis] = Math.round(at * 100) / 100; ops.push({ op: 'update', id: n.id, set: set }); at += n[size] + gap; });
+    commit(ops, 'distribute');
+  }
+  function reorder(dir) {
+    if (!selection.length) return; var ops = [], order = selection.map(indexOf).sort(function (a, b) { return dir > 0 ? b - a : a - b; });
+    order.forEach(function (i) { var to = Math.max(0, Math.min(scene.nodes.length - 1, i + dir)); if (to !== i) ops.push({ op: 'reorder', id: scene.nodes[i].id, index: to }); });
+    if (ops.length) commit(ops, 'reorder');
+  }
+  function duplicate() {
+    if (!selection.length) return; var ids = [], ops = [], used = {};
+    selection.forEach(function (id) { var n = clone(byId(id)), k = 1; while (byId('n' + k) || used['n' + k]) k++; used['n' + k] = 1; n.id = 'n' + k; n.x += 20; n.y += 20; delete n.template; ids.push(n.id); ops.push({ op: 'add', node: n }); });
+    commit(ops, 'duplicate'); selection = ids; render();
+  }
+  function remove() { if (!selection.length) return; var ops = selection.map(function (id) { return { op: 'delete', id: id }; }); selection = []; commit(ops, 'delete'); }
+  function nudge(dx, dy) { if (!selection.length) return; commit(updateOps(selection, function (n) { return { x: n.x + dx, y: n.y + dy }; }), 'nudge'); }
+
+  // ---- pointer interaction ----
+  function toScene(e) { var r = svg.getBoundingClientRect(); return { x: (e.clientX - r.left) / scale, y: (e.clientY - r.top) / scale }; }
+  function snapTargets(skip) {
+    var xs = [0, scene.canvas.w / 2, scene.canvas.w], ys = [0, scene.canvas.h / 2, scene.canvas.h];
+    scene.nodes.forEach(function (n) { if (skip.indexOf(n.id) < 0) { xs.push(n.x, n.x + n.w / 2, n.x + n.w); ys.push(n.y, n.y + n.h / 2, n.y + n.h); } });
+    return { xs: xs, ys: ys };
+  }
+  function snap(box, targets) {
+    var T = 6 / scale, dx = 0, dy = 0, gx = null, gy = null, bestx = T + 1, besty = T + 1;
+    [box.x, box.x + box.w / 2, box.x + box.w].forEach(function (v) { targets.xs.forEach(function (t) { var d = t - v; if (Math.abs(d) < Math.abs(bestx) && Math.abs(d) <= T) { bestx = d; gx = t; } }); });
+    [box.y, box.y + box.h / 2, box.y + box.h].forEach(function (v) { targets.ys.forEach(function (t) { var d = t - v; if (Math.abs(d) < Math.abs(besty) && Math.abs(d) <= T) { besty = d; gy = t; } }); });
+    if (gx !== null) dx = bestx; if (gy !== null) dy = besty;
+    guides = []; if (gx !== null) guides.push({ v: true, at: gx }); if (gy !== null) guides.push({ v: false, at: gy });
+    return { dx: dx, dy: dy };
+  }
+  svg.addEventListener('pointerdown', function (e) {
+    if (!scene || e.button !== 0) return; svg.focus(); var p = toScene(e), t = e.target;
+    if (tool !== 'select') { drag = { kind: 'draw', start: p, tool: tool }; svg.setPointerCapture(e.pointerId); return; }
+    var handle = t.getAttribute && t.getAttribute('data-handle');
+    if (handle && selection.length) { drag = { kind: 'resize', handle: handle, start: p, origin: selection.map(function (id) { return clone(byId(id)); }), box: bounds(selection) }; svg.setPointerCapture(e.pointerId); return; }
+    var id = t.getAttribute && t.getAttribute('data-id');
+    if (id) {
+      if (e.shiftKey) selection = selection.indexOf(id) >= 0 ? selection.filter(function (s) { return s !== id; }) : selection.concat(id);
+      else if (selection.indexOf(id) < 0) selection = [id];
+      if (selection.length) drag = { kind: 'move', start: p, origin: selection.map(function (s) { return clone(byId(s)); }), moved: false };
+      svg.setPointerCapture(e.pointerId);
+    } else { selection = []; drag = { kind: 'marquee', start: p, cur: p }; svg.setPointerCapture(e.pointerId); }
+    render();
+  });
+  svg.addEventListener('pointermove', function (e) {
+    if (!drag || !scene) return; var p = toScene(e), dx = p.x - drag.start.x, dy = p.y - drag.start.y;
+    if (drag.kind === 'move') {
+      if (!drag.moved && Math.hypot(dx, dy) * scale < 3) return; drag.moved = true;
+      var ids = selection, ob = { x: 1e9, y: 1e9, w: 0, h: 0 }, x2 = -1e9, y2 = -1e9;
+      drag.origin.forEach(function (o) { ob.x = Math.min(ob.x, o.x); ob.y = Math.min(ob.y, o.y); x2 = Math.max(x2, o.x + o.w); y2 = Math.max(y2, o.y + o.h); }); ob.w = x2 - ob.x; ob.h = y2 - ob.y;
+      var s = snap({ x: ob.x + dx, y: ob.y + dy, w: ob.w, h: ob.h }, snapTargets(ids)); dx += s.dx; dy += s.dy;
+      drag.origin.forEach(function (o) { var n = byId(o.id); n.x = o.x + dx; n.y = o.y + dy; }); drag.dx = dx; drag.dy = dy; render();
+    } else if (drag.kind === 'resize') {
+      var b = drag.box, hd = drag.handle, nx = b.x, ny = b.y, nw = b.w, nh = b.h;
+      if (hd.indexOf('e') >= 0) nw = Math.max(1, b.w + dx); if (hd.indexOf('s') >= 0) nh = Math.max(1, b.h + dy);
+      if (hd.indexOf('w') >= 0) { nw = Math.max(1, b.w - dx); nx = b.x + b.w - nw; } if (hd.indexOf('n') >= 0) { nh = Math.max(1, b.h - dy); ny = b.y + b.h - nh; }
+      if (e.shiftKey && b.w > 0 && b.h > 0 && hd.length === 2) { var r = b.w / b.h; nh = nw / r; if (hd.indexOf('n') >= 0) ny = b.y + b.h - nh; }
+      var kx = b.w ? nw / b.w : 1, ky = b.h ? nh / b.h : 1;
+      drag.origin.forEach(function (o) { var n = byId(o.id); n.x = nx + (o.x - b.x) * kx; n.y = ny + (o.y - b.y) * ky; n.w = Math.max(1, o.w * kx); n.h = Math.max(1, o.h * ky); }); drag.resized = true; render();
+    } else if (drag.kind === 'draw') { drag.cur = p; ghost(drag); }
+    else if (drag.kind === 'marquee') { drag.cur = p; ghost({ start: drag.start, cur: p, tool: 'rect' }, true); }
+  });
+  function ghost(d, marquee) {
+    render(); var x = Math.min(d.start.x, d.cur.x), y = Math.min(d.start.y, d.cur.y), w = Math.abs(d.cur.x - d.start.x), h = Math.abs(d.cur.y - d.start.y);
+    var g = d.tool === 'line' ? el('line', { x1: d.start.x, y1: d.start.y, x2: d.cur.x, y2: d.cur.y, stroke: '#2563eb', 'stroke-width': 2 / scale, 'stroke-dasharray': 4 / scale }) : el('rect', { x: x, y: y, width: w, height: h, fill: marquee ? 'rgba(37,99,235,.08)' : 'none', stroke: '#2563eb', 'stroke-width': 1.5 / scale, 'stroke-dasharray': 4 / scale });
+    svg.appendChild(g);
+  }
+  svg.addEventListener('pointerup', function (e) {
+    if (!drag || !scene) return; var d = drag; drag = null; guides = []; var p = toScene(e);
+    if ((d.kind === 'move' && !d.moved) || d.kind === 'marquee') tapAt(p);
+    if (d.kind === 'move' && d.moved) {
+      var ops = d.origin.map(function (o) { return { op: 'update', id: o.id, set: { x: Math.round(byId(o.id).x * 100) / 100, y: Math.round(byId(o.id).y * 100) / 100 } }; });
+      d.origin.forEach(function (o) { var n = byId(o.id); n.x = o.x; n.y = o.y; }); commit(ops, 'move');
+    } else if (d.kind === 'resize' && d.resized) {
+      var rops = d.origin.map(function (o) { var n = byId(o.id); return { op: 'update', id: o.id, set: { x: Math.round(n.x * 100) / 100, y: Math.round(n.y * 100) / 100, w: Math.round(n.w * 100) / 100, h: Math.round(n.h * 100) / 100 } }; });
+      d.origin.forEach(function (o) { var n = byId(o.id); n.x = o.x; n.y = o.y; n.w = o.w; n.h = o.h; }); commit(rops, 'resize');
+    } else if (d.kind === 'draw') {
+      var x = Math.min(d.start.x, p.x), y = Math.min(d.start.y, p.y), w = Math.abs(p.x - d.start.x), h = Math.abs(p.y - d.start.y), id = uid(), node;
+      if (d.tool === 'text') node = { id: id, type: 'text', x: x, y: y, w: Math.max(w, 160), h: Math.max(h, 40), text: 'Text', size: 28, color: '1F2937' };
+      else if (d.tool === 'line') node = { id: id, type: 'line', x: d.start.x, y: d.start.y, w: p.x - d.start.x, h: p.y - d.start.y, stroke: '1F2937', stroke_w: 3 };
+      else node = { id: id, type: d.tool, x: x, y: y, w: Math.max(w, 80), h: Math.max(h, 60), fill: '2563EB' };
+      if (d.tool === 'line' && (node.w < 0 || node.h < 0)) { render(); }
+      selection = [id]; setTool('select'); commit([{ op: 'add', node: roundNode(node) }], 'add ' + d.tool);
+    } else if (d.kind === 'marquee') {
+      var mx = Math.min(d.start.x, p.x), my = Math.min(d.start.y, p.y), mw = Math.abs(p.x - d.start.x), mh = Math.abs(p.y - d.start.y);
+      if (mw > 3 || mh > 3) selection = scene.nodes.filter(function (n) { return n.x >= mx && n.y >= my && n.x + n.w <= mx + mw && n.y + n.h <= my + mh; }).map(function (n) { return n.id; });
+      render();
+    } else render();
+  });
+  function roundNode(n) { ['x', 'y', 'w', 'h'].forEach(function (k) { n[k] = Math.round(n[k] * 100) / 100; }); return n; }
+  var lastTap = null;
+  function tapAt(p) {
+    var now = Date.now(), hit = null, again = lastTap && now - lastTap.t < 400 && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) * scale < 6;
+    lastTap = { t: now, x: p.x, y: p.y };
+    if (!again) return;
+    lastTap = null;
+    for (var i = scene.nodes.length - 1; i >= 0 && !hit; i--) { var n = scene.nodes[i]; if (p.x >= n.x && p.x <= n.x + n.w && p.y >= n.y && p.y <= n.y + n.h && n.type === 'text') hit = n; }
+    if (hit) { selection = [hit.id]; render(); startEdit(hit); }
+  }
+
+  // ---- text editing ----
+  var editing = null;
+  function startEdit(n) {
+    editing = n.id; var r = svg.getBoundingClientRect(), st = document.getElementById('stage').getBoundingClientRect();
+    edit.style.display = 'block'; edit.style.left = (r.left - st.left + document.getElementById('stage').scrollLeft + n.x * scale) + 'px'; edit.style.top = (r.top - st.top + document.getElementById('stage').scrollTop + n.y * scale) + 'px';
+    edit.style.width = (n.w * scale) + 'px'; edit.style.height = Math.max(n.h * scale, 28) + 'px'; edit.style.fontSize = (num(n.size, 24) * scale) + 'px'; edit.style.fontWeight = n.bold ? '700' : '400';
+    edit.value = n.text || ''; edit.focus(); edit.select();
+  }
+  function endEdit(save) {
+    if (!editing) return; var id = editing, v = edit.value; editing = null; edit.style.display = 'none'; var n = byId(id);
+    if (save && n && v !== n.text && v.length <= 2000) commit([{ op: 'update', id: id, set: { text: v } }], 'edit text'); svg.focus();
+  }
+  edit.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); endEdit(false); } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); endEdit(true); } e.stopPropagation(); });
+  edit.addEventListener('blur', function () { endEdit(true); });
+
+  // ---- keyboard ----
+  svg.addEventListener('keydown', function (e) {
+    if (!scene) return; var k = e.key, step = e.shiftKey ? 10 : 1, mod = e.ctrlKey || e.metaKey;
+    if (mod && k.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+    else if (mod && k.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+    else if (mod && k.toLowerCase() === 'd') { e.preventDefault(); duplicate(); }
+    else if (mod && k.toLowerCase() === 'a') { e.preventDefault(); selection = scene.nodes.map(function (n) { return n.id; }); render(); }
+    else if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); remove(); }
+    else if (k === 'ArrowLeft') { e.preventDefault(); nudge(-step, 0); } else if (k === 'ArrowRight') { e.preventDefault(); nudge(step, 0); }
+    else if (k === 'ArrowUp') { e.preventDefault(); nudge(0, -step); } else if (k === 'ArrowDown') { e.preventDefault(); nudge(0, step); }
+    else if (k === 'Escape') { selection = []; setTool('select'); render(); }
+    else if (k === 'Enter' && selection.length === 1 && byId(selection[0]).type === 'text') { e.preventDefault(); startEdit(byId(selection[0])); }
+    else if (k === 'Tab' && scene.nodes.length) { e.preventDefault(); var i = selection.length ? indexOf(selection[0]) : -1, nx = (i + (e.shiftKey ? -1 : 1) + scene.nodes.length) % scene.nodes.length; selection = [scene.nodes[nx].id]; render(); say(scene.nodes[nx].type + ' ' + scene.nodes[nx].id); }
+  });
+  commentEl.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || !commentEl.value.trim()) return; e.preventDefault();
+    post({ op: 'comment', node: selection[0] || '', text: commentEl.value.trim().slice(0, 400) }); commentEl.value = ''; say('Sent to the agent.');
+  });
+
+  // ---- messages from the host ----
+  window.addEventListener('message', function (e) {
+    if (e.source !== parent) return; var m = e.data; if (!m || typeof m !== 'object') return;
+    if (m.op === 'load' && m.scene && m.scene.nodes) { scene = m.scene; rev = m.rev | 0; undoStack = []; redoStack = []; selection = []; queue = []; pending = false; fit(); say(''); }
+    else if (m.op === 'ack') onAck(m); else if (m.op === 'error') onError(m); else if (m.op === 'say') say(String(m.message || '').slice(0, 160));
+  });
+  window.addEventListener('resize', fit);
+  setTool('select'); updateButtons(); post({ op: 'ready' });
+})();
+</script>
+</body>
+</html>

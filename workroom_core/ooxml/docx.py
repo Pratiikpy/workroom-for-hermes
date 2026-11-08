@@ -107,7 +107,7 @@ class Doc:
                     ctx = (plain,) + tuple(x for x in (heading, row_head, col_head) if x)
                     po = seg_start + nm.start
                     po = po if plain[po : po + len(nm.raw)] == nm.raw else None
-                    yield DocMention(part_no, 0, pi, seg_i, nm.start, nm, ctx, cell_rc, po)
+                    yield DocMention(part_no, 0, pi, seg_i, nm.start, nm, ctx, cell_rc, po, part)
 
     def _next_revision_id(self) -> int:
         if self._rev is None:

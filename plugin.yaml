@@ -8,6 +8,8 @@ tags: [documents, office, verification]
 requires_hermes: ">=0.23.0"
 python_dependencies:
   - "lxml>=5.0,<7"
+  - "python-pptx>=1.0,<2"
+  - "python-docx>=1.1,<2"
 provides_tools:
   - workroom_status
   - workroom_add_project
@@ -16,6 +18,16 @@ provides_tools:
   - workroom_explain_figure
   - workroom_selftest
   - workroom_stage_release
+  - workroom_create
+  - workroom_list_sources
+  - workroom_instructions
+  - workroom_propose_instruction
+  - workroom_list_pages
+  - workroom_read_page
+  - workroom_edit_page
+  - workroom_export_page
+  - workroom_where_used
+  - workroom_what_if
 provides_hooks:
   - pre_tool_call
 config_schema:

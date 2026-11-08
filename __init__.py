@@ -14,15 +14,25 @@ TOOLS = (
     ("workroom_add_project", tools.ADD_PROJECT_SCHEMA, tools.workroom_add_project, "Register a folder of Office files as a project.", FULL_TOOLSET),
     ("workroom_discover", tools.DISCOVER_SCHEMA, tools.workroom_discover, "Link numbers in documents to their source cells.", FULL_TOOLSET),
     ("workroom_stage_release", tools.STAGE_SCHEMA, tools.workroom_stage_release, "Prepare a release for the owner to approve.", FULL_TOOLSET),
+    ("workroom_create", tools.CREATE_SCHEMA, tools.workroom_create, "Create a deck or report whose figures are tied to source cells, staged for approval.", FULL_TOOLSET),
+    ("workroom_propose_instruction", tools.PROPOSE_INSTRUCTION_SCHEMA, tools.workroom_propose_instruction, "Propose a change to workroom.md for the owner to review.", FULL_TOOLSET),
+    ("workroom_edit_page", tools.EDIT_PAGE_SCHEMA, tools.workroom_edit_page, "Edit a visual page as a draft for the owner to save.", FULL_TOOLSET),
+    ("workroom_export_page", tools.EXPORT_PAGE_SCHEMA, tools.workroom_export_page, "Stage an export of a visual page for approval.", FULL_TOOLSET),
     # The read-only toolset is what a verifying sub-agent is given: it can look, never change anything.
     ("workroom_plan", tools.PLAN_SCHEMA, tools.workroom_plan, "Preview what a refresh would change.", READ_ONLY_TOOLSET),
     ("workroom_selftest", tools.SELFTEST_SCHEMA, tools.workroom_selftest, "Run the bundled self-test.", READ_ONLY_TOOLSET),
+    ("workroom_list_sources", tools.SOURCES_SCHEMA, tools.workroom_list_sources, "List source cells with their labels.", READ_ONLY_TOOLSET),
+    ("workroom_instructions", tools.INSTRUCTIONS_SCHEMA, tools.workroom_instructions, "Read the owner-authorised project instructions.", READ_ONLY_TOOLSET),
+    ("workroom_list_pages", tools.PAGES_SCHEMA, tools.workroom_list_pages, "List visual pages.", READ_ONLY_TOOLSET),
+    ("workroom_read_page", tools.READ_PAGE_SCHEMA, tools.workroom_read_page, "Read a visual page.", READ_ONLY_TOOLSET),
+    ("workroom_where_used", tools.WHERE_USED_SCHEMA, tools.workroom_where_used, "Where is a source cell used.", READ_ONLY_TOOLSET),
+    ("workroom_what_if", tools.WHAT_IF_SCHEMA, tools.workroom_what_if, "What would change if a cell had another value.", READ_ONLY_TOOLSET),
     ("workroom_explain_figure", tools.EXPLAIN_SCHEMA, tools.workroom_explain_figure, "Explain where a number came from.", READ_ONLY_TOOLSET),
 )
 
 
 def register(ctx):
-    from .adapters.commands import make_approve_command
+    from .adapters.commands import make_approve_command, make_watch_command
 
     def _service():
         svc = tools.service()
@@ -37,6 +47,12 @@ def register(ctx):
         make_approve_command(_service, ctx.ask_choice, lambda: ctx.get_config("approvers", [])),
         description="Approve a prepared Workroom release from this chat.",
         args_hint="[<project> <release>]",
+    )
+    ctx.register_command(
+        "workroom-watch",
+        make_watch_command(_service),
+        description="Show how to have Hermes cron check a Workroom project on a schedule.",
+        args_hint="<project>",
     )
     for name, schema, handler, description, toolset in TOOLS:
         ctx.register_tool(name=name, toolset=toolset, schema=schema, handler=handler, description=description)

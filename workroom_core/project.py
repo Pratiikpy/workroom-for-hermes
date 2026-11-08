@@ -6,12 +6,15 @@ that are tied to a source cell whose value changed since the last release.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import re
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .build.formats import plain
 from .controller.release import Controller
 from .match.engine import Mention, MatchResult, SourceIndex, match_mentions
 from .match.numbers import consistent_with_source, format_like
@@ -20,6 +23,10 @@ from .ooxml.runs import EditError
 from .ooxml.book import Book
 from .ooxml.docx import Doc
 from .ooxml.pptx import Deck, DocMention
+
+
+def is_scene(rel: str) -> bool:
+    return rel.lower().endswith(".scene.json")
 
 
 def open_document(data: bytes, name: str):
@@ -44,7 +51,7 @@ class Tie:
     offset: int
     cell_rc: tuple[int, int] | None
     raw: str
-    state: str  # accepted | confirm | confirmed | skipped
+    state: str  # accepted | confirm | confirmed | skipped | held (the number was changed by hand; Workroom leaves it alone)
     src_file: str
     sheet: str
     ref: str
@@ -52,6 +59,15 @@ class Tie:
     linked_value: float
     label_score: float
     context: str = ""
+    slide_uid: str = ""  # the slide's stable id (part or sheet name for Word and Excel); empty on links made before stable anchors
+    fp_near: str = ""  # fingerprint of the number and the words around it, used to re-attach the link after a structural edit
+    anchor: str = "exact"  # exact | reanchored (found again by fingerprint after the document changed)
+    prior_state: str = ""  # the state to return to when a held number is put back
+    held_note: str = ""
+    basis: str = "matched"  # born (written by a Workroom builder from this very cell) | matched | confirmed
+    receipt: str = ""  # JSON: the fact selection receipt of a born tie
+    kind: str = "text"  # text (a number in a text shape or table) | chart (one data point of a native chart)
+    chart: str = ""  # JSON for a chart tie: {"series": index, "category": label}
 
 
 @dataclass(frozen=True)
@@ -73,11 +89,42 @@ class Plan:
 
 
 @dataclass(frozen=True)
+class Element:
+    """One place in a document that depends on a changed source cell, and what Workroom will do about it."""
+    tie_id: int
+    deck: str
+    slide: int
+    text_before: str
+    text_after: str
+    decision: str  # auto | hold | blocked
+    reason: str
+    sentence: str = ""  # the words around the number, so two numbers on one slide can be told apart
+
+
+@dataclass(frozen=True)
+class SourceChange:
+    src: str  # file!sheet!ref
+    label: str  # the row and column headings of the source cell
+    old_value: float
+    new_value: float
+    delta_pct: float
+    elements: tuple[Element, ...]
+
+
+@dataclass(frozen=True)
+class Inbox:
+    changes: list[SourceChange]
+    blocked: list[Element]
+
+
+@dataclass(frozen=True)
 class Discovery:
     found: int
     no_source: int
     kept: int
     unreadable: tuple[str, ...] = ()
+    reanchored: int = 0
+    held: int = 0
 
 
 class Project:
@@ -91,10 +138,11 @@ class Project:
             " seg INT, offset INT, cell_rc TEXT, raw TEXT, state TEXT, src_file TEXT, sheet TEXT, ref TEXT, transform TEXT,"
             " linked_value REAL, label_score REAL, context TEXT)"
         )
-        try:
-            self.db.execute("ALTER TABLE ties ADD COLUMN context TEXT")
-        except sqlite3.OperationalError:
-            pass  # column already exists
+        for column in ("context TEXT", "slide_uid TEXT", "fp_near TEXT", "anchor TEXT", "prior_state TEXT", "held_note TEXT", "basis TEXT", "receipt TEXT", "kind TEXT", "chart TEXT"):
+            try:
+                self.db.execute(f"ALTER TABLE ties ADD COLUMN {column}")
+            except sqlite3.OperationalError:
+                pass  # column already exists
 
     # ---- files ----
     def _config(self) -> dict:
@@ -116,10 +164,26 @@ class Project:
             out.update(x for x in self.root.glob(pat) if x.is_file())
         return out
 
+    def _derived_path(self) -> Path:
+        return self.state / "derived.json"
+
+    def derived(self) -> list[str]:
+        """Workbooks Workroom created from the sources. They are targets (edited like documents), never sources."""
+        try:
+            return list(json.loads(self._derived_path().read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            return []
+
+    def set_derived(self, rel: str, present: bool) -> None:
+        items = [x for x in self.derived() if x != rel]
+        if present:
+            items.append(rel)
+        self._derived_path().write_text(json.dumps(sorted(items)), encoding="utf-8")
+
     def _files(self, exts: tuple[str, ...]) -> list[Path]:
         """Source workbooks are every .xlsx unless workroom.json lists `targets`; target workbooks are edited like documents."""
         cfg = self._config()
-        targets = self._matching(cfg.get("targets", []))
+        targets = self._matching(cfg.get("targets", [])) | {self.root / d for d in self.derived()}
         files = [p for p in self.root.rglob("*") if p.suffix.lower() in exts and not p.name.startswith("~$")]
         if exts == SOURCE_EXT:
             return sorted(p for p in files if p not in targets)
@@ -138,32 +202,296 @@ class Project:
                 self.unreadable_sources.append(self._rel(p))
         return SourceIndex(cells)
 
+    # ---- born ties ----
+    def locate_born(self, rel: str, data: bytes, occurrences: list[tuple[str, str, str, str]], values: dict[str, float]) -> list[tuple[DocMention, str, str]]:
+        """Find, in a file a builder just made, the number each slot rendered. Returns (mention, fact id, transform) in slot order.
+
+        Raises ValueError when a slot cannot be found exactly once where it should be, or when the shown number could not be rewritten
+        faithfully from its source later. Nothing is staged on that error."""
+        dms = list(open_document(data, rel).mentions())
+        used: set[int] = set()
+        found: list[tuple[DocMention, str, str]] = []
+        cursor: dict[str, int] = {}
+        for path, fact, rendered, text in occurrences:
+            start = text.find(rendered, cursor.get(path, 0))
+            if start < 0:
+                raise ValueError(f"{path}: the rendered number {rendered!r} is not in its text")
+            cursor[path] = start + len(rendered)
+            hit = next((i for i, d in enumerate(dms) if i not in used and d.number.raw == rendered and d.para_offset == start
+                        and d.context and d.context[0] == text), None)
+            if hit is None:
+                raise ValueError(f"{path}: {rendered!r} was not found in the built file where it was written")
+            ok, transform = consistent_with_source(dms[hit].number, values[fact])
+            if not ok:
+                raise ValueError(f"{path}: {rendered!r} cannot be rewritten faithfully from {values[fact]}")
+            used.add(hit)
+            found.append((dms[hit], fact, transform))
+        return found
+
+    def register_born_ties(self, rel: str, found: list[tuple[DocMention, str, str]], receipts: list[dict], values: dict[str, float]) -> int:
+        for (dm, fact, transform), receipt in zip(found, receipts):
+            file, sheet, ref = receipt["source_ref"].split("!", 2)
+            self.db.execute(
+                "INSERT INTO ties (deck, slide, shape_id, para, seg, offset, cell_rc, raw, state, src_file, sheet, ref, transform, linked_value, label_score, context, slide_uid, fp_near, anchor, basis, receipt)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (rel, dm.slide, dm.shape_id, dm.para, dm.seg, dm.offset, json.dumps(dm.cell), dm.number.raw, "confirmed", file, sheet, ref, transform,
+                 values[fact], 1.0, dm.context[0] if dm.context else "", dm.slide_uid, self._fp_near(dm), "exact", "born", json.dumps(receipt)),
+            )
+        return len(found)
+
+    def locate_cells(self, rel: str, data: bytes, cells: list[dict], values: dict[str, float]) -> list[tuple["DocMention", str, str]]:
+        """Find the numeric cells a workbook builder wrote and check each can be rewritten faithfully from its source later."""
+        dms = {(d.slide, d.cell): d for d in open_document(data, rel).mentions()}
+        out = []
+        for c in cells:
+            dm = dms.get((c["sheet"] + 1, (c["row"], c["col"])))
+            if dm is None:
+                raise ValueError(f"{c['where']}: the cell was not found in the built workbook")
+            ok, transform = consistent_with_source(dm.number, values[c["fact"]])
+            if not ok:
+                raise ValueError(f"{c['where']}: the cell holds {dm.number.raw}, which cannot be rewritten faithfully from {values[c['fact']]}")
+            out.append((dm, c["fact"], transform))
+        return out
+
+    def register_scene_ties(self, rel: str, scene: dict, occurrences: list[tuple[str, str, str, str]], receipts: list[dict], values: dict[str, float]) -> int:
+        """Born ties for the tied text of a visual page: one per slot, addressed by node id and slot number."""
+        import re as _re
+
+        count: dict[str, int] = {}
+        n = 0
+        for (path, fact, rendered, text), receipt in zip(occurrences, receipts):
+            m = _re.match(r"scene\.nodes\[(\d+)\]\.text$", path)
+            if not m:
+                raise ValueError(f"{path}: not a text node of the scene")
+            node = scene["nodes"][int(m.group(1))]
+            if node.get("text") != text:
+                raise ValueError(f"{path}: the page text does not hold what was rendered")
+            slot = count.get(node["id"], 0)
+            count[node["id"]] = slot + 1
+            file, sheet, ref = receipt["source_ref"].split("!", 2)
+            self.db.execute(
+                "INSERT INTO ties (deck, slide, shape_id, para, seg, offset, cell_rc, raw, state, src_file, sheet, ref, transform, linked_value, label_score, context, slide_uid, fp_near, anchor, basis, receipt, kind, chart)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (rel, 0, 0, 0, 0, 0, json.dumps(None), rendered, "confirmed", file, sheet, ref, "exact", values[fact], 1.0,
+                 f"node {node['id']}: {text}", "", "", "exact", "born", json.dumps(receipt), "scene", json.dumps({"node": node["id"], "slot": slot, "fact": fact})),
+            )
+            n += 1
+        return n
+
+    def _plan_scene(self, plan: "Plan", deck_rel: str, items: list[tuple["Tie", float]]) -> None:
+        """Re-render the tied text of a visual page from new source values. A node whose text no longer matches its template was edited by hand and is held."""
+        import re as _re
+
+        from .build.formats import format_value
+        from .build.spec import SLOT
+
+        doc = json.loads((self.root / deck_rel).read_bytes().decode("utf-8"))
+        cache = dict(doc.get("cache", {}))
+        nodes = {n["id"]: n for n in doc["nodes"]}
+        changed: dict[str, dict[str, float]] = {}
+        meta: dict[int, dict] = {}
+        for t, new in items:
+            info = json.loads(t.chart)
+            meta[t.id] = info
+            changed.setdefault(info["node"], {})[info["fact"]] = new
+
+        def render(template: str, vals: dict[str, float]) -> str:
+            return SLOT.sub(lambda m: format_value(m.group(2), vals[m.group(1)]), template)
+
+        held_nodes: set[str] = set()
+        for node_id, fresh in changed.items():
+            node = nodes.get(node_id)
+            if node is None or "template" not in node or node.get("text") != render(node["template"], cache):
+                held_nodes.add(node_id)
+                continue
+            vals = {**cache, **fresh}
+            node["text"] = render(node["template"], vals)
+        applied = 0
+        for t, new in items:
+            info = meta[t.id]
+            if info["node"] in held_nodes:
+                plan.skipped.append(f"{deck_rel} slide {t.slide}: '{t.raw}' was changed by hand in the page; held")
+                continue
+            node = nodes[info["node"]]
+            slots = list(SLOT.finditer(node["template"]))
+            new_text = format_value(slots[info["slot"]].group(2), new)
+            plan.impacts.append(Impact(deck_rel, t.slide, t.raw, new_text, f"{t.src_file}!{t.sheet}!{t.ref}", t.linked_value, new))
+            cache[info["fact"]] = new
+            applied += 1
+        if applied:
+            doc["cache"] = cache
+            plan.files[deck_rel] = (json.dumps(doc, indent=1, ensure_ascii=False) + "\n").encode("utf-8")
+
+    def _commit_scene(self, deck_rel: str, data: bytes, values: dict) -> None:
+        import re as _re
+
+        from .build.formats import format_value
+        from .build.spec import SLOT
+
+        doc = json.loads(data.decode("utf-8"))
+        nodes = {n["id"]: n for n in doc["nodes"]}
+        for t in self.ties():
+            if t.deck != deck_rel or t.kind != "scene":
+                continue
+            info = json.loads(t.chart)
+            node = nodes.get(info["node"])
+            if node is None or "template" not in node:
+                continue
+            slots = list(SLOT.finditer(node["template"]))
+            if info["slot"] >= len(slots):
+                continue
+            new = doc.get("cache", {}).get(info["fact"], t.linked_value)
+            self.db.execute("UPDATE ties SET linked_value=?, raw=?, context=? WHERE id=?",
+                            (new, format_value(slots[info["slot"]].group(2), new), f"node {node['id']}: {node['text']}", t.id))
+
+    def locate_charts(self, rel: str, data: bytes, points: list[dict], values: dict[str, float]) -> list[dict]:
+        """Find the chart each chart block became and check that every tied point holds exactly its fact's value."""
+        if not points:
+            return []
+        deck = open_document(data, rel)
+        shapes = deck.chart_shapes()
+        out = []
+        order: dict[str, int] = {}
+        for pt in points:
+            order.setdefault(pt["chart"], len(order))
+        for pt in points:
+            idx = order[pt["chart"]]
+            if idx >= len(shapes):
+                raise ValueError(f"{pt['chart']}: the chart was not found in the built file")
+            slide_no, uid, shape_id, _ = shapes[idx]
+            series = deck.chart_series(slide_no, shape_id)
+            if pt["series"] >= len(series) or pt["point"] >= len(series[pt["series"]].values):
+                raise ValueError(f"{pt['where']}: no such point in the built chart")
+            got = series[pt["series"]].values[pt["point"]]
+            want = values[pt["fact"]]
+            if got is None or abs(got - want) > 1e-9 * max(1.0, abs(want)):
+                raise ValueError(f"{pt['where']}: the built chart holds {got}, the source says {want}")
+            out.append({**pt, "slide": slide_no, "slide_uid": uid, "shape_id": shape_id})
+        return out
+
+    def register_chart_ties(self, rel: str, located: list[dict], values: dict[str, float]) -> int:
+        for pt in located:
+            file, sheet, ref = pt["receipt"]["source_ref"].split("!", 2)
+            self.db.execute(
+                "INSERT INTO ties (deck, slide, shape_id, para, seg, offset, cell_rc, raw, state, src_file, sheet, ref, transform, linked_value, label_score, context, slide_uid, fp_near, anchor, basis, receipt, kind, chart)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (rel, pt["slide"], pt["shape_id"], pt["series"], pt["point"], 0, json.dumps(None), plain(values[pt['fact']]), "confirmed", file, sheet, ref,
+                 "exact", values[pt["fact"]], 1.0, f"chart point {pt['category']}", pt["slide_uid"], "", "exact", "born", json.dumps(pt["receipt"]), "chart",
+                 json.dumps({"series": pt["series"], "category": pt["category"]})),
+            )
+        return len(located)
+
+    # ---- anchors ----
+    @staticmethod
+    def _fp_near(dm: DocMention) -> str:
+        """The number, the two words on each side of it and its row and column headings. Survives text added elsewhere."""
+        text = dm.context[0] if dm.context else ""
+        raw = dm.number.raw
+        pos = dm.para_offset if dm.para_offset is not None and text[dm.para_offset : dm.para_offset + len(raw)] == raw else text.find(raw)
+        pos = max(pos, 0)
+        words = lambda part: re.findall(r"\w+", part.lower())  # noqa: E731
+        before = words(text[:pos])[-2:]
+        after = words(text[pos + len(raw) :])[:2]
+        heads = [h.lower() for h in dm.context[1:]]
+        return hashlib.sha1("|".join([raw, " ".join(before), " ".join(after), "/".join(heads)]).encode()).hexdigest()[:16]
+
+    @staticmethod
+    def _mkey(dm: DocMention, uid: str | None = None) -> tuple:
+        return (uid if uid is not None else (dm.slide_uid or f"#{dm.slide}"), dm.shape_id, dm.para, dm.seg, dm.offset, dm.cell)
+
+    @staticmethod
+    def _tkey(t: Tie) -> tuple:
+        return (t.slide_uid or f"#{t.slide}", t.shape_id, t.para, t.seg, t.offset, t.cell_rc)
+
     # ---- discover ----
     def discover(self) -> "Discovery":
         """Find numbers and link new ones. A link that already exists is kept as it is: its state (confirmed or skipped by the
-        owner), its source cell and the value it was linked at, even when the source value has since changed. A link is dropped
-        only when its number is no longer where it was or its text was edited."""
+        owner), its source cell and the value it was linked at, even when the source value has since changed.
+
+        A link is found again by, in order: its exact place (the slide's stable id, shape, paragraph, run position and cell);
+        then, if the document was edited around it, its fingerprint (the number and the words next to it), shown as
+        'reanchored'. A tied number that a person retyped becomes 'held' and is left alone; it returns to its old state when the
+        original number is put back. A link is dropped only when its number is gone."""
         index = self.source_index()
-        existing = {(t.deck, t.slide, t.shape_id, t.para, t.seg, t.offset): t for t in self.ties()}
+        existing = self.ties()
         kept_ids: set[int] = set()
-        found = no_source = kept = 0
+        found = no_source = kept = reanchored = 0
         unreadable: list[str] = []
         for p in self._files(DECK_EXT):
             rel = self._rel(p)
+            deck_ties = [t for t in existing if t.deck == rel and t.kind == "text"]
+            kept_ids.update(t.id for t in existing if t.deck == rel and t.kind == "chart")
             try:
                 deck = open_document(p.read_bytes(), p.name)
                 dms = list(deck.mentions())
             except (PackageError, EditError, KeyError, ValueError):
                 unreadable.append(rel)
-                kept_ids.update(t.id for t in existing.values() if t.deck == rel)  # its links are not lost because the file cannot be read now
+                kept_ids.update(t.id for t in deck_ties)  # its links are not lost because the file cannot be read now
                 continue
             results = match_mentions([Mention(str(i), dm.number, dm.context, (dm.para_offset, dm.para_offset + len(dm.number.raw)) if dm.para_offset is not None else None) for i, dm in enumerate(dms)], index)
-            for dm, res in zip(dms, results):
-                found += 1
-                old = existing.get((rel, dm.slide, dm.shape_id, dm.para, dm.seg, dm.offset))
-                if old is not None and old.raw == dm.number.raw:
-                    kept_ids.add(old.id)
-                    kept += 1
+            found += len(dms)
+            by_pos = {self._tkey(t): t for t in deck_ties}
+            matched: dict[int, DocMention] = {}
+            consumed: set[int] = set()
+            via_fingerprint: set[int] = set()
+            held_now: dict[int, DocMention] = {}
+            # pass 1: the exact place
+            for i, dm in enumerate(dms):
+                t = by_pos.get(self._mkey(dm)) or by_pos.get(self._mkey(dm, f"#{dm.slide}"))
+                if t is not None and t.id not in matched and t.raw == dm.number.raw:
+                    matched[t.id] = dm
+                    consumed.add(i)
+            # pass 2: the number and the words around it, when exactly one link and one number fit
+            pending_ties = [t for t in deck_ties if t.id not in matched and t.fp_near and t.state != "held"]
+            pending_dms = [(i, dm) for i, dm in enumerate(dms) if i not in consumed]
+            if pending_ties and pending_dms:
+                tf: dict[str, list[Tie]] = {}
+                for t in pending_ties:
+                    tf.setdefault(t.fp_near, []).append(t)
+                mf: dict[str, list[tuple[int, DocMention]]] = {}
+                for i, dm in pending_dms:
+                    mf.setdefault(self._fp_near(dm), []).append((i, dm))
+                for fp, ts in tf.items():
+                    if len(ts) == 1 and len(mf.get(fp, [])) == 1:
+                        i, dm = mf[fp][0]
+                        if ts[0].raw == dm.number.raw:
+                            matched[ts[0].id] = dm
+                            consumed.add(i)
+                            via_fingerprint.add(ts[0].id)
+            # pass 3: a tied number that a person changed in place is held, not forgotten
+            for t in deck_ties:
+                if t.id in matched:
+                    continue
+                for i, dm in enumerate(dms):
+                    if i not in consumed and self._mkey(dm) == self._tkey(t) or (i not in consumed and self._mkey(dm, f"#{dm.slide}") == self._tkey(t)):
+                        if dm.number.raw != t.raw:
+                            held_now[t.id] = dm
+                            consumed.add(i)
+                        break
+            for tid, dm in matched.items():
+                old = next(t for t in deck_ties if t.id == tid)
+                state = old.state
+                note = old.held_note
+                prior = old.prior_state
+                if old.state == "held":  # the original number is back
+                    state = old.prior_state or "confirm"
+                    note = prior = ""
+                self.db.execute(
+                    "UPDATE ties SET slide=?, slide_uid=?, shape_id=?, para=?, seg=?, offset=?, cell_rc=?, fp_near=?, anchor=?, context=?, state=?, held_note=?, prior_state=? WHERE id=?",
+                    (dm.slide, dm.slide_uid, dm.shape_id, dm.para, dm.seg, dm.offset, json.dumps(dm.cell), self._fp_near(dm),
+                     "reanchored" if tid in via_fingerprint else "exact", dm.context[0] if dm.context else "", state, note, prior, tid),
+                )
+                kept_ids.add(tid)
+                kept += 1
+                reanchored += tid in via_fingerprint
+            for tid, dm in held_now.items():
+                old = next(t for t in deck_ties if t.id == tid)
+                prior = old.prior_state if old.state == "held" else old.state
+                self.db.execute("UPDATE ties SET state='held', prior_state=?, held_note=?, slide=? WHERE id=?",
+                                (prior, f"you changed {old.raw} to {dm.number.raw} by hand", dm.slide, tid))
+                kept_ids.add(tid)
+            for i, (dm, res) in enumerate(zip(dms, results)):
+                if i in consumed:
                     continue
                 if res.best is None:
                     no_source += 1
@@ -171,21 +499,29 @@ class Project:
                 b = res.best
                 ok, transform = consistent_with_source(dm.number, b.cell.value)
                 self.db.execute(
-                    "INSERT INTO ties (deck, slide, shape_id, para, seg, offset, cell_rc, raw, state, src_file, sheet, ref, transform, linked_value, label_score, context)"
-                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO ties (deck, slide, shape_id, para, seg, offset, cell_rc, raw, state, src_file, sheet, ref, transform, linked_value, label_score, context, slide_uid, fp_near, anchor)"
+                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (rel, dm.slide, dm.shape_id, dm.para, dm.seg, dm.offset, json.dumps(dm.cell), dm.number.raw,
                      "accepted" if res.decision == "accept" else "confirm", b.cell.file, b.cell.sheet, b.cell.ref, transform,
-                     b.cell.value, b.label_score, dm.context[0] if dm.context else ""),
+                     b.cell.value, b.label_score, dm.context[0] if dm.context else "", dm.slide_uid, self._fp_near(dm), "exact"),
                 )
-        for tie in existing.values():
-            if tie.id not in kept_ids:
+        for tie in existing:
+            if tie.id not in kept_ids and tie.kind != "scene":
                 self.db.execute("DELETE FROM ties WHERE id=?", (tie.id,))
-        return Discovery(found=found, no_source=no_source, kept=kept, unreadable=tuple(unreadable) + tuple(getattr(self, "unreadable_sources", [])))
+        held = self.db.execute("SELECT COUNT(*) FROM ties WHERE state='held'").fetchone()[0]
+        return Discovery(found=found, no_source=no_source, kept=kept, unreadable=tuple(unreadable) + tuple(getattr(self, "unreadable_sources", [])), reanchored=reanchored, held=held)
 
     def ties(self, states: tuple[str, ...] | None = None) -> list[Tie]:
-        rows = self.db.execute("SELECT * FROM ties ORDER BY id").fetchall()
-        ties = [Tie(r[0], r[1], r[2], r[3], r[4], r[5], r[6], tuple(json.loads(r[7])) if r[7] and json.loads(r[7]) else None,
-                    r[8], r[9], r[10], r[11], r[12], r[13], r[14], r[15], r[16] or "") for r in rows]
+        cur = self.db.execute("SELECT * FROM ties ORDER BY id")
+        names = [d[0] for d in cur.description]
+        ties = []
+        for r in cur.fetchall():
+            row = dict(zip(names, r))
+            cell = json.loads(row["cell_rc"]) if row["cell_rc"] else None
+            ties.append(Tie(row["id"], row["deck"], row["slide"], row["shape_id"], row["para"], row["seg"], row["offset"], tuple(cell) if cell else None,
+                            row["raw"], row["state"], row["src_file"], row["sheet"], row["ref"], row["transform"], row["linked_value"], row["label_score"],
+                            row.get("context") or "", row.get("slide_uid") or "", row.get("fp_near") or "", row.get("anchor") or "exact",
+                            row.get("prior_state") or "", row.get("held_note") or "", row.get("basis") or "matched", row.get("receipt") or "", row.get("kind") or "text", row.get("chart") or ""))
         return [t for t in ties if states is None or t.state in states]
 
     def confirm(self, tie_id: int) -> None:
@@ -206,6 +542,8 @@ class Project:
         plan = Plan()
         values = self._current_values()
         by_deck: dict[str, list[tuple[Tie, float]]] = {}
+        for t in self.ties(("held",)):
+            plan.skipped.append(f"{t.deck} slide {t.slide}: '{t.raw}' was changed by hand ({t.held_note}); held for you, not updated")
         for t in self.ties(("accepted", "confirmed")):
             new = values.get((t.src_file, t.sheet, t.ref))
             if new is None:
@@ -214,13 +552,31 @@ class Project:
             if new != t.linked_value:
                 by_deck.setdefault(t.deck, []).append((t, new))
         for deck_rel, items in by_deck.items():
+            if is_scene(deck_rel):
+                self._plan_scene(plan, deck_rel, items)
+                continue
             deck = open_document((self.root / deck_rel).read_bytes(), deck_rel)
             if self._config().get("tracked_changes") and hasattr(deck, "tracked"):
                 deck.tracked = True
-            dms = {(d.slide, d.shape_id, d.para, d.seg, d.offset): d for d in deck.mentions()}
+            dms: dict[tuple, DocMention] = {}
+            for d in deck.mentions():
+                dms[self._mkey(d)] = d
+                dms.setdefault(self._mkey(d, f"#{d.slide}"), d)
             applied = 0
-            for t, new in sorted(items, key=lambda x: (x[0].slide, x[0].shape_id, x[0].para, x[0].seg, -x[0].offset)):
-                dm = dms.get((t.slide, t.shape_id, t.para, t.seg, t.offset))
+            for t, new in [x for x in items if x[0].kind == "chart"]:
+                category = ""
+                try:
+                    category = json.loads(t.chart)["category"]
+                    uids = deck.slide_uids()
+                    slide_no = uids.index(t.slide_uid) + 1 if t.slide_uid in uids else t.slide
+                    deck.set_chart_value(slide_no, t.shape_id, t.para, category, new)
+                except (EditError, ValueError, KeyError) as exc:
+                    plan.skipped.append(f"{deck_rel} slide {t.slide}: chart point '{category or t.raw}' could not be updated ({exc}); held")
+                    continue
+                applied += 1
+                plan.impacts.append(Impact(deck_rel, slide_no, t.raw, plain(new), f"{t.src_file}!{t.sheet}!{t.ref}", t.linked_value, new))
+            for t, new in sorted([x for x in items if x[0].kind == "text"], key=lambda x: (x[0].slide, x[0].shape_id, x[0].para, x[0].seg, -x[0].offset)):
+                dm = dms.get(self._tkey(t))
                 if dm is None or dm.number.raw != t.raw:
                     plan.skipped.append(f"{deck_rel} slide {t.slide}: '{t.raw}' is no longer where it was linked (edited by hand?); held")
                     continue
@@ -239,6 +595,47 @@ class Project:
                 plan.files[deck_rel] = data
         return plan
 
+    def impact(self) -> Inbox:
+        """What the latest source changes touch, grouped by source cell and sorted by consequence (largest relative change first).
+
+        Every linked element gets a decision: auto (a refresh will rewrite it), hold (a person changed it, or it cannot be written
+        faithfully, so it is left alone) or blocked (its source cell is missing). Links the owner skipped, and links still waiting for
+        confirmation, are not part of the inbox."""
+        cells = {(c.file, c.sheet, c.ref): c for c in self.source_index().cells}
+        plan = self.plan_refresh()
+        auto = {(i.deck, i.slide, i.old_text, i.src): i for i in plan.impacts}
+        groups: dict[str, list[Element]] = {}
+        blocked: list[Element] = []
+        meta: dict[str, tuple[float, float]] = {}
+        for t in self.ties(("accepted", "confirmed", "held")):
+            key = f"{t.src_file}!{t.sheet}!{t.ref}"
+            cell = cells.get((t.src_file, t.sheet, t.ref))
+            if cell is None:
+                blocked.append(Element(t.id, t.deck, t.slide, t.raw, "", "blocked", f"source {key} is missing; not changed", t.context))
+                continue
+            if cell.value == t.linked_value:
+                continue
+            meta[key] = (t.linked_value, cell.value)
+            if t.state == "held":
+                el = Element(t.id, t.deck, t.slide, t.raw, "", "hold", f"changed by hand: {t.held_note}", t.context)
+            else:
+                hit = auto.get((t.deck, t.slide, t.raw, key))
+                if hit is not None:
+                    el = Element(t.id, t.deck, t.slide, t.raw, hit.new_text, "auto", "rewritten from the source", t.context)
+                else:
+                    reason = next((x for x in plan.skipped if f"slide {t.slide}" in x and t.raw in x), "could not be written faithfully")
+                    el = Element(t.id, t.deck, t.slide, t.raw, "", "hold", reason.split(": ", 1)[-1], t.context)
+            groups.setdefault(key, []).append(el)
+        out = []
+        for key, els in groups.items():
+            old, new = meta[key]
+            cell = cells[tuple(key.split("!"))]
+            label = " ".join(dict.fromkeys(cell.row_labels + cell.col_labels))
+            pct = abs(new - old) / abs(old) * 100 if old else 100.0
+            out.append(SourceChange(key, label, old, new, pct, tuple(els)))
+        out.sort(key=lambda c: -c.delta_pct)
+        return Inbox(out, blocked)
+
     def commit_snapshot(self, plan: Plan, override: dict[tuple[str, str, str], float] | None = None) -> None:
         """After a successful release: new source values become the baseline, and ties in edited decks are re-anchored.
 
@@ -247,25 +644,37 @@ class Project:
         """
         current = self._current_values()
         for deck_rel, data in plan.files.items():
+            if not (is_scene(deck_rel) or deck_rel.lower().endswith(DECK_EXT)):
+                continue  # an export (SVG, HTML) or any other file holds no ties
+            if is_scene(deck_rel):
+                self._commit_scene(deck_rel, data, {**current, **(override or {})})
+                continue
             # a restored deck holds the numbers it had before a release, so its links go back to those baseline values
             values = {**current, **(override or {})}
             fresh: dict[tuple, list[DocMention]] = {}
             for d in open_document(data, deck_rel).mentions():
-                fresh.setdefault((d.slide, d.shape_id, d.para, d.cell), []).append(d)
+                for uid in {d.slide_uid or f"#{d.slide}", f"#{d.slide}"}:
+                    fresh.setdefault((uid, d.shape_id, d.para, d.cell), []).append(d)
             groups: dict[tuple, list[Tie]] = {}
             for t in self.ties():
-                if t.deck == deck_rel:
-                    groups.setdefault((t.slide, t.shape_id, t.para, t.cell_rc), []).append(t)
+                if t.deck == deck_rel and t.kind == "chart":
+                    new = values.get((t.src_file, t.sheet, t.ref), t.linked_value)
+                    self.db.execute("UPDATE ties SET linked_value=?, raw=? WHERE id=?", (new, plain(new), t.id))
+                elif t.deck == deck_rel:
+                    groups.setdefault((t.slide_uid or f"#{t.slide}", t.shape_id, t.para, t.cell_rc), []).append(t)
             for key, ts in groups.items():
                 ts.sort(key=lambda t: (t.seg, t.offset))
                 nms = sorted(fresh.get(key, []), key=lambda d: (d.seg, d.offset))
                 if len(nms) != len(ts):
                     for t in ts:
-                        self.db.execute("UPDATE ties SET state='confirm' WHERE id=?", (t.id,))
+                        if t.state != "held":
+                            self.db.execute("UPDATE ties SET state='confirm' WHERE id=?", (t.id,))
                     continue
                 for t, d in zip(ts, nms):
+                    if t.state == "held":
+                        continue
                     new = values.get((t.src_file, t.sheet, t.ref), t.linked_value)
-                    self.db.execute("UPDATE ties SET seg=?, offset=?, raw=?, linked_value=? WHERE id=?", (d.seg, d.offset, d.number.raw, new, t.id))
+                    self.db.execute("UPDATE ties SET seg=?, offset=?, raw=?, linked_value=?, fp_near=? WHERE id=?", (d.seg, d.offset, d.number.raw, new, self._fp_near(d), t.id))
         for t in self.ties():
             if t.deck not in plan.files:
                 new = current.get((t.src_file, t.sheet, t.ref))

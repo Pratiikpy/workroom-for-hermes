@@ -37,7 +37,7 @@ class NotReady(ReleaseError):
 @dataclass(frozen=True)
 class Change:
     rel_path: str
-    base_sha: str | None  # None when the file is new (folder mode)
+    base_sha: str | None  # None when the file is new (create and folder modes)
     new_sha: str
 
 
@@ -97,8 +97,8 @@ class Controller:
 
     # ---- stage ----
     def stage(self, new_files: dict[str, bytes], mode: str = "inplace") -> str:
-        if mode not in ("inplace", "folder"):
-            raise ReleaseError("mode must be inplace or folder")
+        if mode not in ("inplace", "folder", "create"):
+            raise ReleaseError("mode must be inplace, folder or create")
         if not new_files:
             raise ReleaseError("nothing to release")
         rid = uuid.uuid4().hex[:16]
@@ -106,7 +106,11 @@ class Controller:
         for rel, data in sorted(new_files.items()):
             rel = _safe_rel(rel)
             live = self._live(rel)
-            if mode == "inplace":
+            if mode == "create":
+                if live.exists():
+                    raise ReleaseError(f"{rel} already exists; a create release never overwrites")
+                base = None
+            elif mode == "inplace":
                 if not live.is_file():
                     raise ReleaseError(f"{rel} does not exist; in-place releases only replace existing files")
                 base = sha256_file(live)
@@ -161,6 +165,11 @@ class Controller:
             self.journal.append(rid, "EXPIRED")
             raise ApprovalError("approval expired before publishing")
         changes = self._changes(rid)
+        if meta["mode"] == "create":
+            for c in changes:
+                if self._live(c.rel_path).exists():
+                    self.journal.append(rid, "REFUSED_STALE", file=c.rel_path)
+                    raise StaleRelease(f"{c.rel_path} appeared since this release was prepared; it will not be overwritten")
         if meta["mode"] == "inplace":
             for c in changes:
                 live = self._live(c.rel_path)
@@ -201,6 +210,16 @@ class Controller:
             self.journal.append(rid, "FILE_DONE", file=c.rel_path)
             return
         self.fp(f"before_backup:{i}")
+        if c.base_sha is None:  # a new file: there is nothing to back up, and nothing may be there
+            if live.exists():
+                raise StaleRelease(f"{c.rel_path} appeared while publishing; it will not be overwritten")
+            tmp = live.with_name(live.name + f".wr-{rid}.tmp")
+            write_durable(tmp, (self._staging(rid) / c.rel_path).read_bytes())
+            self.fp(f"before_replace:{i}")
+            replace_durable(tmp, live)
+            self.fp(f"after_replace:{i}")
+            self.journal.append(rid, "FILE_DONE", file=c.rel_path)
+            return
         if not (backup.is_file() and sha256_file(backup) == c.base_sha):
             write_durable(backup, live.read_bytes())
         if sha256_file(backup) != c.base_sha or sha256_file(live) != c.base_sha:
@@ -260,7 +279,12 @@ class Controller:
     def _rollback(self, rid: str, changes: list[Change], state: dict[str, str]) -> None:
         self.journal.append(rid, "ROLLING_BACK")
         for c in changes:
-            if state.get(c.rel_path) == "new":
+            if state.get(c.rel_path) == "new" and c.base_sha is None:
+                live = self._live(c.rel_path)
+                if live.is_file() and sha256_file(live) == c.new_sha:
+                    live.unlink()
+                    self._prune_empty(live.parent)
+            elif state.get(c.rel_path) == "new":
                 backup = self._backups(rid) / c.rel_path
                 if not (backup.is_file() and sha256_file(backup) == c.base_sha):
                     self.journal.append(rid, "RECOVERY_REQUIRED", reason=f"backup of {c.rel_path} missing")
@@ -270,6 +294,15 @@ class Controller:
                 write_durable(tmp, backup.read_bytes())
                 replace_durable(tmp, live)
         self.journal.append(rid, "ROLLED_BACK")
+
+    def _prune_empty(self, folder: Path) -> None:
+        """Remove folders a create release made, never the project root and never a folder that still holds anything."""
+        while folder != self.project and self.project in folder.parents:
+            try:
+                folder.rmdir()
+            except OSError:
+                return
+            folder = folder.parent
 
     # ---- restore a past release ----
     def restore(self, rid: str) -> None:

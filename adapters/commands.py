@@ -27,16 +27,30 @@ def principal_for(platform: Any, source: Any) -> str:
 
 
 def _card(view: dict[str, Any]) -> str:
-    lines = [f"Workroom release {view['release_id']}: {len(view['changes'])} number(s) will change in your documents."]
-    for c in view["changes"][:6]:
-        lines.append(f"  {c['old_text']} -> {c['new_text']}   ({c['deck']}, {c.get('where') or 'slide ' + str(c['slide'])})")
-    if len(view["changes"]) > 6:
-        lines.append(f"  and {len(view['changes']) - 6} more")
-    if view.get("held"):
-        lines.append(f"{len(view['held'])} held for you")
-    lines.append("Nothing has changed yet. A backup of every replaced file is kept.")
+    if view.get("created"):
+        grouped: dict[tuple, int] = {}
+        for f in view.get("figures", []):
+            grouped[(f["text"], f["source"])] = grouped.get((f["text"], f["source"]), 0) + 1
+        lines = [f"Workroom release {view['release_id']}: will create {view['changes'][0]['deck']} with {len(view.get('figures', []))} figures, each tied to its source cell."]
+        for (text, source), n in list(grouped.items())[:6]:
+            lines.append(f"  {text}   ({source}{', in ' + str(n) + ' places' if n > 1 else ''})")
+        if len(grouped) > 6:
+            lines.append(f"  and {len(grouped) - 6} more")
+        lines.append("Nothing has been written yet. Restore removes the new file again.")
+    elif view.get("edited_page"):
+        lines = [f"Workroom release {view['release_id']}: your edits to {view['changes'][0]['deck']} will be written ({view['changes'][0]['new_text']}).",
+                 "Nothing has been written yet. A backup of the replaced file is kept."]
+    else:
+        lines = [f"Workroom release {view['release_id']}: {len(view['changes'])} number(s) will change in your documents."]
+        for c in view["changes"][:6]:
+            lines.append(f"  {c['old_text']} -> {c['new_text']}   ({c['deck']}, {c.get('where') or 'slide ' + str(c['slide'])})")
+        if len(view["changes"]) > 6:
+            lines.append(f"  and {len(view['changes']) - 6} more")
+        if view.get("held"):
+            lines.append(f"{len(view['held'])} held for you")
+        lines.append("Nothing has changed yet. A backup of every replaced file is kept.")
     lines.append(f"Fingerprint {view['digest'][:12]}; your answer applies to exactly this release.")
-    return "\n".join(lines)
+    return chr(10).join(lines)
 
 
 def make_approve_command(service_factory: Callable[[], Service], ask_choice: Callable[[str, list], Any],
@@ -66,8 +80,43 @@ def make_approve_command(service_factory: Callable[[], Service], ask_choice: Cal
             if choice != APPROVE:
                 return "Nothing was changed." if choice == CANCEL else "No answer was given; nothing was changed."
             svc.approve_and_publish(pid, rid, view["digest"], principal=principal, channel=str(getattr(platform, "value", platform) or "local"))
+            if view.get("created"):
+                return f"Created {view['changes'][0]['deck']}. Every figure in it is tied to its source; Restore removes it."
+            if view.get("edited_page"):
+                return f"Wrote your edits to {view['changes'][0]['deck']}. A backup of the replaced file is kept."
             return f"Published {len(view['changes'])} number(s). A backup of each replaced file is kept."
         except ServiceError as exc:
             return f"Not published: {exc}"
+
+    return handler
+
+
+def make_watch_command(service_factory: Callable[[], Service]) -> Callable[..., str]:
+    """Print what to save and run to have Hermes cron check a project on a schedule. It changes nothing itself."""
+
+    def handler(raw_args: str, **_: Any) -> str:
+        arg = (raw_args or "").strip()
+        if not arg:
+            return "Usage: /workroom-watch <project>"
+        try:
+            pid = service_factory()._resolve(arg)
+        except ServiceError as exc:
+            return str(exc)
+        name = f"workroom-watch-{pid}.py"
+        body = chr(10).join([
+            "import os, runpy, sys",
+            f'sys.argv = ["watch.py", "--project", "{pid}"]',
+            'runpy.run_path(os.path.join(os.environ.get("HERMES_HOME", os.path.expanduser("~/.hermes")), "plugins", "workroom", "scripts", "watch.py"), run_name="__main__")',
+        ])
+        return chr(10).join([
+            f"To have Hermes check project {pid} on a schedule, save this as ~/.hermes/scripts/{name}:",
+            "",
+            body,
+            "",
+            "then run:",
+            f'  hermes cron create "every 6h" --no-agent --script {name} --deliver origin --name workroom-watch',
+            "",
+            "No model is involved. Each run prepares at most one release when a source changed and says nothing otherwise; it never approves or publishes.",
+        ])
 
     return handler

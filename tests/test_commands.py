@@ -71,3 +71,39 @@ def test_nothing_waiting_and_bad_arguments(tmp_path: Path) -> None:
     assert run(svc, APPROVE, [], args="junk")[0].startswith("Usage")
     run(svc, APPROVE, [])
     assert run(svc, APPROVE, [])[0] == "No Workroom release is waiting for approval."
+
+
+def test_the_chat_card_describes_a_create_release_as_a_new_file_with_its_figures(tmp_path: Path) -> None:
+    from workroom.tests.test_create_flow import SPEC, _svc
+
+    svc, pid, root = _svc(tmp_path)
+    staged_ = svc.create_from_spec(pid, SPEC)
+    out, asked = run(svc, APPROVE, [], platform="local", args=f"{pid} {staged_['release_id']}")
+    assert "will create reports/q2.pptx" in asked[0] and "tied to its source" in asked[0] and "number(s) will change" not in asked[0]
+    assert "$175" in asked[0] and "results.xlsx!Results!C2" in asked[0]
+    assert "Created reports/q2.pptx" in out and (root / "reports/q2.pptx").exists()
+
+
+def test_the_chat_card_describes_an_edited_page_and_an_export(tmp_path: Path) -> None:
+    from workroom.tests.test_scene_flow import SPEC as SCENE_SPEC
+    from workroom.tests.test_create_flow import _svc
+
+    svc, pid, root = _svc(tmp_path)
+    made = svc.create_from_spec(pid, SCENE_SPEC)
+    svc.approve_and_publish(pid, made["release_id"], made["digest"])
+    svc.scene_apply(pid, "pages/q2.scene.json", 0, [{"op": "update", "id": "title", "set": {"x": 90}}])
+    saved = svc.scene_save(pid, "pages/q2.scene.json")
+    out, asked = run(svc, CANCEL, [], platform="local", args=f"{pid} {saved['release_id']}")
+    assert "edits to pages/q2.scene.json" in asked[0] and "number(s) will change" not in asked[0]
+    assert out == "Nothing was changed."
+
+
+def test_watch_command_prints_the_wrapper_and_the_cron_line_without_changing_anything(tmp_path: Path) -> None:
+    from workroom.adapters.commands import make_watch_command
+
+    svc, root, pid, _ = staged(tmp_path)
+    out = make_watch_command(lambda: svc)(pid)
+    assert "hermes cron create" in out and "--no-agent" in out and f"workroom-watch-{pid}.py" in out and pid in out
+    assert "never approves" in out
+    assert "not a known project" in make_watch_command(lambda: svc)("nope")
+    assert "Usage" in make_watch_command(lambda: svc)("")

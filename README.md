@@ -13,6 +13,12 @@ These are from a real Hermes Desktop v0.23.0 session on Windows (not mockups), t
 1. Find the links: each number in the deck is tied to the cell it came from. ![Find links](docs/screenshots/01-find-links.png)
 2. Review what would change and approve exactly that release. ![Review and approve](docs/screenshots/02-review-and-approve.png)
 3. Published, with a backup kept and the release listed under Past releases. ![Published](docs/screenshots/03-published-and-past-releases.png)
+4. The Changes inbox: one card per changed source cell, with every place it reaches. ![Changes inbox](docs/screenshots/04-changes-inbox.png)
+5. Before and after, drawn by PowerPoint from a private copy. ![Before and after](docs/screenshots/05-before-and-after.png)
+6. Creating a file from sources: every figure listed with its cell, nothing written until approval. ![Create release](docs/screenshots/06-create-release.png)
+7. The page editor floating over a session. ![Page editor](docs/screenshots/07-page-editor.png)
+
+The whole first-run loop (make the sample, approve the deck, a new quarter arrives, see what changes, approve the update) is in [`docs/demo/first-run.gif`](docs/demo/first-run.gif).
 
 ## How it works
 
@@ -23,9 +29,27 @@ These are from a real Hermes Desktop v0.23.0 session on Windows (not mockups), t
 
 Ask Why: for any linked number, Workroom says which cell it came from, which labels and period matched, the value now and at the last release, and what would happen if the source changed.
 
+## Create, then keep in step
+
+Workroom can also make the file, so its figures are tied to their sources from the first second instead of being matched later.
+
+- **Create.** The agent writes a *spec* (text with `{fact:format}` slots for every figure) instead of an Office file. Workroom checks it, builds a PowerPoint deck (text, tables, KPI cards, native charts), a Word report or an Excel workbook (tied number cells, your formulas kept) in a separate process, and stages it as a release. Nothing is written until you approve, and Restore removes exactly what was created. Every figure carries a receipt: which cell, which concept and period, which unit and format. A percent shown as money, a Q3 figure placed next to Q2 words, or a cell the labels do not support is refused before anything is staged.
+- **Brand.** A `brand.json` in the project (accent, ink, muted colours as six hex digits, a font name), or colour and font tokens read from a `DESIGN.md` (primary, text, muted, font family; nothing else in the file is used), themes the decks Workroom creates, unless a spec sets its own. `brand.json` wins over `DESIGN.md`. Decks only for now; Word reports and visual pages are not themed.
+- **Changes inbox.** One card per changed source cell, listing every place it reaches with its sentence and what will happen: update, hold (you edited it, or it cannot be written faithfully) or blocked (the source is gone).
+- **Before and after.** Under a prepared release, on Windows with PowerPoint installed, Workroom can draw the changed slides as they are now and as they will be after approval (it renders a private copy; your file is not touched). Elsewhere it says pictures are unavailable.
+- **Visual pages.** A page of shapes and text (`*.scene.json`) with tied text, an editor in the Desktop (draw, move with snapping, resize, nudge, undo and redo, text edit, align, layers, comment to the agent), and exports to SVG, HTML and native PowerPoint shapes. Edits are a draft; saving stages a release for you to approve.
+- **Project instructions.** `workroom.md`, `AGENTS.md` and `CLAUDE.md` in a project are shown to the agent only after you read and authorise their exact text, and they can never change who approves or what needs approval.
+- **Try the sample.** On a first run, one click makes a sample project in Workroom's own storage, stages its deck for your approval, and lets you pretend a new quarter arrived.
+
+Evidence for each is in `bench/EVIDENCE.md` (rows dated 8 Nov 2026). What is not verified is listed in the same rows: no third-party model has driven the creation tools yet, the page editor passed automated keyboard and contrast tests but has not been used with a real screen reader, and the new surfaces were run on Windows only.
+
+## Schedule it
+
+`/workroom-watch <project>` prints a two-line recipe for Hermes cron: a small wrapper script and a `hermes cron create ... --no-agent` line. On each run Workroom checks the sources and, if something changed, prepares one release and tells you where to approve it; if nothing changed it says nothing. No model is involved and nothing is ever approved or published by the schedule. Tested through the real Hermes scheduler on Windows (see the 8 Nov evidence row); delivery to a chat and sleep catch-up are not yet tested.
+
 ## What the agent can and cannot do
 
-The agent gets tools to register a folder, find links, preview a refresh, prepare a release, explain a number and run the self-test. **No tool approves or publishes.** Only the owner, through an authenticated Hermes session in the Desktop screen or the in-chat release card, can approve. A verifying sub-agent can be given only the read-only toolset `workroom_ro` (plan, explain, selftest).
+The agent gets tools to register a folder, find links, preview a refresh, prepare a release, explain a number, run the self-test, list source cells, create files from a spec, read and edit visual pages as drafts, export pages, read authorised instructions and propose changes to `workroom.md`. **No tool approves or publishes.** Only the owner, through an authenticated Hermes session in the Desktop screen or the in-chat release card, can approve. A verifying sub-agent can be given only the read-only toolset `workroom_ro` (plan, explain, selftest).
 
 ## Honest guarantees
 
@@ -65,13 +89,14 @@ The agent gets tools to register a folder, find links, preview a refresh, prepar
 
 ## Install and run
 
-Requires Hermes 0.23.0 or later. Enable the plugin; Hermes installs its one dependency (`lxml`). In Desktop, switch Workroom on under Plugins: Hermes keeps a package's Desktop screens off until you do, so a WORKROOM tab appears only after that. Run the self-test from the agent with the `workroom_selftest` tool.
+Requires Hermes 0.23.0 or later. Enable the plugin; Hermes installs its dependencies (`lxml`, `python-pptx`, `python-docx`). In Desktop, switch Workroom on under Plugins: Hermes keeps a package's Desktop screens off until you do, so a WORKROOM tab appears only after that. Run the self-test from the agent with the `workroom_selftest` tool.
 
 Development: `pip install -r requirements-dev.txt` then `python -m pytest tests -q`.
 
 ## Disclosure
 
-- Dependencies: `lxml` (installed by Hermes). Test-only: pytest, python-pptx, python-docx, openpyxl.
+- Dependencies installed by Hermes: `lxml` (reading and patching Office files), `python-pptx` and `python-docx` (building new decks and reports from a spec, in a separate child process with a 60 second limit and a scrubbed environment). Test-only: pytest, openpyxl.
+- The child process starts with the same Python as Hermes and runs only `workroom_core/build/worker.py`, which reads one JSON request and returns one file; it receives no project paths and no secrets, and contains no network code (the operating system does not enforce that; the child is not sandboxed beyond a scrubbed environment and a time limit).
 - No network access, no secrets read from files or the environment, no binaries, no self-update. One shell command: on Windows it runs the system `icacls` tool once to make Workroom's own signing-key file readable only by your account. A `pre_tool_call` hook blocks the agent's file-write tools on Office files in registered projects and sends suspicious shell commands to your approval prompt.
 - Files read and written: inside the folders you register (documents, plus a `workroom.manifest.json` history file per project), and in the plugin data directory (state, backups, a signing key file kept for this plugin only). Nothing else on your computer is read.
 - See `NOTICE.md` for sources and credits.
