@@ -1,0 +1,2967 @@
+{
+ "rule": "last hex digit of the SHA-1 is 8 to f -> sealed, otherwise dev",
+ "source": "apache/poi test-data/{document,spreadsheet,slideshow} at commit 519e0a3 (cloned 2026-11-09)",
+ "files": [
+  {
+   "file": "document/51921-Word-Crash067.docx",
+   "sha1": "e41e614414d15ff590cbe61bfa086da502e90834",
+   "set": "dev"
+  },
+  {
+   "file": "document/52288.docx",
+   "sha1": "49ae2d5f720688eac00bcc5785eb3f76697a8ad9",
+   "set": "sealed"
+  },
+  {
+   "file": "document/52449.docx",
+   "sha1": "890d4fff4083527a547a831afea9cecb2db9ea5f",
+   "set": "sealed"
+  },
+  {
+   "file": "document/55733.docx",
+   "sha1": "db0d6e2104d74e2ccd588d4c2aabf343af36e70b",
+   "set": "sealed"
+  },
+  {
+   "file": "document/55966.docx",
+   "sha1": "1368f449c7efec52883568ba2ce6194b40036e0f",
+   "set": "sealed"
+  },
+  {
+   "file": "document/56392.docx",
+   "sha1": "37739fb9a6f7fd245f4d64c667fb820782cd78ed",
+   "set": "sealed"
+  },
+  {
+   "file": "document/57312.docx",
+   "sha1": "adb81e9fb24f32e9e9a785f75c80283a4a023468",
+   "set": "sealed"
+  },
+  {
+   "file": "document/58067.docx",
+   "sha1": "b109edbfb51ed6b3d0efa626aa59390b66cfb9f5",
+   "set": "dev"
+  },
+  {
+   "file": "document/58618.docx",
+   "sha1": "6595e03e158c70b18119b3eda23b02330c36656f",
+   "set": "sealed"
+  },
+  {
+   "file": "document/59030.docx",
+   "sha1": "5cb8959b928abfff6918c1478566decff40d1461",
+   "set": "dev"
+  },
+  {
+   "file": "document/59378.docx",
+   "sha1": "fcac74db0f8962c245e7eb265945b56442f3c8a9",
+   "set": "sealed"
+  },
+  {
+   "file": "document/60293.docx",
+   "sha1": "166b4ab7513b04084dee21350fdf98c24cb940e4",
+   "set": "dev"
+  },
+  {
+   "file": "document/60316.docx",
+   "sha1": "dd20c673478828e04769cd2bbca43b64efe9a981",
+   "set": "dev"
+  },
+  {
+   "file": "document/60329.docx",
+   "sha1": "5d431708bc7c14fab16b68848eddd9935285d292",
+   "set": "dev"
+  },
+  {
+   "file": "document/61470.docx",
+   "sha1": "2cabe3a2607cf903f72d636fac4f5017e8825be9",
+   "set": "sealed"
+  },
+  {
+   "file": "document/61745.docx",
+   "sha1": "576312507ff6552e2dfa261a887b42acc15be065",
+   "set": "dev"
+  },
+  {
+   "file": "document/61787.docx",
+   "sha1": "a37ab400534d17498bcd257b9b40b3ffa382f61f",
+   "set": "sealed"
+  },
+  {
+   "file": "document/61991.docx",
+   "sha1": "7c751e525c71f617178c4bc2ead7e774e5086889",
+   "set": "sealed"
+  },
+  {
+   "file": "document/65099.docx",
+   "sha1": "db5562d8a686736baf930f364b57725e12c25fee",
+   "set": "sealed"
+  },
+  {
+   "file": "document/bib-chernigovka.netdo.ru_download_docs_17459.docx",
+   "sha1": "8403acee8622690b465d5c9f80f89e6f10ac4477",
+   "set": "dev"
+  },
+  {
+   "file": "document/bookmarks.docx",
+   "sha1": "46b3c7052b9cc955865aebf1cce89a6dc6692476",
+   "set": "dev"
+  },
+  {
+   "file": "document/bug-paragraph-alignment.docx",
+   "sha1": "599d74a5fa6105b8f06c1bbfc5858e0d2f0acac0",
+   "set": "dev"
+  },
+  {
+   "file": "document/Bug51170.docx",
+   "sha1": "970fd4c4db88c8000ddbb10b10996015e0412019",
+   "set": "sealed"
+  },
+  {
+   "file": "document/bug53475-password-is-pass.docx",
+   "sha1": "b93b2d67a9df29b3074fd2dc265532d75b911b53",
+   "set": "dev"
+  },
+  {
+   "file": "document/bug53475-password-is-solrcell.docx",
+   "sha1": "0248dd0f5212cc66506ad41e4b13cf9a5fd8a17b",
+   "set": "sealed"
+  },
+  {
+   "file": "document/Bug54771a.docx",
+   "sha1": "902ec854a48b7240c3033d68bb58fbb748d28f17",
+   "set": "dev"
+  },
+  {
+   "file": "document/Bug54771b.docx",
+   "sha1": "56b697fd75d68cbf7ba79c1c4896a161995b2c0f",
+   "set": "sealed"
+  },
+  {
+   "file": "document/Bug54849.docx",
+   "sha1": "4c696b3ac74557954bb0caca36b594f16d8aa2e9",
+   "set": "sealed"
+  },
+  {
+   "file": "document/Bug55142.docx",
+   "sha1": "21b2d578b122940466cff778e31a4d6aa039cf1d",
+   "set": "sealed"
+  },
+  {
+   "file": "document/bug56075-changeTracking_off.docx",
+   "sha1": "4c0cd7ef6824dac2b773b13257f237a6c12ce473",
+   "set": "dev"
+  },
+  {
+   "file": "document/bug56075-changeTracking_on.docx",
+   "sha1": "4d59a5b62c274aeefe566633d6e71a8b525d1990",
+   "set": "dev"
+  },
+  {
+   "file": "document/bug56076.docx",
+   "sha1": "a1c759df3327980e53592953419fcf58fd366429",
+   "set": "sealed"
+  },
+  {
+   "file": "document/bug57031.docx",
+   "sha1": "9e2c05b410f9c90fadb2690cf4df95bea865ae51",
+   "set": "dev"
+  },
+  {
+   "file": "document/bug59058.docx",
+   "sha1": "b6798de8073bf48225f817c85b0fa86bc93fa40d",
+   "set": "sealed"
+  },
+  {
+   "file": "document/Bug60337.docx",
+   "sha1": "3c8b5e7bdec982b3e5f67b89f42c90bbf469004c",
+   "set": "sealed"
+  },
+  {
+   "file": "document/Bug60341.docx",
+   "sha1": "de417617ba6f8301f3f8f244a20129b8892989bb",
+   "set": "sealed"
+  },
+  {
+   "file": "document/Bug62859.docx",
+   "sha1": "5887207d1f238d8bd2eca8690d54b701fee21f10",
+   "set": "dev"
+  },
+  {
+   "file": "document/Bug64561.docx",
+   "sha1": "1c19b186cc6dcb35be1cf5795e53f761a44d60e1",
+   "set": "dev"
+  },
+  {
+   "file": "document/bug65649.docx",
+   "sha1": "54064ba65ddc1976d2d26f5c21b369d845120355",
+   "set": "dev"
+  },
+  {
+   "file": "document/bug65738.docx",
+   "sha1": "b1a6678f8ad0c0977894b25293c29790f52312ee",
+   "set": "sealed"
+  },
+  {
+   "file": "document/Bug66263-paragraph.docx",
+   "sha1": "84b08ecb5f04477fe5dfa41af53ca2db552f250d",
+   "set": "sealed"
+  },
+  {
+   "file": "document/Bug66263-table.docx",
+   "sha1": "3e6050da770dbddd1e39420059e688e1f4881143",
+   "set": "dev"
+  },
+  {
+   "file": "document/bug66312.docx",
+   "sha1": "0d62d06fdbcf8496f1d0905bb96a143212b8db66",
+   "set": "dev"
+  },
+  {
+   "file": "document/Bug66988.docx",
+   "sha1": "0be74b0e1c65bb92ef383a937910fb156958f71f",
+   "set": "sealed"
+  },
+  {
+   "file": "document/bug69628.docx",
+   "sha1": "669e9229c148dcb4014605114f85d3d41efc0a8c",
+   "set": "sealed"
+  },
+  {
+   "file": "document/capitalized.docx",
+   "sha1": "f414924a22aae9fd3463e9bedf672838c151bf68",
+   "set": "sealed"
+  },
+  {
+   "file": "document/chartex.docx",
+   "sha1": "8ceb5c2ce77401e9f9b7cd92dfa801164d0480db",
+   "set": "sealed"
+  },
+  {
+   "file": "document/checkboxes.docx",
+   "sha1": "0f5b5fe0493277b1902d06f8bb53bc130fa30b82",
+   "set": "dev"
+  },
+  {
+   "file": "document/clusterfuzz-testcase-minimized-POIFuzzer-6709287337197568.docx",
+   "sha1": "ed834100f227e14200cfe86b04cd03ddc50d5606",
+   "set": "dev"
+  },
+  {
+   "file": "document/clusterfuzz-testcase-minimized-POIXWPFFuzzer-4791943399604224.docx",
+   "sha1": "cfb4e9d3fd63db8c09e53768eae859bb68ce9626",
+   "set": "dev"
+  },
+  {
+   "file": "document/clusterfuzz-testcase-minimized-POIXWPFFuzzer-4959857092198400.docx",
+   "sha1": "c22a61d49fcf116bdc7dd6505327f88db878f27f",
+   "set": "sealed"
+  },
+  {
+   "file": "document/clusterfuzz-testcase-minimized-POIXWPFFuzzer-4961551840247808.docx",
+   "sha1": "1951c76812102f5beb7e9eeddef5e08044efba18",
+   "set": "sealed"
+  },
+  {
+   "file": "document/clusterfuzz-testcase-minimized-POIXWPFFuzzer-5166796835258368.docx",
+   "sha1": "9a9efdba9b81385ad02c7504d44d76cc4a3f9892",
+   "set": "dev"
+  },
+  {
+   "file": "document/clusterfuzz-testcase-minimized-POIXWPFFuzzer-5313273089884160.docx",
+   "sha1": "7cf56d1112a274269235e3e15911cfb3265dcb12",
+   "set": "dev"
+  },
+  {
+   "file": "document/clusterfuzz-testcase-minimized-POIXWPFFuzzer-5564805011079168.docx",
+   "sha1": "6dd8b465a32260819b9afdc6f7a5bc1e2ce7041b",
+   "set": "sealed"
+  },
+  {
+   "file": "document/clusterfuzz-testcase-minimized-POIXWPFFuzzer-5569740188549120.docx",
+   "sha1": "d6a266a651f855099c5ad10913161e9f42cc9c14",
+   "set": "dev"
+  },
+  {
+   "file": "document/clusterfuzz-testcase-minimized-POIXWPFFuzzer-6061520554164224.docx",
+   "sha1": "8e23ed18cdecfbd51c384d4431ace3710ab9526e",
+   "set": "sealed"
+  },
+  {
+   "file": "document/clusterfuzz-testcase-minimized-POIXWPFFuzzer-6120975439364096.docx",
+   "sha1": "c8ec4410a4afcad3e94939e268595037a351334e",
+   "set": "sealed"
+  },
+  {
+   "file": "document/clusterfuzz-testcase-minimized-POIXWPFFuzzer-6442791109263360.docx",
+   "sha1": "b44043f6fcf10fc9fb9605be53a780f1011d4003",
+   "set": "dev"
+  },
+  {
+   "file": "document/clusterfuzz-testcase-minimized-POIXWPFFuzzer-6733884933668864.docx",
+   "sha1": "17716e032e7a4fd3c3cc3fb36942389fe1983a8c",
+   "set": "sealed"
+  },
+  {
+   "file": "document/comment.docx",
+   "sha1": "12cbdf91c5c2662f6d7c444bf7f09d1fc8b9db8b",
+   "set": "sealed"
+  },
+  {
+   "file": "document/ComplexNumberedLists.docx",
+   "sha1": "8f6ca2ab21cc3a4ded901d26804776740fd3d488",
+   "set": "sealed"
+  },
+  {
+   "file": "document/crash-517626e815e0afa9decd0ebb6d1dee63fb9907dd.docx",
+   "sha1": "517626e815e0afa9decd0ebb6d1dee63fb9907dd",
+   "set": "sealed"
+  },
+  {
+   "file": "document/deep-table-cell.docx",
+   "sha1": "7c9427b99f910f7a181e29853d8c24e305041c20",
+   "set": "dev"
+  },
+  {
+   "file": "document/delins.docx",
+   "sha1": "d1a23c5d7d39d57b517b2e6f2decbdb1580564b6",
+   "set": "dev"
+  },
+  {
+   "file": "document/DiffFirstPageHeadFoot.docx",
+   "sha1": "6c8b16069b0e07acfade18c02c6ab602a8207336",
+   "set": "dev"
+  },
+  {
+   "file": "document/documentProperties.docx",
+   "sha1": "92ed2074221d17629454a5ae0c0dc96cb930b12f",
+   "set": "sealed"
+  },
+  {
+   "file": "document/documentProtection_comments_no_password.docx",
+   "sha1": "f0f2a359fd2fdba7503face553da544d7520fc8a",
+   "set": "sealed"
+  },
+  {
+   "file": "document/documentProtection_forms_no_password.docx",
+   "sha1": "c839eca738f536a97f192e4485368024a2ccb6d7",
+   "set": "dev"
+  },
+  {
+   "file": "document/documentProtection_no_protection.docx",
+   "sha1": "4bc7447cbfc762f3ebf7e22d069cd778c310e1f6",
+   "set": "dev"
+  },
+  {
+   "file": "document/documentProtection_no_protection_tag_existing.docx",
+   "sha1": "47667c44cc88ff426abfa0d876a66ba3a5c4192a",
+   "set": "sealed"
+  },
+  {
+   "file": "document/documentProtection_readonly_no_password.docx",
+   "sha1": "443e2acac267712ffb7cea808440756d825048e6",
+   "set": "dev"
+  },
+  {
+   "file": "document/documentProtection_trackedChanges_no_password.docx",
+   "sha1": "e95baba2e79ad91dbf12d13ff9a02cbbd704a9e3",
+   "set": "dev"
+  },
+  {
+   "file": "document/drawing.docx",
+   "sha1": "d4014f400f6bd8a3c66b10377fa97bb39bc13768",
+   "set": "sealed"
+  },
+  {
+   "file": "document/EmbeddedDocument.docx",
+   "sha1": "f4d4bd0e8c59eb9325b03c9289e9138ba52c6880",
+   "set": "dev"
+  },
+  {
+   "file": "document/EmptyDocumentWithHeaderFooter.docx",
+   "sha1": "0f440af3b4753b88db5727d9fda3d00fceb05076",
+   "set": "dev"
+  },
+  {
+   "file": "document/emptyPPr.docx",
+   "sha1": "59a73339d4d5c3a855be9d848720bb64a49627b4",
+   "set": "dev"
+  },
+  {
+   "file": "document/endnotes.docx",
+   "sha1": "3abc1e61d82529d8fa7f2b0f09475d850baeb801",
+   "set": "dev"
+  },
+  {
+   "file": "document/EnforcedWith.docx",
+   "sha1": "c21e9e6dcfacbcc1294826dcb840698f745bab45",
+   "set": "dev"
+  },
+  {
+   "file": "document/ExternalEntityInText.docx",
+   "sha1": "d189dfcd4a10992ffa273c6c21f57949dbf2ed98",
+   "set": "sealed"
+  },
+  {
+   "file": "document/FancyFoot.docx",
+   "sha1": "c0e6c27bda3483c32b948ae4efe53af7b568aa78",
+   "set": "sealed"
+  },
+  {
+   "file": "document/FieldCodes.docx",
+   "sha1": "a80976089b39a6bd4b39208f9732bd1fa30c4be7",
+   "set": "dev"
+  },
+  {
+   "file": "document/FldSimple.docx",
+   "sha1": "10a7ff6e17f612f7fae61e97ce0b51e158c9d4a0",
+   "set": "dev"
+  },
+  {
+   "file": "document/footnotes.docx",
+   "sha1": "9391d43163176ae56d2baa169d42e4b6d6334195",
+   "set": "dev"
+  },
+  {
+   "file": "document/form_footnotes.docx",
+   "sha1": "39fb2693bd8caeef14cf9b67dea6e09af9b7f310",
+   "set": "dev"
+  },
+  {
+   "file": "document/headerFooter.docx",
+   "sha1": "16d88fa16bdaa3917067a6247091a6a1900935c4",
+   "set": "dev"
+  },
+  {
+   "file": "document/HeaderFooterUnicode.docx",
+   "sha1": "ee06636714cf42b8f4e039e0c3d9a813a3cb8089",
+   "set": "sealed"
+  },
+  {
+   "file": "document/headerPic.docx",
+   "sha1": "17a390243ef6e4f5d3a772e0cca34bf9f2988e1d",
+   "set": "sealed"
+  },
+  {
+   "file": "document/Headers.docx",
+   "sha1": "8207d5059fa8a4cc890af1b9eac08a3ec348e804",
+   "set": "dev"
+  },
+  {
+   "file": "document/heading123.docx",
+   "sha1": "9db81917c42a9444e9842ea604e52616c3b46e3c",
+   "set": "sealed"
+  },
+  {
+   "file": "document/IllustrativeCases.docx",
+   "sha1": "053861e3dbf63b9e6e4d7069ccab7fb43f969b90",
+   "set": "dev"
+  },
+  {
+   "file": "document/issue_51265_1.docx",
+   "sha1": "6c0e531e719ff9fcb05611710a670f8202545a6b",
+   "set": "sealed"
+  },
+  {
+   "file": "document/issue_51265_2.docx",
+   "sha1": "70bf0fa3bdf92f361b85e8994afbc31c2eafa84d",
+   "set": "sealed"
+  },
+  {
+   "file": "document/issue_51265_3.docx",
+   "sha1": "bdf30e82317d1c60e110091541419c8feb19e471",
+   "set": "dev"
+  },
+  {
+   "file": "document/MultipleBodyBug.docx",
+   "sha1": "4695b6f0926dd6e63ff55814053d9ae57879d904",
+   "set": "dev"
+  },
+  {
+   "file": "document/NoHeadFoot.docx",
+   "sha1": "153b85a2b7583190019814ccae60a09946c4dfe8",
+   "set": "sealed"
+  },
+  {
+   "file": "document/Numbering.docx",
+   "sha1": "4c87a908eef81c130313096bd32f6633fa72892f",
+   "set": "sealed"
+  },
+  {
+   "file": "document/NumberingWithOutOfOrderId.docx",
+   "sha1": "3d67eaa3d37d265a4c9d7284b0ea6790f3e1fa8e",
+   "set": "sealed"
+  },
+  {
+   "file": "document/NumberingWOverrides.docx",
+   "sha1": "952c062ec149ce0047129d184ed0612a93da488b",
+   "set": "sealed"
+  },
+  {
+   "file": "document/PageSpecificHeadFoot.docx",
+   "sha1": "b1a7b3a0aacd2173b4ec4e5b837ac3ca8d5c3ae4",
+   "set": "dev"
+  },
+  {
+   "file": "document/protected_sample.docx",
+   "sha1": "e0fef87971bb572f9658625d7db39654299a298b",
+   "set": "sealed"
+  },
+  {
+   "file": "document/rtl.docx",
+   "sha1": "3c7b1d0a5ad38ed5f3cadaa0ef45ef0533cee5d6",
+   "set": "dev"
+  },
+  {
+   "file": "document/sample.docx",
+   "sha1": "42a10ff9e966012753319661831f34e4a7a89b19",
+   "set": "sealed"
+  },
+  {
+   "file": "document/SampleDoc.docx",
+   "sha1": "7c0db955ea3d3a3596b75cd2bae4365eb8946b3a",
+   "set": "sealed"
+  },
+  {
+   "file": "document/saut_page.docx",
+   "sha1": "1df4bddb777cb6fa7fca98e1aba7ba27e7a704bc",
+   "set": "sealed"
+  },
+  {
+   "file": "document/shapes-with-text.docx",
+   "sha1": "e965267d6d0685d94bfff04cbac7c70c715a07bc",
+   "set": "sealed"
+  },
+  {
+   "file": "document/SimpleHeadThreeColFoot.docx",
+   "sha1": "1b6a60233544da3583ebcec709fd7068e306bac6",
+   "set": "dev"
+  },
+  {
+   "file": "document/smarttag-snippet.docx",
+   "sha1": "8af6cb1bdb190f94230ddc0362b1ba9be9b41154",
+   "set": "dev"
+  },
+  {
+   "file": "document/Styles.docx",
+   "sha1": "f0075ed8d59be654727c7021dda389fec6788ed9",
+   "set": "sealed"
+  },
+  {
+   "file": "document/table-alignment.docx",
+   "sha1": "9f8209ed40886659e5a3f13e82676a17fe685f80",
+   "set": "dev"
+  },
+  {
+   "file": "document/table-indent.docx",
+   "sha1": "a4b5a43f6ed77a2d74476285e00b4c8556b378b8",
+   "set": "sealed"
+  },
+  {
+   "file": "document/table_footnotes.docx",
+   "sha1": "ecbd01eb9850cfde18e9dc245f91c242d118a57c",
+   "set": "sealed"
+  },
+  {
+   "file": "document/testComment.docx",
+   "sha1": "d9a6a7bfa3610ddbde3692251fe7440f326b641e",
+   "set": "sealed"
+  },
+  {
+   "file": "document/TestDocument.docx",
+   "sha1": "b25d5aaf6320f62435b25efc2dedd5e5413fabc5",
+   "set": "dev"
+  },
+  {
+   "file": "document/TestPoiXMLDocumentCorePropertiesGetKeywords.docx",
+   "sha1": "723992eb4237afd27614f503e4813e8df3887d67",
+   "set": "dev"
+  },
+  {
+   "file": "document/TestTableCellAlign.docx",
+   "sha1": "5cb8959b928abfff6918c1478566decff40d1461",
+   "set": "dev"
+  },
+  {
+   "file": "document/TestTableColumns.docx",
+   "sha1": "7e9addea544913c85be917ac111c2af67fdb29c6",
+   "set": "dev"
+  },
+  {
+   "file": "document/ThreeColFoot.docx",
+   "sha1": "a3fa26852e73680ad02a60750378e500a5bd9543",
+   "set": "dev"
+  },
+  {
+   "file": "document/ThreeColHead.docx",
+   "sha1": "c338df06aadd2c54d73888935cdf721b63436f37",
+   "set": "dev"
+  },
+  {
+   "file": "document/ThreeColHeadFoot.docx",
+   "sha1": "c4e237cd19597efb15039e9c7f2f69cbfaf2a4b1",
+   "set": "dev"
+  },
+  {
+   "file": "document/tika-3388.docx",
+   "sha1": "4d95c99d888f534a5ea3462fb588a7efd251053e",
+   "set": "sealed"
+  },
+  {
+   "file": "document/tika-3816.docx",
+   "sha1": "67abd1f3619eed1cd0dc14cb93ef51fd2e37a3f3",
+   "set": "dev"
+  },
+  {
+   "file": "document/Tika-792.docx",
+   "sha1": "401992de12067682d16e794678201e546306d55a",
+   "set": "sealed"
+  },
+  {
+   "file": "document/truncated62886.docx",
+   "sha1": "cedc991014037f01c2d7dcf86c3425f67764bcb3",
+   "set": "dev"
+  },
+  {
+   "file": "document/unicode-path.docx",
+   "sha1": "75f0cb429caa48c0837ab88b974cbf7bc6a0b08c",
+   "set": "sealed"
+  },
+  {
+   "file": "document/VariousPictures.docx",
+   "sha1": "f1232a5380472fdf014fd3818c4fe460d5c574a8",
+   "set": "sealed"
+  },
+  {
+   "file": "document/WithGIF.docx",
+   "sha1": "3492894c2d68640d9f7ca068183f53cd193c8a34",
+   "set": "dev"
+  },
+  {
+   "file": "document/WithTabs.docx",
+   "sha1": "4807dcc6748f7179d9d4d81861f0e74444b7b613",
+   "set": "dev"
+  },
+  {
+   "file": "document/WordWithAttachments.docx",
+   "sha1": "2ed5521f2d8297afc61e937d7909cd7de5e04fe8",
+   "set": "sealed"
+  },
+  {
+   "file": "document/zero-length.docx",
+   "sha1": "197c0688007223fa17d7109d2fe5e546035cec51",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/2411-Performance_Up.pptx",
+   "sha1": "43a4c481307fce46f9f3335f4dbc1c20e27a48fd",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/45541_Footer.pptx",
+   "sha1": "d1b70345370ccd9fd4836d313dbf3a8486d43ad7",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/45541_Header.pptx",
+   "sha1": "7825a5652c2bd143e221693e3728077720238865",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/45545_Comment.pptx",
+   "sha1": "c8dbf26137817bee39d5bfe97cc502bdda337da2",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/49386-null_dates.pptx",
+   "sha1": "5ac44b251a7e7d08b1f58e7d44a90a03ae878a2f",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/51187.pptx",
+   "sha1": "a3b8a7ddee3347613c3a6a4d836d5d3d9d251fa0",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/54542_cropped_bitmap.pptx",
+   "sha1": "9b2dd0a18af2f574f902c462e5036d2e898bb8c7",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/56812.pptx",
+   "sha1": "47ee6647af410ee94b5b1651ce2b9cbc59b7b516",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/60042.pptx",
+   "sha1": "74cba53932590261730064023e569f38207356cc",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/60810.pptx",
+   "sha1": "39d82602e7b36ecd2e95c0ce33957741ab927a20",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/61515.pptx",
+   "sha1": "3b5af5f67ec9e91dc59ce4e1f0c2ca66e989740d",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/63200.pptx",
+   "sha1": "c0bb174ff8cf12d5938c4342f5e77761ae4f1615",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/aascu.org_hbcu_leadershipsummit_cooper_.pptx",
+   "sha1": "39a3fa442747dcf7a3eefe8ca05ca85cb96b93db",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/aascu.org_workarea_downloadasset.aspx_id=5864.pptx",
+   "sha1": "5eeac3953092d83b85ece4ae6c966ae8413afb08",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/ae.ac.uaeu.faculty_nafaachbili_GeomLec1.pptx",
+   "sha1": "657eab1b6eec829eb1fb836915f2376e81353be1",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/alterman_security.pptx",
+   "sha1": "f9c986e457d32983b802d665cfd579e1e92bce50",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/aptia.pptx",
+   "sha1": "32abec0253101b757b0416764c5b520fc32af948",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/ArtisticEffectSample.pptx",
+   "sha1": "0168f938d844f93801b78257f21edae2da195af4",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/at.ecodesign.www_downloads_Vertiefungsvortrag_elektronik.pptx",
+   "sha1": "ad9d0a9ce888d1c7e70dde1596bb41d35392cca8",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/au.asn.aes.www_conferences_2011_presentations_Fri_20Room4Level4_20930_20Maloney.pptx",
+   "sha1": "5ae3f01ff335c718d092ac3ff60cb02f35406cb9",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/backgrounds.pptx",
+   "sha1": "998785443072cbf576bc66f97b2444a37a34d19c",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/bar-chart.pptx",
+   "sha1": "eec1a17ba9e8d0132e2230723125f5e1af341438",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/bug54570.pptx",
+   "sha1": "7712200e6f753731d6a66d187d57cfccde32e308",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/bug58144-headers-footers-2007.pptx",
+   "sha1": "9e67d436a40daf749e472ab5081b2ccb775f631f",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/bug60499.pptx",
+   "sha1": "7b7588833a2a912e5e90a1ee421ee0f7fa47548d",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/bug60715.pptx",
+   "sha1": "0c97a60481c2c4e325f1c89f28e64c76aa56665f",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/bug60993.pptx",
+   "sha1": "1b4f1eae58cf3c95b042096eeae0550fec412143",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/bug62513.pptx",
+   "sha1": "7adc9ff1548e7eef890e83cb0b8df3212bd1fac1",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/bug62736.pptx",
+   "sha1": "34bd763dfac3c9bd33c97f782dc025ac66ba881e",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/bug63290.pptx",
+   "sha1": "c083dd0a702aeb67e87fdc5418a6e291e2869956",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/bug64693.pptx",
+   "sha1": "b478290b5afca328e569a68f93b423f0a2e3d968",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/bug65228.pptx",
+   "sha1": "a421b3b8b360270f1ea40f1ec5139d6a26a901f8",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/bug65523.pptx",
+   "sha1": "9b304dd79db34382cbc9631f26dcce168a4200ab",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/bug65551.pptx",
+   "sha1": "1eaef2d893df63fc7ea26e3eb5deace172f54db7",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/bug65673.pptx",
+   "sha1": "a9cc477ebc5d72481fd6277cc7c49529fc0aa1b3",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/bug68703.pptx",
+   "sha1": "339b3239cb8a17f090d74a00ca20b3705e701223",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/ca.ubc.cs.people_~emhill_presentations_HowWeRefactor.pptx",
+   "sha1": "665b838e19af7c1b502c26756c77c2b942c4047f",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/chart-picture-bg.pptx",
+   "sha1": "5540b45d0490861812e06d5d4ec69374688ff08f",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/chart-slide-bg.pptx",
+   "sha1": "cf9fad08d86f190a2ab4b46cee97f7de9e2f76de",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/chart-texture-bg.pptx",
+   "sha1": "d5fd5ca010972221f2aac5d03bd674db99e18e75",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/clusterfuzz-testcase-minimized-POIFuzzer-5205835528404992.pptx",
+   "sha1": "82cf1181f6608d0fdf9a5bdda710fcdac557bacf",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/clusterfuzz-testcase-minimized-POIXSLFFuzzer-4838644450394112.pptx",
+   "sha1": "544cba1bc206282c89db5beac5eccbb0481297d0",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/clusterfuzz-testcase-minimized-POIXSLFFuzzer-4986044400861184.pptx",
+   "sha1": "c31f2aa5aecd03d2e77ccd1a6cf33e88b3aee995",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/clusterfuzz-testcase-minimized-POIXSLFFuzzer-5463285576892416.pptx",
+   "sha1": "144035f06a7ca172968ab53f724040d48fa6f7f6",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/clusterfuzz-testcase-minimized-POIXSLFFuzzer-5471515212382208.pptx",
+   "sha1": "11e3d11886fa9c4ac18db4b9b7cc2d08878d67e0",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/clusterfuzz-testcase-minimized-POIXSLFFuzzer-5611274456596480.pptx",
+   "sha1": "72bbf8767a9f2af0b1b96427b6dd63b8261c2460",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/clusterfuzz-testcase-minimized-POIXSLFFuzzer-6071540680032256.pptx",
+   "sha1": "fce91ade86642b8dabd73f6f6bf7fb79941faecb",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/clusterfuzz-testcase-minimized-POIXSLFFuzzer-6254434927378432.pptx",
+   "sha1": "cfcf93ba0e33782865a957010ed999ea93bce521",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/clusterfuzz-testcase-minimized-POIXSLFFuzzer-6372932378820608.pptx",
+   "sha1": "5bb1977d4e364004e4e35bdb9f489d03a719179c",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/clusterfuzz-testcase-minimized-POIXSLFFuzzer-6435650376957952.pptx",
+   "sha1": "bc934fe608db3fe8a0fb29e42f6bbd2d46f0687d",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/copy-slide-demo.pptx",
+   "sha1": "9aed1b9dd044690cdbfaa335c3f6a0f5726de2d8",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/crash-57308ca363f5b71763c489d1b432aff009d4bc4f.pptx",
+   "sha1": "57308ca363f5b71763c489d1b432aff009d4bc4f",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/crop-to-0.pptx",
+   "sha1": "76bce4520f2b4cb9b7c077d7fb15b48c14351818",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/customGeo.pptx",
+   "sha1": "cc239933ff28ff086d33513c596d73bd585fa5dd",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/Divino_Revelado.pptx",
+   "sha1": "913ff0d1f4cc99b7b1022d9f1ac827c290c4e59a",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/ececapstonespring2012.pptx",
+   "sha1": "676166e83cce8148e716713650df2504d1ce114f",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/EmbeddedAudio.pptx",
+   "sha1": "170936e840ba0bf2cbeb6aa90302adb3d9403224",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/EmbeddedVideo.pptx",
+   "sha1": "0b20504b4d64f3159f22848f8595441829909bb1",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/highlight-test-case.pptx",
+   "sha1": "c711e8cbc565e63a1b89bdfb05937bcdab9a8ac6",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/KEY02.pptx",
+   "sha1": "823594c3b54240eaf13acdb0d68e6cd72396aad6",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/keyframes.pptx",
+   "sha1": "5835abdfdb97fe5d278236840c76a4894d6e035b",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/layouts.pptx",
+   "sha1": "ce66224f10392a1a2732fa4163eea939bf234fd7",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/LIBRE_OFFICE-100610-0.pptx",
+   "sha1": "264002a4589fe2bbbd8d0f626a4473ee45cf1f28",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/line-chart.pptx",
+   "sha1": "bc3e3ef6313a35c958314129c0100dd65bcb4f80",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/minimal-gradient-fill-issue.pptx",
+   "sha1": "bd16059c9ce15699e3901c8eae9646d1a3dd4758",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/missing-blip-fill.pptx",
+   "sha1": "5752518479c335b369ee1cfd6aae61eb893ecb7d",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/OverlappingRelations.pptx",
+   "sha1": "dceb9874a33fb2c736656f4e1a034c35d7ec1925",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/picture-transparency.pptx",
+   "sha1": "7805d5cd7ce788662f7e6d6956d93b0b66662ec2",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/pie-chart.pptx",
+   "sha1": "f0c77b6fe2de93d087187522a4b7b3692b401f0d",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/placeholder-layout-color.pptx",
+   "sha1": "dbe723a8197835c0aaa594900109011f53d39eb9",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/pptx2svg.pptx",
+   "sha1": "05d91cfe38f3f05d9862df3de4958e1dfc4deedd",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/present1.pptx",
+   "sha1": "fc36aaa0ef4f606e059741870f92f3c8890e009c",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/prProps.pptx",
+   "sha1": "a3ec38ac9467a99de96c57e26dd7ea6fd3efd4fa",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/radar-chart.pptx",
+   "sha1": "f5e2642a508c681ac20d8641923bdb91e2e6e820",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/rain.pptx",
+   "sha1": "a75fa42e87610cb0e72f2919c662ff5b3e4d4d26",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/sample.pptx",
+   "sha1": "ca09048adec1b69bbd424aeeec7b8746cc49e6bd",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/sample_pptx_grouping_issues.pptx",
+   "sha1": "3be1ac64b8c66d8c404ef81e6314332b81a80531",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/SampleShow.pptx",
+   "sha1": "3e6d0bb5831ba3cee098d6a504fce616a5c70aeb",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/scatter-chart.pptx",
+   "sha1": "902a31d0174c375d6ae7a481edbb8407c19c59e9",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/shapes.pptx",
+   "sha1": "907fdfe54356132a1cbd5b03ecc59261cb786c5c",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/smartart-rotated-text.pptx",
+   "sha1": "e172f202d6f50ad511980a11bc2821ac0dbfc1d0",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/smartart-simple.pptx",
+   "sha1": "1c880d556fe59292499ebb5cdfbd908a36f20901",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/SmartArt.pptx",
+   "sha1": "c359b4005a5dfb29079504a3c17d01cb599f62a4",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/table-with-different-font-colors.pptx",
+   "sha1": "3ffdaac230dd26501d1abec212677b471ce888e6",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/table-with-no-theme.pptx",
+   "sha1": "ef82d9d7423b374029a838ccab6098bb92df90bd",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/table-with-theme.pptx",
+   "sha1": "b50649f4081be00303fed95f2d3a1cc7346c8a1a",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/table_test.pptx",
+   "sha1": "e247d9586e9c65800ffd8337d94f80d4bca4cb0e",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/table_test2.pptx",
+   "sha1": "98978cbbd048fb7205aaa0fc0e7a0de74e04dbb9",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/templatePPTWithOnlyOneText.pptx",
+   "sha1": "6a235e7b8981faf2547ed8176de360e4865dcf36",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/testPPT.pptx",
+   "sha1": "9928ce9a77f8796e5bf3f928387bfc7d1198225c",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/text-highlight.pptx",
+   "sha1": "299d4127b488c72394a5ec9ddb221f0732178a3f",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/themes.pptx",
+   "sha1": "325891b311ec6e7a275cb94ea775546e26f4d012",
+   "set": "dev"
+  },
+  {
+   "file": "slideshow/tika-2605.pptx",
+   "sha1": "fbfa152002e91d64070817d07c095d7566a0cd0c",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/with_japanese.pptx",
+   "sha1": "fff7d09458105990d16a3cf29f0dde72e37a79cb",
+   "set": "sealed"
+  },
+  {
+   "file": "slideshow/WithMaster.pptx",
+   "sha1": "f1aa2d89a2c5d73ae3b73cb51804aa7b5be8c189",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/0-www-crossref-org.lib.rivier.edu_education-files_suffix-generator.xlsm",
+   "sha1": "6d1fcd7cc6017ab2b16ae2e4b520d78e89be450c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/123233_charts.xlsx",
+   "sha1": "5e0f2c7333517da0ec8788d4bb4d21f631b251c0",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/1_NoIden.xlsx",
+   "sha1": "05f2c83c778db1fba32c0cb0688d66052fe8608a",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/45430.xlsx",
+   "sha1": "effad91f02fe070e386f132f532b2f109fe3ff24",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/45431.xlsm",
+   "sha1": "7047e0174db5734dcecad377f8300a09e4fddeb2",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/45540_classic_Footer.xlsx",
+   "sha1": "a73623e6e773c0b65e6efb10b77e1b623b256e5f",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/45540_classic_Header.xlsx",
+   "sha1": "405eeaa1749864fac6f259b64e87b7fb2b6059e9",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/45540_form_Footer.xlsx",
+   "sha1": "4c4d5d7b5487fc40867b4bc84a54646246ea9b82",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/45540_form_Header.xlsx",
+   "sha1": "3afd9a9925d8514c046d66e5f8fe781d3597caf6",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/45544.xlsx",
+   "sha1": "7b3ab3b9fcee5de4b2cfc28987afcf4864690458",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/46535.xlsx",
+   "sha1": "0e92ca74d3512fd960f03d9e3ddc10c354b1f448",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/46536.xlsx",
+   "sha1": "b42adda81806933a2a2c928b0520929d14eea5ec",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/47026.xlsm",
+   "sha1": "3055e9ffff5036d79a2dff532fbfdefbeb6c326e",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/47089.xlsm",
+   "sha1": "45ff8724864eaccdcbcc7f787858aa2181422bde",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/47090.xlsx",
+   "sha1": "39c2353349f408381dacff2da3c0937f2d056fa9",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/47504.xlsx",
+   "sha1": "b4a5387ae53ae63b96a2c066a4ebf53dfa520d88",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/47668.xlsx",
+   "sha1": "8734bb43d40013bdfa11caf13d07073282af225f",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/47737.xlsx",
+   "sha1": "96860032350889ccfe1109c80cd1814d26b1deff",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/47804.xlsx",
+   "sha1": "b652384810454f3f8ce9af0afd2f42361b42134f",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/47813.xlsx",
+   "sha1": "b381881e01ac179be5f9f450e7567af41e4f91b2",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/47862.xlsx",
+   "sha1": "48917634a1b7c3d9299c470fd48beedfcf5dbd61",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/47889.xlsx",
+   "sha1": "f4f37c7f2d57a3ef7a5945c22b2873d1ea27fb29",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/48495.xlsx",
+   "sha1": "5b19baabd31bbd08c9d121ed7a4e2d3739f30505",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/48539.xlsx",
+   "sha1": "81945781651ae2625c19c01cbd048332cfacdd84",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/48703.xlsx",
+   "sha1": "813f6a30f89b66985210bb5f22cf0873a5b7f24b",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/48779.xlsx",
+   "sha1": "3f57378358f35a005ace67a03601a9d200baab8d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/48923.xlsx",
+   "sha1": "1f2bc1741b22925a7d7480a980d4aa2b883f7791",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/48962.xlsx",
+   "sha1": "d78ec9885f2ea9fff60eacde3c3d989222eeda59",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/49156.xlsx",
+   "sha1": "8563e4d7b5fb6655abf6fe82d58448d21d204ebf",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/49273.xlsx",
+   "sha1": "1122ada97945d39944f272492629aa58ef040d51",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/49325.xlsx",
+   "sha1": "84d52ded853338dfa6d50aac44a979f8534805bc",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/49609.xlsx",
+   "sha1": "c8e27a42f0dda175efc0085c2b10aaef7ffb31f3",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/49783.xlsx",
+   "sha1": "fa1ddd44b23d9febefe92896df74e156ff850376",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/49872.xlsx",
+   "sha1": "6d2f834b917b8b7a4a25d8aafa60cd2612b70192",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/49928.xlsx",
+   "sha1": "fa81164350e7c8478010977c4c33dd9cb84cd0a4",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/49966.xlsx",
+   "sha1": "af302172a17fece91ab10d7bdd470f9a008ff139",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/50096.xlsx",
+   "sha1": "feedb5ca100d143f27c4c5fa72025ee37beec031",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/50299.xlsx",
+   "sha1": "5911074045b6d2ff13775427429550838e80fb8f",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/50755_workday_formula_example.xlsx",
+   "sha1": "9838391a6f122e430a2c2b47ab0c16a2a9820a99",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/50784-font_theme_colours.xlsx",
+   "sha1": "d78626187fc70331719c508bb5b6c258c2896196",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/50786-indexed_colours.xlsx",
+   "sha1": "a8d1570cdb17bef7231ea6de464b6ec505dcd4a7",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/50795.xlsx",
+   "sha1": "e55bcf71dec53fa142efe5da11f7c83b203d5bb0",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/50846-border_colours.xlsx",
+   "sha1": "e921ace2f19a0c487de7c8cb98281f0c50679f26",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/50867_with_table.xlsx",
+   "sha1": "2ba5ec666b4a5b3f624a84e61f4288b67b0eb0af",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/51222.xlsx",
+   "sha1": "fb525a9190b65464a12bf54b07be0d8ca772b124",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/51470.xlsx",
+   "sha1": "3d89fc2137bdfdbdd98465c8137e15ebba74e4ef",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/51519.xlsx",
+   "sha1": "28258d0d42bd74e5e305da17bc92cb6b4ce6efa7",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/51585.xlsx",
+   "sha1": "0a0b0ce97bb332cd9f8fde03e03840768a81d29d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/51626.xlsx",
+   "sha1": "4c828da8a61c2b6b825758027bf9ea8e39a826a2",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/51626_contact.xlsx",
+   "sha1": "043c65c8c2a7f8cb50b400c5dce78e6711d15bc3",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/51710.xlsx",
+   "sha1": "040f72a08520c7bd82aa827ec98ef18627f76dab",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/51850.xlsx",
+   "sha1": "10687c36035aec998b75917849b50bffd1c5ebae",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/51963.xlsx",
+   "sha1": "0100f51ee840464b47a58965590cf8eeb4bf6103",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/51998.xlsx",
+   "sha1": "0c60e8a6b5c60a43bd71d4d6ccebc3ed559c832c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/52348.xlsx",
+   "sha1": "460698b845bf99509e83b612b5f039487ec6a23b",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/52425.xlsx",
+   "sha1": "4c43788f5e6dbd3fd1248ec3edbc2857f2f0c5c4",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/52575_main.xlsx",
+   "sha1": "5f0dc3a7559e62532251c1385ccee6280b4a6236",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/52716.xlsx",
+   "sha1": "02e07f445b120d8a129c013eab979fc7d422cc57",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/53101.xlsx",
+   "sha1": "6e83d2ec900c03a494fdf41f7e0e2e4ecef7292b",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/53105.xlsx",
+   "sha1": "cc91426133219ab20fad2061255097171fbabeca",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/53282.xlsx",
+   "sha1": "dd8d31dd2c49bf0cfa412e3262b6453df5ea6991",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/53282b.xlsx",
+   "sha1": "f00f091282a653d75f55816d7f7b098ebf58ef2d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/53568.xlsx",
+   "sha1": "3d322245a8c3176fa7fbd3e2dffea93082500c78",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/53734.xlsx",
+   "sha1": "d9ad12b54a112ce7a26540cda6b6f93bc50e0dce",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/53798.xlsx",
+   "sha1": "2c49c36f041bb3512ef0c735a9e9b2a2514ead71",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/53798_shiftNegative_TMPL.xlsx",
+   "sha1": "2c49c36f041bb3512ef0c735a9e9b2a2514ead71",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/54034.xlsx",
+   "sha1": "820db3b4d1da34e7a2a017edc686d871e7613998",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/54071.xlsx",
+   "sha1": "1a58beba7115b6297ff63a02445a5601bab3ce70",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/54084 - Greek - beyond BMP.xlsx",
+   "sha1": "03d4622f4bccd02c4835d882262b6cac1aee72d2",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/54206.xlsx",
+   "sha1": "a7b8fe754aa6ef27c6643694431e504073fe7248",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/54288-ref.xlsx",
+   "sha1": "2ebef0e7e95d560fd7911beb919d41a7ac6386fc",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/54288.xlsx",
+   "sha1": "863553ba51a0954f4828eb4106cf3659f15819f9",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/54399.xlsx",
+   "sha1": "f1637ce651630c1603578b6e005824e0abf3bcec",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/54436.xlsx",
+   "sha1": "f5c1e285d0740c8390d4d7856b7ab1ef2f1d38b5",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/54524.xlsx",
+   "sha1": "24d2a83056ba789548bf696ae935a463cbee8d61",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/54607.xlsx",
+   "sha1": "9e6089ec4a1ac7970d2e54f36e01b7bad6f86104",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/54764-2.xlsx",
+   "sha1": "8fd8578db9dee8994b2dc7c2f5b02c06f0610ea2",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/54764.xlsx",
+   "sha1": "59d3dfc543f0a8f4ab59ec6a641a6e7b8834b117",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/55406_Conditional_formatting_sample.xlsx",
+   "sha1": "e9242300b1e3c90b7da35eb02f18bfa76c610c51",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/55640.xlsx",
+   "sha1": "c9ffd4dc42289e5594ba794fa265d5472b1bcb98",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/55745.xlsx",
+   "sha1": "6c44a6dd85676399717ba965c2cc99e232704bd7",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/55814.xlsx",
+   "sha1": "a9ec559c99f642a899bb6983ad2bc2649994f018",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/55850.xlsx",
+   "sha1": "29c155321c7f861cbc4c986a67c33d1891d26346",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/55864.xlsx",
+   "sha1": "70b2dcf8ff35ba93691521ed531d9d3287dceeb8",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/55906-MultiSheetRefs.xlsx",
+   "sha1": "a05778b3c57fe20c04528f9de20a54916091f4d3",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/55923.xlsx",
+   "sha1": "0afe6f2c4f72f2a42d8d2eefe32f7e042f8690ae",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/55924.xlsx",
+   "sha1": "8fd041c696ef25ff202f15ce22981c1b1ab83539",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/55926.xlsx",
+   "sha1": "3088ebe85be6118549714226e82765abfb5c64c6",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/55927.xlsx",
+   "sha1": "3de2d9c4386b903a02e238bfec880397da52a7e4",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/56011.xlsx",
+   "sha1": "bc35203522d02f8c6104b2018279910f317750f8",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/56017.xlsx",
+   "sha1": "620eaed013676eac0ef54ee13278ff73fe1cf35a",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/56169.xlsx",
+   "sha1": "d942979a8533d7e1ed7666edb7e33ac50b5b79f6",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/56170.xlsx",
+   "sha1": "df9aa6164743b2a028743e5c2c27b279783a6f2f",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/56274.xlsx",
+   "sha1": "3df81a1df7a8d62a85e5a406fac49812c106cc59",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/56278.xlsx",
+   "sha1": "a89ca098ddc87b234cfb11cb92bb2c9529cc867f",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/56295.xlsx",
+   "sha1": "f7d91a0a28faff14314b2374578f5e4faf6810bb",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/56315.xlsx",
+   "sha1": "9b8d75ce59e6ccef569e59fdf95bc7a4ada8a3dd",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/56420.xlsx",
+   "sha1": "d53b9c2f0bbc606a261052e1a0c67610e36e980d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/56502.xlsx",
+   "sha1": "2afa69a857e2df88ffd6ef4433af762b355af733",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/56511.xlsx",
+   "sha1": "4ea118baba6b80b00e4b6b7e364a26171ef31cf3",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/56514.xlsx",
+   "sha1": "9d23353d89878c65b3bd5ac25b9234381928d322",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/56557.xlsx",
+   "sha1": "2f152f46212cc520d0089561ced1104c98e65669",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/56574.xlsx",
+   "sha1": "75db0827ec93d8fc5593ad7e98c23fbcc628c536",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/56644.xlsx",
+   "sha1": "07586a2d7ab2c369b1fc4a2181015b7d42d41041",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/56688_1.xlsx",
+   "sha1": "e9bfa35d779aa2c8b24c4a01bc249e4f302482e8",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/56688_2.xlsx",
+   "sha1": "00edba48240afe57659191ce13769f5f17e1a326",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/56688_3.xlsx",
+   "sha1": "d76beaa1ec7143e37ddb59bd916e29be6780659c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/56688_4.xlsx",
+   "sha1": "7697665bfa3b27c83e1e57547167df04ed2c322c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/56702.xlsx",
+   "sha1": "6f5cb3e82141d394a32788ad4e20cef86b1bc795",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/56730.xlsx",
+   "sha1": "a0a0bfaf661440f3a803f6452729f70a378f4e78",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/56737.xlsx",
+   "sha1": "747bd51eebb7f355bcc56eecd16b35ef3fe46403",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/56822-Countifs.xlsx",
+   "sha1": "2d223f669dfbdc0d4a199f16957aaea0d9c3d39d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/56957.xlsx",
+   "sha1": "7c2c7536f6f02ed5b9a0ca69e2ad4eaa0794377b",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/57171_57163_57165.xlsx",
+   "sha1": "6ceacddd1c33b5eb6885bbc24bda9d88d519f5bb",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/57176.xlsx",
+   "sha1": "838510b972ad856b6cdd1309094ea45131049970",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/57181.xlsm",
+   "sha1": "3a112df74322428e62c46e6d47f0a7093203a056",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/57196.xlsx",
+   "sha1": "4f2ca3d7e204528caa5a2493ce968b90e2454a00",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/57236.xlsx",
+   "sha1": "47f4b0c2cf44563306a5162f444e49df05e1ca89",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/57362.xlsx",
+   "sha1": "06a4d145b421cd1c13153c26d4e52a71cdf054ca",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/57423.xlsx",
+   "sha1": "97a43a74a7e7962b1c93b34f2cf2e38083d271ff",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/57482-OnlyNumeric.xlsx",
+   "sha1": "976243327570dac2825403bcfe19d532e26decbb",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/57523.xlsx",
+   "sha1": "2bf4bdf9f7fd60532058d9c3818a327cd1659c28",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/57535.xlsx",
+   "sha1": "488776bd9b3a677fb98676f2cf5db01bc92dc032",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/57798.xlsx",
+   "sha1": "edf39c9a5949dccd554154156831be1079815194",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/57826.xlsx",
+   "sha1": "b6a7e130e56741557df9b7c6ad022025fe195035",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/57828.xlsx",
+   "sha1": "7b397e0fb370e291fc5f458c2fb6aed56e40ac49",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/57838.xlsx",
+   "sha1": "23b8902af5fed1548575918fb0fdbd435f9f7b67",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/57890.xlsx",
+   "sha1": "079a3ac4971b14ed57b3aa195b6961ef646cbb44",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/57893-many-merges.xlsx",
+   "sha1": "e7cdc6807e5107154c2f2f036f76023d5f475a82",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/57914.xlsx",
+   "sha1": "019eb6e3bf0034b5049415df21fcfdc456d8a3a6",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/58106.xlsx",
+   "sha1": "4d1711a9925fd60ae47bdc13d8d7c30fdfa3a96d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/58315.xlsx",
+   "sha1": "cfc81f5b4ba6096f59c4bca428d60e46563f8a3a",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/58325_db.xlsx",
+   "sha1": "a99081da19fae11625e610be4f1c4ff680fb94a5",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/58325_lt.xlsx",
+   "sha1": "e4536192336353305b98b92a305fe9f6ce434ce8",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/58616.xlsx",
+   "sha1": "415beae2beec7a46db0c5e3483406d33c9d13c09",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/58648.xlsx",
+   "sha1": "871f0a350baf49ddfb44e6c3bb0230d23852fbc8",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/58731.xlsx",
+   "sha1": "e85aab8989b53a22b60becabeca74bfd59f82aa1",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/58747.xlsx",
+   "sha1": "aa20f0c506499cc0e4e16e41791f46783571ab3d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/58760.xlsx",
+   "sha1": "f31c6a6648ec38513c0c69d1a62a204f32ec00d3",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/58896.xlsx",
+   "sha1": "af248f02abf782db7ddfd4552ebf77584bc2d0d5",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/59021.xlsx",
+   "sha1": "a331a4690f38af754d96e92516dcdaa4b05ac99d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/59026.xlsx",
+   "sha1": "a96bbaa47c22ee6b0e610a1926788f64f2d7758c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/59106.xlsx",
+   "sha1": "bae01197f0e6a5fd9afd71482485f46f421ce936",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/59132.xlsx",
+   "sha1": "6a6be89e7960e705420a152ed76b305e6c46a20d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/59264.xlsx",
+   "sha1": "a28997dc994d3afdfd0125bcfeaa4ea57869ca24",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/59388.xlsx",
+   "sha1": "b28703213e31c5faed185a80225c19e2d55ec6ef",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/59687.xlsx",
+   "sha1": "36129fb2217f9e7d38a823e09961b49c303aa4d0",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/59736.xlsx",
+   "sha1": "6ace99f7e4f8567f1ecc3db2d4fea28acb26aa54",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/59746_NoRowNums.xlsx",
+   "sha1": "486411ae9add3d0ab4e1ce81d688f42b80cff174",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/59775.xlsx",
+   "sha1": "5885e34faee89c53ea3db6c69002dd3c9c272751",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/60255_extra_drawingparts.xlsx",
+   "sha1": "c9ab7f749ae400a9d1b19b3b52adbdeb725b3e28",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/60289.xlsx",
+   "sha1": "b44a574516bab3a4a5e830bccfdd9e0907fc87aa",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/60384.xlsx",
+   "sha1": "292c83d7e3c3ad7fb5897822179760938f4ac5b2",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/60509.xlsx",
+   "sha1": "1081765304597d0b36887d1161193cf34ded61fc",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/60512.xlsm",
+   "sha1": "a262f1e1abefbffde0be1b7214d61729d5f2e68e",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/60709.xlsx",
+   "sha1": "606e9ade472314eb196b65a659390dc1d6bae2aa",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/60825.xlsx",
+   "sha1": "69ea27d455fd9991ef019dc05a4da754ef18a76e",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/61034.xlsx",
+   "sha1": "ee11c84bbec9ab245986ff9ede353b1a65863863",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/61060-conditional-number-formatting.xlsx",
+   "sha1": "3bb03f56f393e67ee560a61a7f9e2f5931368749",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/61063.xlsx",
+   "sha1": "0133a72f949148f26d89b287dfacef854035c8e8",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/61281.xlsx",
+   "sha1": "3306a59f0a9723b2e10831d57003e42e6642e83c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/61495-test.xlsm",
+   "sha1": "624ee0d1ab0eba737be59308cd3158b92209a76a",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/61605.xlsx",
+   "sha1": "e873a2b4c2b443432b02eefa5076ca22f04b236b",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/61652.xlsx",
+   "sha1": "799702140cd4551500f498a597e8e026f6a4a01c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/61869.xlsx",
+   "sha1": "250fc067f0c1c9d146ee6aa2c8e38852b10c3c27",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/62272.xlsx",
+   "sha1": "66698bbd01774211d1ac6f7fe3a7419f601618a7",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/62629_target.xlsm",
+   "sha1": "68284b5edf09e671f5262ce837ae4a669edc629c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/62629_toMerge.xlsx",
+   "sha1": "f71dc58f2aa56a1373903d5c09fdfdba58687026",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/62834.xlsx",
+   "sha1": "75a69931ee1ec87bd7b7dbc9381e065e3cfe09b7",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/63934.xlsx",
+   "sha1": "88fbadd67b208376049cc26c58c38091d70ab172",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/64420.xlsm",
+   "sha1": "3d352461874c8319b3e7734c417985588ff37e26",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/64450.xlsx",
+   "sha1": "93375f5394a5c757512203e10393b63fd309552a",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/64508.xlsx",
+   "sha1": "dd2c9431bf629e12145547897626e4ce676559a4",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/64667.xlsx",
+   "sha1": "d7c99b156f80a790e9b37262f219559f55e079fd",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/64750.xlsx",
+   "sha1": "575f4582f148803da851a9e56147b0ca4ac8d276",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/64759.xlsx",
+   "sha1": "90eb8a72949f360471aa01d1ca54f6eedf5ca343",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/65016.xlsx",
+   "sha1": "03e1d8b629c773b63ebd24c1ba3b4214b6d34123",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/66365.xlsx",
+   "sha1": "a7cfe45e801c6da66ab5ae7a589719119cd5c16b",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/70005-countifs.xlsx",
+   "sha1": "4e8ede9fe423aaf61f0114ad0663621fa57d6235",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/absolute-anchor-over-empty-sheet.xlsx",
+   "sha1": "eb1c30742d7a1f7dfb0560db53201a3ad681af6d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/AmpersandHeader.xlsx",
+   "sha1": "ca54219ade4d9e0c3e66e0bce4b02931d2a2f9ec",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/atp.xlsx",
+   "sha1": "cd25e7139597d79a32628aea7d334a87ec1d2971",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/AverageTaxRates.xlsx",
+   "sha1": "bd060f83a6df64a3e4665705740b23a06d73b261",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/Booleans.xlsx",
+   "sha1": "fd388cd75da70cf9bbfea8db90aa0349c23d5cdf",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/BrNotClosed.xlsx",
+   "sha1": "818c2e031076e4a7dd89b09064e22d85a4b44659",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/bug54803.xlsx",
+   "sha1": "d05924f52f8c64b314946e9e49f53bdf0d6916d4",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/bug60848_sumproduct_unary_minus.xlsx",
+   "sha1": "f98a034e1351cbb576d56382ce129a9a26989c5c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/bug60858.xlsx",
+   "sha1": "bbc364fff2e69df6b2ea3e13a5e23cd00691d4a8",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/bug62181.xlsx",
+   "sha1": "659fc978774c10a77ea69de16cf504d627e488c6",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/bug63189.xlsx",
+   "sha1": "deb934226c6f7074b68eae4ca10305c610824bb0",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/bug64512_embed.xlsx",
+   "sha1": "4fdf8a7a41d8029875834b8e1f0bba8a38084231",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/bug65306.xlsx",
+   "sha1": "0160a38aabbf502bb7ec848bac57054013d6416e",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/bug65464.xlsx",
+   "sha1": "6660cca3ec3ece22a760e97b85370462fb370a37",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/bug66215.xlsx",
+   "sha1": "465f41de347997d4dcb993f6a562f60a88da0590",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/bug66675.xlsx",
+   "sha1": "2ca8730761b7a1b9699bc96a33da3e33dff1be75",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/bug66827.xlsx",
+   "sha1": "1f9c68e6e052bded957a05d71a9c9313a0f7493e",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/bug67784.xlsx",
+   "sha1": "f18a503bf1f54bb552b215fbdeb77954b86ec005",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/bug69769.xlsx",
+   "sha1": "0478e8a67701cecf3233992f39af8e32e2576d11",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/bug69812.xlsx",
+   "sha1": "ac0af5ac2e5f86ad3b9099c080da16db311ec4cd",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/bug70146.xlsx",
+   "sha1": "818cadf0769bf1c3e2a80d294cec5c07b0592f8a",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/chart_sheet.xlsx",
+   "sha1": "e17be5e308398fdebbfc23e966719e41204a1bdd",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/chartTitle_noTitle.xlsx",
+   "sha1": "4b50f76a9deef0a3719cfcccfd5cc0c523abc0ac",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/chartTitle_withTitle.xlsx",
+   "sha1": "438ba9256e62121aa08f3a47ae5a5fdeafc2d0a6",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/chartTitle_withTitleFormula.xlsx",
+   "sha1": "e3c9bb1d32cfd7fe890ffe6f800eaad81f625264",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/clone_sheet.xlsx",
+   "sha1": "19dfa91abe68bb1d8082444af997759c06673283",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/clusterfuzz-testcase-minimized-POIFuzzer-5040805309710336.xlsx",
+   "sha1": "6e3fbc614fd6772f04d9edb120701a9fdc13b2ac",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/clusterfuzz-testcase-minimized-POIXSSFFuzzer-4828727001088000.xlsx",
+   "sha1": "369b3d476baf541906a07fdf6696091529403144",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/clusterfuzz-testcase-minimized-POIXSSFFuzzer-5089447305609216.xlsx",
+   "sha1": "537e672c9ebfe5937efc7361fb4c75e8677bdad6",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/clusterfuzz-testcase-minimized-POIXSSFFuzzer-5185049589579776.xlsx",
+   "sha1": "a1d4d1cc3561e88002dab791a7c5d11d2de64edb",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/clusterfuzz-testcase-minimized-POIXSSFFuzzer-5265527465181184.xlsx",
+   "sha1": "2121a64670386c28818e3626e7d34cbb2c1578e6",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/clusterfuzz-testcase-minimized-POIXSSFFuzzer-5937385319563264.xlsx",
+   "sha1": "0d07d5dd8cdaa52c507ca0894ac04c5d71e56459",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/clusterfuzz-testcase-minimized-POIXSSFFuzzer-6123461607817216.xlsx",
+   "sha1": "4a6f69ae94f5c4aa0767fe1d3adfd5f31d836b3e",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/clusterfuzz-testcase-minimized-POIXSSFFuzzer-6419366255919104.xlsx",
+   "sha1": "632e1348b41cca2ca5d26700fe522744a3783fac",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/clusterfuzz-testcase-minimized-POIXSSFFuzzer-6448258963341312.xlsx",
+   "sha1": "274d6342e4842d61be0fb48eaadad6208ae767ae",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/clusterfuzz-testcase-minimized-XLSX2CSVFuzzer-5025401116950528.xlsx",
+   "sha1": "b0ce73ae20c714da93bb6875f71b9fd318298458",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/clusterfuzz-testcase-minimized-XLSX2CSVFuzzer-5542865479270400.xlsx",
+   "sha1": "a5ab819af7941031fc1bb5fcaaa13739e2d10a38",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/clusterfuzz-testcase-minimized-XLSX2CSVFuzzer-5636439151607808.xlsx",
+   "sha1": "5a2ff235b4ca481621179ec1959bd2b6c1e72ec9",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/clusterfuzz-testcase-minimized-XLSX2CSVFuzzer-6504225896792064.xlsx",
+   "sha1": "244271316ea26b24159a9a07aa1cf988f3d340e6",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/clusterfuzz-testcase-minimized-XLSX2CSVFuzzer-6594557414080512.xlsx",
+   "sha1": "f6febecb9c9aede225616731e0d0174d1b91fe52",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/comments.xlsx",
+   "sha1": "ee49727559f59616b85b9c006ed153be05b6174a",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/commentTest.xlsx",
+   "sha1": "4d410f75a2f89079a669ba12a3620182e7253e31",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/conditional_formatting_cell_is.xlsx",
+   "sha1": "b90bfa6132ae008f42aaae1fa9fcab7f25134751",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/conditional_formatting_multiple_ranges.xlsx",
+   "sha1": "8c68ebe08e5f730115a54f5c98ed768bf37e883e",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/conditional_formatting_with_formula_on_second_sheet.xlsx",
+   "sha1": "1f58e9c6a7504374998653ae021f69fa1ee9c85d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/ConditionalFormattingSamples.xlsx",
+   "sha1": "629493e035bde04cc890a9e70d16e01a13c053d3",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/craftonhills.edu_programreview_report.aspx_goalpriorityreport_0011d159-1eeb-4b63-8833-867b0926e5f3.xlsx",
+   "sha1": "14cf7bfa42b6ed720b8b9f5672ffc730cd53a74d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/crash-274d6342e4842d61be0fb48eaadad6208ae767ae.xlsx",
+   "sha1": "274d6342e4842d61be0fb48eaadad6208ae767ae",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/crash-9bf3cd4bd6f50a8a9339d363c2c7af14b536865c.xlsx",
+   "sha1": "9bf3cd4bd6f50a8a9339d363c2c7af14b536865c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/customIndexedColors.xlsx",
+   "sha1": "f92faad7df001cda1cdb559df206f4c591c10a29",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/CustomXMLMapping-singleattributenamespace.xlsx",
+   "sha1": "57284be0b5c44840869fd97677ba97d5ee5b4505",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/CustomXMLMappings-complex-type.xlsx",
+   "sha1": "95b9ce6045c06a7418ab0dc168ef63474bce361e",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/CustomXmlMappings-inverse-order.xlsx",
+   "sha1": "ff00985be70aa9abe501620ab1ab46a0a65b580d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/CustomXMLMappings.xlsx",
+   "sha1": "8e5748a6643b75a798a6a80eb9820184e2b8edfb",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/CVLKRA-KYC_Download_File_Structure_V3.1.xlsx",
+   "sha1": "ce18460aea222ae67ea08225e23899da79581dfc",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/DataTableCities.xlsx",
+   "sha1": "24c71d91a2d3eecc36bf9e0f915d35f0b66eb1db",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/DataValidationEvaluations.xlsx",
+   "sha1": "a27c6eb75ca586e8f77707082011ddf8d7d54fdd",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/DataValidationListTooLong.xlsx",
+   "sha1": "b0e5ca83a10d715bcddd12817797cbe8c6e3f5d8",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/DataValidations-49244.xlsx",
+   "sha1": "971fd1256c4ff603caceecb4697cabe34cd231f0",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/dataValidationTableRange.xlsx",
+   "sha1": "e3c0a06473cd4acc706c5d38e25f0643c69baaba",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/DateFormatNumberTests.xlsx",
+   "sha1": "9b6476001eadef33f969aa096c1609d5462999b0",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/DateFormatTests.xlsx",
+   "sha1": "83f5783ca6cbe005f4459ffd7ee57d3c0c8fa779",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/decimal-format.xlsx",
+   "sha1": "2d743de29552c802bd38ad8a168e513b4f9d0620",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/deep-data.xlsx",
+   "sha1": "35d60aced9fa31552149fcf3d439b65257d26356",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/duplicate-filename-case-insensitive.xlsx",
+   "sha1": "bae810b9ab5e2f8cdfb865f9c91cd153eb57e1f6",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/duplicate-filename.xlsx",
+   "sha1": "523a9283395d5f979d364919bed77fc371063314",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/ElapsedFormatTests.xlsx",
+   "sha1": "58a07a8bcf1aad90a25de4e870155abd32520c8d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/evaluate_formula_with_structured_table_references.xlsx",
+   "sha1": "20581129874d9cb112f9747263344caa231414d0",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/Excel_file_with_trash_item.xlsx",
+   "sha1": "d9552d69548d17309422fe139a83ef36f60ae6bf",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/ExcelPivotTableSample.xlsx",
+   "sha1": "7c48090f9bad59655e25bc72d50b2d04e5e6158e",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/ExcelTables.xlsx",
+   "sha1": "f7ea608cbf81ba048ef4cd6818688b9b1da53fde",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/ExcelWithAttachments.xlsm",
+   "sha1": "b433d012f07327ec4140ade917fa821183d83858",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/FillWithoutColor.xlsx",
+   "sha1": "4c05d67aa9648628f2c581467be7a45a9912b9b8",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/FormatChoiceTests.xlsx",
+   "sha1": "a69fc5a9828c379f9f2266b167f984e0a2724985",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/FormatConditionTests.xlsx",
+   "sha1": "b7ccf00ebec86b18586da723e6b09ce8a597ba13",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/FormatKM.xlsx",
+   "sha1": "2743614f6f938921631dc0da0b4dfb759fe3575c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/Formatting.xlsx",
+   "sha1": "17d7686eb116d4dbd25be95a04a1ab7d4c268b18",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/formula-eval.xlsx",
+   "sha1": "958f86e579b7c14d8d2d5b3587f91310be9e0c9c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/FormulaEvalTestData_Copy.xlsx",
+   "sha1": "bb96b6f03fc5524e50e627ad68f5c1c2aafffced",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/FormulaSheetRange.xlsx",
+   "sha1": "dae7193b772b2ed80ef9f74aed797178af6ce5e3",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/ForShifting.xlsx",
+   "sha1": "2c0455cbe7856049c51067c32b46d7580ed3fa05",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/GeneralFormatTests.xlsx",
+   "sha1": "346873919f40e12405e88d778c78710c2a0b9f67",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/github-321.xlsx",
+   "sha1": "fe5608da6a910cc41b3b02ca3312cf1dba197c33",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/GroupTest.xlsx",
+   "sha1": "7f03712c0bebb6e39f9e198246e9f78d1ad34bd6",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/HeaderFooterComplexFormats.xlsx",
+   "sha1": "2d566984198023c2193484f0b90595784a2e1178",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/headerFooterTest.xlsx",
+   "sha1": "2d43791710af56cbfca623cee1359ae4d598f645",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/HsGetVal.xlsx",
+   "sha1": "4209368078efebd931c2da49ee3585187805cf45",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/InlineString.xlsx",
+   "sha1": "9a3a78f34ae0f6d04f33bc6601aa379ab5ca633b",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/InlineStrings.xlsx",
+   "sha1": "dffd39dcbf9198a87583175618de66fa0b01d766",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/Intersection-52111-xssf.xlsx",
+   "sha1": "48dceb374ace3749d2c957017775cecf62b4b6e8",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/invalid_cell_reference.xlsx",
+   "sha1": "c8682e1854e53eed2bea18d9c2c3d12194822a78",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/LIBRE_OFFICE-116306-0.xlsx",
+   "sha1": "b8fecf35515e5d4cfd289a4cd382f5368fd2b4c8",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/LIBRE_OFFICE-128382-0.xlsx",
+   "sha1": "340fb8e0c5baff7c9d455616869b251e2f52cca7",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/link-external-workbook-a.xlsx",
+   "sha1": "4ab3fcfb948f3bdf5fc22bd8d8897b6e0a808694",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/link-external-workbook-b.xlsx",
+   "sha1": "f13dd2ca332bad9028f1c53d9ba473ee94499179",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/MalformedSSTCount.xlsx",
+   "sha1": "0d78233e23ce7b123e035edc01e6b06643431254",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/MatrixFormulaEvalTestData.xlsx",
+   "sha1": "e31b18111a222aeece0e4fc602c6d29aeae1458e",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/mv-calculator-final-2-20-2013.xlsm",
+   "sha1": "95af7176c04efcc5a54b32f4ac8a725a5cd9b11f",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/NewlineInFormulas.xlsx",
+   "sha1": "6ba462ee406d9c991fd69e80b8f6f7c415e5ef94",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/NewStyleConditionalFormattings.xlsx",
+   "sha1": "7120b516e3c6994fe0836e4aaa2b5a0f304287de",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/no_drawing_patriarch.xlsx",
+   "sha1": "ffa5784e5458dabdb4f5057d2ab70e9fcc53bf7f",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/noSharedStringTable.xlsx",
+   "sha1": "1d2ec91fa0028423f360395adb578ba2802baa26",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/npe.xlsx",
+   "sha1": "7e847b917a256357d5014259d6bc0eecf8ffbb85",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/NumberFormatApproxTests.xlsx",
+   "sha1": "f01ec5b1e14448f0c9145fd8a83f13e5ef5e1195",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/NumberFormatTests.xlsx",
+   "sha1": "2a1a6d9d9737e05f41600e27edf59fdf748fd761",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/picture-and-shape-same-size.xlsx",
+   "sha1": "4cc092ecde508781c090055063acf06dcfa5aa70",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/picture.xlsx",
+   "sha1": "ba93acce75e54bee0b429660c996dffd6ada7d2d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/poc-shared-strings.xlsx",
+   "sha1": "e2da933a04fed09383967c519d4e45df79f23ec4",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/poc-xmlbomb-empty.xlsx",
+   "sha1": "1a5429b76114412a930202d1e0f5bcfff15200b3",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/poc-xmlbomb.xlsx",
+   "sha1": "4f6a9567954d081d53d2590261e5ee706b77148f",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/protected_passtika.xlsx",
+   "sha1": "05afb5a680004c5d3f4677dde55d342b1b90356c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/ref-56737.xlsx",
+   "sha1": "ae896f0bd9c69ad0bf278f4415d6d937b0e3f8ff",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/ref2-56737.xlsx",
+   "sha1": "fab4e8f4101572b17b8f2e89311e6aa9129fc878",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/reordered_sheets.xlsx",
+   "sha1": "4996682084907d23a244b4abeb248700247c5722",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/RepeatingRowsCols.xlsx",
+   "sha1": "ee6d366a7b07cc1d1cb12909e66049e933d002ed",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/resize_compare.xlsx",
+   "sha1": "33b745aef13f151218f444ac5ea3da1899b7cebd",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/right-to-left.xlsx",
+   "sha1": "d87cda180c17fdbfaf05a7d7a1ea070abd5b1fb8",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/sample-beta.xlsx",
+   "sha1": "f29bdef81262b5bc81c79d5ca7413a677883b248",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/sample.strict.xlsx",
+   "sha1": "34bf51c6bd0a9e7ea2e9940efa4782f265f22af7",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/sample.xlsx",
+   "sha1": "51a8974823ceb4f168d3ccafdbaeb012f98c16a0",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/SampleSS.strict.xlsx",
+   "sha1": "9615b1cba2c2303d4417e345760c9007f17a6330",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/SampleSS.xlsx",
+   "sha1": "6c078a23066b440cdc253ea02c44240fe75c3c7e",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/shared_formulas.xlsx",
+   "sha1": "c402343cac84fbc0b769ab3e4b445ec5f4c7ba83",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/sharedhyperlink.xlsx",
+   "sha1": "30a014bc0c87eeeecdf0f3057d96ab356f7ed761",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/sheetProtection_allLocked.xlsx",
+   "sha1": "36290bfe4112e5d85e77b48a0013c33e14cac136",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/sheetProtection_not_protected.xlsx",
+   "sha1": "a9a8a125b83ae076a25f14f49cf286c16aa72a2c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/SheetTabColors.xlsx",
+   "sha1": "ff94d4175493ef76215ff3e39c8bd18caea1112c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/ShrinkToFit.xlsx",
+   "sha1": "cdd856e26a3a6512252410f58ce1ccf50d36730a",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/simple-monthly-budget.xlsx",
+   "sha1": "c081e124ab96a9fd4bce81082241724662b9d633",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/simple-table-named-range.xlsx",
+   "sha1": "65e20b7b31549f54c92f6e1a47c3891a6c4337cc",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/SimpleMacro.xlsm",
+   "sha1": "b72dbcfb4e1c97e7b89fc5c852e5b45b30c2828d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/SimpleMultiCell.xlsx",
+   "sha1": "acc592517ca93907a0f13f96befd946e5f7a6496",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/SimpleNormal.xlsx",
+   "sha1": "4646c036c8737a4ddee2799450ace0dba4681b1f",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/SimpleScatterChart.xlsx",
+   "sha1": "9326f6f0695130029b1aabfd727899b699f5d92f",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/SimpleStrict.xlsx",
+   "sha1": "9ff60feb620b190bfa62bb8f983e253263e964cb",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/SimpleWithComments.xlsx",
+   "sha1": "cddaadd21bc487fb2eca28db3db0822fb2f03fdf",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/SingleCellTable.xlsx",
+   "sha1": "3d547e2fb75a5f1b90c15c2bfd9fca59045ff143",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/StructuredReferences.xlsx",
+   "sha1": "8a95d917a19073c0d68a9d0626287fc33043195d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/StructuredRefs-lots-with-lookups.xlsx",
+   "sha1": "deb24aa54464d26f50d1a094837f242fe01f556a",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/style-alternate-content.xlsx",
+   "sha1": "6ac2e2fd14c998d54f6a4caf2822187ddd23ee6e",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/styles.xlsx",
+   "sha1": "ff0442618bf63ab1f2c18c6c77fa9acb37c494bd",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/table-sample.xlsx",
+   "sha1": "107d0bfcc704256cd98b112337610f7ad4740220",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/Tables.xlsx",
+   "sha1": "183465414b105dedf1712dc41944a531dd42c742",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/tableStyle.xlsx",
+   "sha1": "0da886ff348b925fa1bf6ff199e15d80b9832c6f",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/TablesWithDifferentHeaders.xlsx",
+   "sha1": "361c9ecd85f1caba44f0283a862a02072c6204ce",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/template.xlsx",
+   "sha1": "dadf2cce0f4c5ae338d22ca4f8db4e9bd713a419",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/test_conditional_formatting.xlsx",
+   "sha1": "954cd65c54f3c79a3d6d1f99ae49aeefb4a3b0cc",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/testNames.xlsm",
+   "sha1": "6d6263feab2f22e43da9d828296c7059c513c135",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/testSharedFormulasRangeSetBlankBug.xlsx",
+   "sha1": "a649ed5dc1098ed5fccb0d6c9c487457fdd94821",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/testSharedFormulasSetBlank.xlsx",
+   "sha1": "5a3ad9bc448b213ac9304d0790d0569230fc93bb",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/TestShiftRowSharedFormula.xlsx",
+   "sha1": "422033a8f0abd8816e3b087ac19182706e733f1f",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/TextFormatTests.xlsx",
+   "sha1": "add88cad81e11686a6332c4b75de5a3d0815dd4c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/Themes.xlsx",
+   "sha1": "9cc52fbe2b22d4a2af77546fa0385c6cbafd437e",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/Themes2.xlsx",
+   "sha1": "894fba5a81704aaf25b6ec287d022d0a8b7a7435",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/tile-range-test.xlsx",
+   "sha1": "8fc6a09300e623db33b06d79770896b01cf42ef7",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/TwoSheetsNoneHidden.xlsx",
+   "sha1": "06fbd18533e54cee72b165a2d49f843c957a2369",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/TwoSheetsOneHidden.xlsx",
+   "sha1": "ea68bbec34fd120c14ce9c0fd3bcfe030b45f42f",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/unicodeSheetName.xlsx",
+   "sha1": "a1683d77dc513d6f3b959f62d46a94ea03da8569",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/ValueFunctionOfBlank.xlsx",
+   "sha1": "93d4251c15a01c5aa5461ee7576bda507cd0aaae",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/VLookupFullColumn.xlsx",
+   "sha1": "d4bd24aa107fc3b403ed5b45b1ded931b9668d09",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/WidthsAndHeights.xlsx",
+   "sha1": "647675e32425f8b4e45c85cb7419d37c026fca57",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/WithChart.xlsx",
+   "sha1": "5b0dc4bf34d2ac0edfdb9ea9b40b01f7e5809f28",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/WithChartSheet.xlsx",
+   "sha1": "5b8e0cdb9796162da1f69c8de3db7fa4a9e4a346",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/WithConditionalFormatting.xlsx",
+   "sha1": "d19e3684a1523b3ecca87e75d20e39d9c9a504d3",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/WithDrawing.xlsx",
+   "sha1": "6c1d7e9ccb45cfba8505c9f0acfd2ef49a7fd1db",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/WithEmbeded.xlsx",
+   "sha1": "94790302d87365a3b8c9519713bfc919a0cfd7f5",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/WithMoreVariousData.xlsx",
+   "sha1": "8c2b4d3f4cc32badddc281dd9c64c225ae8b5c49",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/WithTable.xlsx",
+   "sha1": "d2a3ca79ba33d248a5683eb6b8a15f3375b54259",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/WithTextBox.xlsx",
+   "sha1": "8f7565e2355e3934105d4098792edea6f2673258",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/WithTextBox2.xlsx",
+   "sha1": "d405f6f3a9c32ce4769b5467d4ee8edec53bcbc7",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/WithThreeCharts.xlsx",
+   "sha1": "277fad8d9ea5af8639f0c607b9284ca6304b9cd7",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/WithTwoCharts.xlsx",
+   "sha1": "e9c896687669741b941531e4d1d1831addbd3f12",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/WithVariousData.xlsx",
+   "sha1": "37ade59d80805b5e04f65381bba207cc75fec013",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/workbookProtection-sheet_password-2013.xlsx",
+   "sha1": "96d9af6b50a75b02619ff34cffaf26e2a866f136",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/workbookProtection-workbook_password-2013.xlsx",
+   "sha1": "ba92d6dc8f2e040c62cdb75a1a7699910fb6843f",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/workbookProtection-workbook_password_user_range-2010.xlsx",
+   "sha1": "b7dae1353c08eed49e3bb47847eb00c8ac8722b1",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/workbookProtection_not_protected.xlsx",
+   "sha1": "a9a8a125b83ae076a25f14f49cf286c16aa72a2c",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/workbookProtection_workbook_revision_protected.xlsx",
+   "sha1": "81cf00b3675ceb42b5c0047fdb3321a0b4621156",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/workbookProtection_workbook_structure_protected.xlsx",
+   "sha1": "0a1a29403e98ae348005b8a9916345c49e2a5f76",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/workbookProtection_workbook_windows_protected.xlsx",
+   "sha1": "b7b58400d48e3af1d2e1b674a85ec7c6baa60d94",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/workbookProtection_worksheet_protected.xlsx",
+   "sha1": "db0a3e2299e966e997311b94da7fff9a5eae387d",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/xlmmacro.xlsm",
+   "sha1": "3cd7feaa42a31be8f202e9ff84f41aaf284c32cd",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/xlookup.xlsx",
+   "sha1": "a1dcbe8299152ef8f2722c8cb9050e0662aa8c34",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/xlsx-corrupted.xlsx",
+   "sha1": "849cea029d49ba80e36edc5cbe8f04e7f87cd4c5",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/xlsx-jdbc.xlsx",
+   "sha1": "5187f96d79bc930a5df9cd0ec70ae933d8228db9",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/xssf-enum.xltx.xlsx",
+   "sha1": "58d7b458b734addfd3c96776e8dbe721e6934220",
+   "set": "dev"
+  },
+  {
+   "file": "spreadsheet/XSSFSheet.copyRows.xlsx",
+   "sha1": "6a78d97012d804529c7961f79ba2eadf304684ff",
+   "set": "sealed"
+  },
+  {
+   "file": "spreadsheet/xxe_in_schema.xlsx",
+   "sha1": "ecf4f112a39e454766a2d7484e31815a241f43c2",
+   "set": "dev"
+  }
+ ],
+ "seal_sha256": "e9ac85dbcb66c97e7a01617cf3f90983fe2b329480f65c9d10af406859e37e4c"
+}
