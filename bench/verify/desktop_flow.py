@@ -53,6 +53,18 @@ def texts(root: Path) -> list[str]:
     return [sh.text_frame.text for s in Presentation(root / "board.pptx").slides for sh in s.shapes if sh.has_text_frame]
 
 
+def open_workroom(pg) -> None:
+    """Click the Workroom tab once the Desktop has loaded it (it appears a few seconds after a reload)."""
+    for _ in range(40):
+        box = pg.evaluate("() => { const e = Array.from(document.querySelectorAll('div')).find(x => x.innerText === 'WORKROOM' && x.getBoundingClientRect().y < 40); if (!e) return null; const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2] }")
+        if box:
+            pg.mouse.click(box[0], box[1])
+            pg.wait_for_timeout(2500)
+            return
+        pg.wait_for_timeout(1000)
+    raise AssertionError("the Workroom tab did not appear in the Desktop")
+
+
 def main() -> None:
     root = Path(tempfile.mkdtemp(prefix="wr_depth_"))
     sources(root, 15_100_000)
@@ -66,10 +78,7 @@ def main() -> None:
         pg.on("console", lambda m: errors.append(m.text[:200]) if m.type == "error" else None)
         pg.reload()
         pg.wait_for_timeout(6000)
-        box = pg.evaluate("() => { const e = Array.from(document.querySelectorAll('div')).find(x => x.innerText === 'WORKROOM' && x.getBoundingClientRect().y < 40); if (!e) return null; const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2] }")
-        assert box, "the Workroom tab is not open in the Desktop"
-        pg.mouse.click(box[0], box[1])
-        pg.wait_for_timeout(3000)
+        open_workroom(pg)
         pg.get_by_label("Folder path").fill(str(root))
         pg.get_by_role("button", name="Add project").click()
         pg.wait_for_selector("text=Project added", timeout=20000)

@@ -319,7 +319,7 @@ function ReleaseCard({ ctx, attrs }) {
         view.figures.length > 8 ? h('div', { style: css.muted }, `and ${view.figures.length - 8} more figures`) : null)
       : view.rolled ? h('p', { style: { margin: '6px 0' } }, view.state === 'published'
         ? `Rolled forward: ${view.rolled.figures} figures now show the next period and ${view.rolled.period_words} period words advanced. Restore undoes the whole roll.`
-        : `Roll forward: ${view.rolled.figures} figures move to the next period and ${view.rolled.period_words} period words advance (${view.rolled.from.join(', ')} to ${view.rolled.to.join(', ')}). Nothing has been changed yet; Restore undoes the whole roll.`)
+        : `Roll forward: ${view.rolled.figures} figures move to the next period and ${view.rolled.period_words} period words advance (${view.rolled.example}). Nothing has been changed yet; Restore undoes the whole roll.`)
       : h('p', { style: { margin: '6px 0' } }, view.state === 'published'
         ? `${view.changes.length} number${view.changes.length === 1 ? '' : 's'} updated. A backup of each replaced file is kept.`
         : `${view.changes.length} number${view.changes.length === 1 ? '' : 's'} would change. Nothing has been changed yet.`),
@@ -520,7 +520,7 @@ function WorkroomPage({ ctx }) {
               h('p', { style: { margin: '0 0 6px' } }, `Workroom will create ${release.changes[0].deck}. Every figure in it is tied to its source cell. Nothing else in your folder is touched.`),
               h('ul', { style: { margin: '0 0 8px', paddingLeft: 18 } }, groupFigures(release.figures).slice(0, 12).map((f, i) => h('li', { key: i },
                 h('strong', null, f.text), h('span', { style: css.muted }, ` ${f.concept || ''} ${f.period || ''} · ${f.source}${f.count > 1 ? ` · in ${f.count} places` : ''}`)))))
-            : release.rolled ? h('p', { style: { margin: '0 0 8px' } }, `Workroom will roll your documents forward: ${release.rolled.figures} figures move to the next period and ${release.rolled.period_words} period words advance (${release.rolled.from.join(', ')} to ${release.rolled.to.join(', ')}). Restore undoes the whole roll.`)
+            : release.rolled ? h('p', { style: { margin: '0 0 8px' } }, `Workroom will roll your documents forward: ${release.rolled.figures} figures move to the next period and ${release.rolled.period_words} period words advance (${release.rolled.example}). Restore undoes the whole roll.`)
             : h('p', { style: { margin: '0 0 8px' } }, `${release.changes.length} number${release.changes.length === 1 ? '' : 's'} will change in your documents. Everything else stays exactly as it is, and a backup of each replaced file is kept.`),
             release.changes && release.rolled ? h('ul', { style: { margin: '0 0 8px', paddingLeft: 18 } }, release.changes.slice(0, 8).map((c, i) => h('li', { key: i }, h('span', { style: css.muted }, `${c.old_text} `), '\u2192 ', h('strong', null, c.new_text), h('span', { style: css.muted }, `  ${c.deck}, ${c.where || 'slide ' + c.slide}`)))) : null,
             release.held && release.held.length ? h('details', { style: { margin: '0 0 8px' } }, h('summary', { style: css.muted }, `${release.held.length} left for you`), release.held.map((t, i) => h('div', { key: i, style: { ...css.muted, fontSize: 12 } }, t))) : null,

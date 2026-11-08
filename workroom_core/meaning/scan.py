@@ -61,6 +61,36 @@ def _worth_explaining(number) -> bool:
     return True
 
 
+_YEAR = __import__("re").compile(r"year[- ]over[- ]year|\byoy\b|\by/y\b|a year (?:ago|earlier)|annual|last year|prior year", __import__("re").I)
+
+
+def _structural(dm, by_para: list, by_slide: list, tie_of, text: str, option: Calc, n_options: int) -> bool:
+    """Does the reading match how the sentence or table row is laid out, not merely the digits?
+    "A, up P% from B": the two figures either side of the percent. A table row: the first two figures to the left of the change cell.
+    A sentence with one figure and no baseline named: that figure against the previous period (the year earlier when the sentence says so)."""
+    if option.op not in ("pct_change", "diff") or len(option.terms) != 2:
+        return False
+    a, b = option.terms
+    tied = lambda ds: [d for d in ds if tie_of(d) is not None and tie_of(d).kind == "text" and d.number.unit not in ("percent", "bps", "pp")]  # noqa: E731
+    here = (dm.seg, dm.offset)
+    figs = sorted(tied(by_para), key=lambda d: (d.seg, d.offset))
+    before = [d for d in figs if (d.seg, d.offset) < here]
+    after = [d for d in figs if (d.seg, d.offset) > here]
+    key = lambda d: (tie_of(d).src_file, tie_of(d).sheet, tie_of(d).ref)  # noqa: E731
+    if before and after:
+        return (a.key, b.key) == (key(before[-1]), key(after[0]))
+    if len(before) == 1 and not after:
+        if a.key != key(before[0]):
+            return False
+        if _YEAR.search(text):
+            return b.role == "year_ago"
+        return n_options == 1 and b.role == "previous"  # an unqualified "up 10%" with two baselines that both give 10% is a question for the owner
+    if dm.cell is not None:
+        row = sorted([d for d in tied(by_slide) if d.shape_id == dm.shape_id and d.cell is not None and d.cell[0] == dm.cell[0] and d.cell[1] < dm.cell[1]], key=lambda d: d.cell[1])
+        return len(row) == 2 and (a.key, b.key) == (key(row[0]), key(row[1]))
+    return False
+
+
 def find_calculations(project: "Project") -> Scan:
     from ..project import DECK_EXT, open_document
 
@@ -114,15 +144,20 @@ def find_calculations(project: "Project") -> Scan:
             if decisions.get(cid) == "dismissed":
                 dismissed += 1
                 continue
-            weak = dm.number.decimals == 0 and abs(dm.number.value) < 100 and not cue
-            if len(found) > 1:
+            para_dms = by_para[(uid, dm.shape_id, dm.para, dm.cell)]
+            structural = [o for o in found if _structural(dm, para_dms, by_slide[uid], tie_of, text, o, len(found))]
+            whole = dm.number.decimals == 0 and abs(dm.number.value) < 100
+            if len(found) > 1 and len(structural) != 1:
                 certainty, reason = "ask", f"{len(found)} calculations give this figure; choose the one you meant"
-            elif scope != "paragraph":
-                certainty, reason = "ask", "the figures it uses are on the same slide but not in the same sentence"
-            elif weak:
+            elif whole:
                 certainty, reason = "ask", "a whole-number percentage can match by chance; check the formula"
+            elif len(structural) == 1:
+                found = structural
+                certainty, reason = "certain", "the calculation matches how the sentence or table row is laid out, and reproduces the figure at the precision written"
+            elif len(found) == 1 and scope == "paragraph" and dm.number.decimals >= 2:
+                certainty, reason = "certain", "this one calculation reproduces the figure to two or more decimals"
             else:
-                certainty, reason = "certain", "this one calculation reproduces the figure at the precision written"
+                certainty, reason = "ask", "digits can match by chance; check that this is the calculation you meant"
             out.append(Candidate(cid, rel, dm.slide, uid, dm.number.raw, text[:200], scope, certainty, reason, tuple(found), (uid, dm.shape_id, dm.para, dm.seg, dm.offset, dm.cell)))
     return Scan(out, explained, unexplained, dismissed)
 

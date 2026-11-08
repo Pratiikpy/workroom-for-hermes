@@ -1175,7 +1175,11 @@ class Service:
     def _rolled_summary(rolled: dict | None) -> dict[str, Any] | None:
         if not rolled:
             return None
-        return {"kind": rolled["kind"], "steps": rolled["steps"], "figures": len(rolled["ties"]), "period_words": len(rolled["labels"]),
+        from collections import Counter
+
+        common = Counter((lab["old"], lab["new"]) for lab in rolled["labels"]).most_common(1)
+        example = f"{common[0][0][0]} becomes {common[0][0][1]}" if common else ""
+        return {"kind": rolled["kind"], "steps": rolled["steps"], "figures": len(rolled["ties"]), "period_words": len(rolled["labels"]), "example": example,
                 "from": sorted({lab["old"] for lab in rolled["labels"]})[:3], "to": sorted({lab["new"] for lab in rolled["labels"]})[:3]}
 
     def _release_view(self, pid: str, release_id: str) -> dict[str, Any]:

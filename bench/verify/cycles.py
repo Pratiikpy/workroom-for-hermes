@@ -325,6 +325,124 @@ class MonthlyReport:
         return fixed
 
 
+# --------------------------------------------------------------------------------------------- annual report
+
+COUNTRIES = ["United States", "United Kingdom", "Germany", "Japan"]
+
+
+class AnnualReport:
+    name = "annual report (fiscal years across the columns, merged heading, Word with a table)"
+    file = "gdp_per_capita.docx"
+
+    def __init__(self, folder: Path, first: str, last: str) -> None:
+        raw = json.loads((folder.parent / "worldbank" / "gdp_pc.json").read_text(encoding="utf-8"))[1]
+        self.data: dict[str, dict[int, float]] = {c: {} for c in COUNTRIES}
+        for r in raw:
+            if r["value"] is not None and r["country"]["value"] in self.data:
+                self.data[r["country"]["value"]][int(r["date"])] = float(r["value"])
+        self.labels = [f"FY{y}" for y in range(2010, 2026)]
+        self.first = self.labels.index(first)
+        self.last = self.labels.index(last)
+
+    def periods(self) -> int:
+        return self.last - self.first
+
+    def value(self, country: str, n: int) -> float:
+        return self.data[country][2010 + n]
+
+    @staticmethod
+    def money(v: float) -> str:
+        return f"${v:,.0f}"
+
+    def workbook(self, root: Path, n: int) -> None:
+        upto = self.first + n
+        span = list(range(max(0, upto - 7), upto + 1))
+        with Workbook(str(root / "world_bank.xlsx")) as wb:
+            ws = wb.add_worksheet("GDP per capita")
+            ws.merge_range(0, 0, 0, len(span), "GDP per capita, current US$ (World Bank)", wb.add_format({"bold": True}))
+            ws.write_row(1, 0, ["Country"] + [self.labels[i] for i in span])
+            for r, c in enumerate(COUNTRIES, 2):
+                ws.write(r, 0, c)
+                for k, i in enumerate(span, 1):
+                    ws.write_number(r, k, self.value(c, i))
+            ws.write(len(COUNTRIES) + 3, 0, "Source: World Bank, indicator NY.GDP.PCAP.CD")
+
+    def sentences(self, n: int) -> dict[str, str | None]:
+        i = self.first + n
+        out: dict[str, str | None] = {}
+        for c in COUNTRIES:
+            cur, prev = self.value(c, i), self.value(c, i - 1)
+            P, Pp = self.labels[i], self.labels[i - 1]
+            pct = abs(cur / prev - 1) * 100
+            out[f"A {c}"] = f"{c} GDP per capita was {self.money(cur)} in {P}, {'up' if cur > prev else 'down'} {pct:.1f}% from {self.money(prev)} in {Pp}."
+            out[f"B {c}"] = f"{c} GDP per capita {'held steady at' if self.money(cur) == self.money(prev) else 'rose to' if cur > prev else 'fell to'} {self.money(cur)} in {P}."
+        return out
+
+    def b_wording_true(self, key: str, text: str, n: int) -> bool | None:
+        if not key.startswith("B "):
+            return None
+        c = key[2:]
+        i = self.first + n
+        cur, prev = self.value(c, i), self.value(c, i - 1)
+        return ("rose to" in text and cur > prev) or ("fell to" in text and cur < prev) or ("held steady at" in text and self.money(cur) == self.money(prev))
+
+    def table_expected(self, n: int) -> dict[str, str]:
+        i = self.first + n
+        out = {"Title": f"GDP per capita review, {self.labels[i]}", "T0": " | ".join(["Country", self.labels[i], self.labels[i - 1], "Change"])}
+        for r, c in enumerate(COUNTRIES, 1):
+            cur, prev = self.value(c, i), self.value(c, i - 1)
+            out[f"T{r}"] = " | ".join([c, self.money(cur), self.money(prev), f"{(cur / prev - 1) * 100:+.1f}%"])
+        return out
+
+    def build(self, root: Path) -> None:
+        doc = Document()
+        doc.add_heading(self.table_expected(0)["Title"], 0)
+        want = self.sentences(0)
+        for c in COUNTRIES:
+            doc.add_heading(c, 1)
+            doc.add_paragraph(want[f"A {c}"])
+            doc.add_paragraph(want[f"B {c}"])
+        table = doc.add_table(rows=len(COUNTRIES) + 1, cols=4)
+        for r in range(len(COUNTRIES) + 1):
+            for k, cell in enumerate(self.table_expected(0)[f"T{r}"].split(" | ")):
+                table.cell(r, k).text = cell
+        doc.save(str(root / self.file))
+
+    def read(self, root: Path) -> dict[str, str | None]:
+        doc = Document(root / self.file)
+        paras = [p.text for p in doc.paragraphs]
+        out: dict[str, str | None] = {"Title": paras[0]}
+        for c in COUNTRIES:
+            k = paras.index(c)
+            out[f"A {c}"], out[f"B {c}"] = paras[k + 1], paras[k + 2]
+        for r, row in enumerate(doc.tables[0].rows):
+            out[f"T{r}"] = " | ".join(cell.text for cell in row.cells)
+        return out
+
+    def rewrite(self, root: Path, expected: dict[str, str | None]) -> int:
+        doc = Document(root / self.file)
+        fixed = 0
+        paras = doc.paragraphs
+        names = [p.text for p in paras]
+        for c in COUNTRIES:
+            k = names.index(c)
+            for off, key in ((1, f"A {c}"), (2, f"B {c}")):
+                if paras[k + off].text != expected[key]:
+                    _set_text(paras[k + off], expected[key])
+                    fixed += 1
+        if paras[0].text != expected["Title"]:
+            _set_text(paras[0], expected["Title"])
+            fixed += 1
+        for r, row in enumerate(doc.tables[0].rows):
+            want = expected[f"T{r}"].split(" | ")
+            for k, cell in enumerate(row.cells):
+                if cell.text != want[k]:
+                    _set_text(cell.paragraphs[0], want[k])
+                    fixed += 1
+        doc.save(str(root / self.file))
+        return fixed
+
+
 # --------------------------------------------------------------------------------------------- the trial
 
 
@@ -430,7 +548,7 @@ def main() -> None:
     ap.add_argument("--mode", default="owner", choices=["owner", "hands-off"])
     ns = ap.parse_args()
     folder = Path(ns.folder)
-    trials = [QuarterlyDeck(folder, "Q1 2025", "Q3 2026"), MonthlyReport(folder, "Jan 2025", "Oct 2026")]
+    trials = [QuarterlyDeck(folder, "Q1 2025", "Q3 2026"), MonthlyReport(folder, "Jan 2025", "Oct 2026"), AnnualReport(folder, "FY2017", "FY2025")]
     results = []
     for k in trials:
         n = min(ns.cycles, k.periods())

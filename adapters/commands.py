@@ -43,7 +43,7 @@ def _card(view: dict[str, Any]) -> str:
                  "Nothing has been written yet. A backup of the replaced file is kept."]
     elif view.get("rolled"):
         r = view["rolled"]
-        span = f" ({', '.join(r['from'])} to {', '.join(r['to'])})" if r["from"] and r["to"] else ""
+        span = f" ({r['example']})" if r.get("example") else ""
         lines = [f"Workroom release {view['release_id']}: rolls your documents forward {r['steps']} period{'s' if r['steps'] != 1 else ''}{span}: {r['figures']} figures re-pointed to the next period, {r['period_words']} period words advanced."]
         for c in view["changes"][:5]:
             lines.append(f"  {c['old_text']} -> {c['new_text']}   ({c['deck']}, {c.get('where') or 'slide ' + str(c['slide'])})")

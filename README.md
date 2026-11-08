@@ -29,6 +29,20 @@ The whole first-run loop (make the sample, approve the deck, a new quarter arriv
 
 Ask Why: for any linked number, Workroom says which cell it came from, which labels and period matched, the value now and at the last release, and what would happen if the source changed.
 
+## What a change means
+
+A changed number is not the whole change. After an update Workroom reads what the new numbers do to the words around them and lists what needs your eyes before you approve.
+
+- **Claims that stopped being true.** "Up from", "grew from X to Y", "exceeded", "record", "rose to" and "held steady at" are checked against the figures. A sentence that was true and is now false is flagged with the numbers that show it; its words are never rewritten for you. An unqualified "rose" is judged against the previous period, and against the year earlier when the sentence says so.
+- **Calculated numbers.** A percent change, margin, difference or total that the sources reproduce is found by arithmetic, shown with its formula, and follows its sources once you accept it. It never changes sign silently: an "up 8%" that would become a fall is held. When several calculations fit, none is chosen for you.
+- **Places the editor does not rewrite.** A number in speaker notes, chart text or a picture description that still shows an old value, a chart whose axis is fixed below a new value, and a figure in a changed sentence that nothing updates are reported, and stay reported until you change them or dismiss them.
+- **A workbook that moves.** Each link remembers the headings of its source cell. If rows or columns are inserted or a window of periods slides along, the link follows its cell; when it cannot tell, it asks you and says why.
+- **Approval.** Findings marked "Check" must be acknowledged before the release can be approved, in the Desktop screen and in chat. A decision to dismiss a finding is remembered, so the same question is not asked every cycle.
+
+## Roll forward
+
+When the workbook has the next period, "Roll forward one period" in the Desktop screen (or the `workroom_roll_forward` tool) prepares one release that moves every linked figure to the same row's next column or row and advances the period words beside them, in the style they were written in: Q3 2026 to Q4 2026, Mar 2026 to Apr 2026, FY2025 to FY2026. It is refused, naming each figure, when a figure has no value for the next period. You approve once, and one restore undoes the whole roll. A number you roll or correct by hand stays managed. Chart periods and period words inside speaker notes are not rolled; the first is listed, the second is reported.
+
 ## Create, then keep in step
 
 Workroom can also make the file, so its figures are tied to their sources from the first second instead of being matched later.
@@ -49,7 +63,7 @@ Evidence for each is in `bench/EVIDENCE.md` (rows dated 8 Nov 2026). What is not
 
 ## What the agent can and cannot do
 
-The agent gets tools to register a folder, find links, preview a refresh, prepare a release, explain a number, run the self-test, list source cells, create files from a spec, read and edit visual pages as drafts, export pages, read authorised instructions and propose changes to `workroom.md`. **No tool approves or publishes.** Only the owner, through an authenticated Hermes session in the Desktop screen or the in-chat release card, can approve. A verifying sub-agent can be given only the read-only toolset `workroom_ro` (plan, explain, selftest).
+The agent gets tools to register a folder, find links, preview a refresh, prepare a release, explain a number, run the self-test, list source cells, create files from a spec, read and edit visual pages as drafts, export pages, read authorised instructions and propose changes to `workroom.md`. It can also prepare a roll-forward release (`workroom_roll_forward`) and list the calculated numbers it finds (`workroom_find_calculations`), and it can read what a change means because the findings travel with every prepared release. **No tool approves or publishes.** Only the owner, through an authenticated Hermes session in the Desktop screen or the in-chat release card, can approve. A verifying sub-agent can be given only the read-only toolset `workroom_ro` (plan, explain, selftest).
 
 ## Honest guarantees
 
@@ -72,11 +86,18 @@ The agent gets tools to register a folder, find links, preview a refresh, prepar
 | Read-only agent cannot reach write tools | 8 of 8 out-of-scope tools refused by Hermes' real dispatch; a live model (Gemini 2.5 Flash) told to approve, publish or edit directly refused and the file was unchanged | one adversarial run; one model |
 | Automatic links on real earnings releases | 0 clearly wrong in 97 read by hand; 56 of 58 decided correct by an independent model judge (60 sampled of 265) | 10 SEC filings converted to Word; 265 of 6,636 numbers linked automatically, 2,433 sent to a person, the rest have no source cell |
 | Word tracked changes open in real Microsoft Word | accept-all gives the new text, reject-all gives the original, 4 revisions by "Workroom", on 2 files | Word on Windows only; 16 of 16 real corpus files also validate in OfficeCLI |
+| Update cycles on real public data | 22 cycles on three projects (FRED and World Bank series; a deck, and two Word reports in layouts Workroom did not author): 0 silent errors, 80 differences all reported to the owner, 0 false alarms; all 22 releases restored byte for byte | the templates, documents and the simulated owner are mine; made with python libraries, not by a person in Office; one language; no restated past periods |
+| Edits checked by readers that share none of Workroom's code | 26 decks edited: python-pptx sees exactly the edits, Microsoft's Open XML SDK validator reports no new error (26 of 26), the real PowerPoint object model sees the same changes (23 of 23) | public test decks with few numbers; PowerPoint on Windows; Word and Excel edits not run through the validator |
+| A calculated number is not accepted by coincidence | random percentages written into sentences: 0 of 120 accepted as certain (5% of one-decimal and 55% of whole-number ones fit some calculation and were left to the owner); the 3 true ones were certain | one deck layout |
 | Approval from a real Telegram chat | release card with buttons shown, Approve published it, Cancel changed nothing, a sender not in `approvers` was refused | one throwaway bot, one owner account; Discord and Slack not run |
 
 ## Known limits and what is not tested
 
-- Run end to end in the real Hermes Desktop (v0.23.0, Windows) on a small synthetic project only; not yet on a user's own documents.
+- Run end to end in the real Hermes Desktop (v0.23.0, Windows) on small synthetic projects only (light and dark, wide and narrow); not yet on a user's own documents.
+- Claims are read in English from a closed set of wordings. Anything else is listed as not checked, never guessed. Company earnings releases mostly state amounts ("grew 31%") without naming the baseline, so there Workroom checks a claim only when the percentage is a calculated figure it manages.
+- A sentence is judged false only on its own figures or on the workbook's series; a claim that depends on outside knowledge is out of reach.
+- Rolling forward needs the next period to be in the workbook and the periods to be readable headings (quarters, halves, fiscal years, months). Chart periods are not rolled.
+- The update-cycle trials above use documents and an owner I simulated, on real public data, in one language.
 - Measured on real earnings releases (see the table) but not on other kinds of messy business documents or other languages. On hand-written paraphrase tests the matcher never linked wrongly and, with a small built-in finance synonym list, resolved 94% by itself (that number is contaminated: the list was written after seeing the test wording; real gain unmeasured).
 - The suite passes on Windows, macOS and Linux with Python 3.11 and 3.14 in GitHub Actions; the Hermes Desktop run itself was only done on Windows.
 - Word comments are never edited (human review text). Complex Excel models are untested.
@@ -103,4 +124,5 @@ Development: `pip install -r requirements-dev.txt` then `python -m pytest tests 
   4. nothing else: Workroom never starts a scheduled job itself (`/workroom-watch` only prints the lines you can save for Hermes cron).
 - No network access, no secrets read from files or the environment, no binaries, no self-update. A `pre_tool_call` hook blocks the agent's file-write tools on Office files in registered projects and sends suspicious shell commands to your approval prompt.
 - Files read and written: inside the folders you register (documents; `brand.json` and the colour and font tokens of `DESIGN.md`; `workroom.md`, `AGENTS.md` and `CLAUDE.md` only as text for you to authorise; a `workroom.manifest.json` history file per project; files you approve Workroom to create), and in the plugin data directory (state, backups, a signing key file kept for this plugin only). Nothing else on your computer is read.
+- The scripts under `bench/` (benchmarks, the real-Desktop driver, and a small .NET console tool that runs Microsoft's Open XML SDK validator) are for testing only. The plugin never runs them, and no compiled file is committed.
 - See `NOTICE.md` for sources and credits.
