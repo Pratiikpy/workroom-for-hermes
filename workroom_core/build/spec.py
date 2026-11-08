@@ -315,7 +315,7 @@ _PERIOD_WORD = re.compile(
 )
 
 
-def _nearest_period(text: str, at: int, end: int) -> tuple[frozenset[str], str] | None:
+def _nearest_period(text: str, at: int, end: int, cell_periods: frozenset[str] = frozenset()) -> tuple[frozenset[str], str] | None:
     """The period phrase (such as 'Q3 2026') closest to position ``at`` in a template whose slots are masked out."""
     masked = SLOT.sub(lambda m: " " * len(m.group(0)), text)
     words = [(m.start(), m.end()) for m in _PERIOD_WORD.finditer(masked)]
@@ -336,6 +336,11 @@ def _nearest_period(text: str, at: int, end: int) -> tuple[frozenset[str], str] 
             return lo - end
         return 0
 
+    cell_has_year = any(re.fullmatch(r"(19|20)\d\d", t) for t in cell_periods)
+    if not cell_has_year:  # a bare year in the sentence says nothing against a quarter or month label
+        phrases = [ph for ph in phrases if not all(re.fullmatch(r"(19|20)\d\d", masked[a:b].strip()) for a, b in ph)] or []
+        if not phrases:
+            return None
     best = min(phrases, key=gap)
     label = masked[best[0][0] : best[-1][1]]
     return periods(label), label
@@ -360,7 +365,7 @@ def _check_slot(v: Validated, where: str, fid: str, fmt: str, text: str, fact: t
         _err(v, "format_loses_value", where, f"{fmt} would show {rendered} for {cell.value}")
         return None
     cell_periods = periods(base["cell_labels"])
-    near = _nearest_period(text, at, end or at)
+    near = _nearest_period(text, at, end or at, cell_periods)
     if near and cell_periods and not (near[0] & cell_periods):
         _err(v, "period_mismatch", where, f"the words next to {fid} say {near[1].strip()} but {base['source_ref']} is {base['cell_labels']}")
         return None
@@ -380,6 +385,19 @@ def _charts(spec: dict[str, Any]) -> Iterator[tuple[str, dict[str, Any]]]:
                 yield (f"{prefix}." if prefix else "") + f"blocks[{bi}]", b
 
 
+def _typed_figures(text: str) -> list[str]:
+    """Numbers written into text outside slots. Years (1900 to 2100) are allowed; letters glued to digits (Q3, FY26) are labels, not figures."""
+    from ..match.numbers import parse_numbers
+
+    masked = SLOT.sub(" ", text)
+    out = []
+    for nm in parse_numbers(masked):
+        is_year = nm.unit == "plain" and nm.decimals == 0 and "," not in nm.raw and len(nm.raw.strip()) == 4 and 1900 <= nm.value <= 2100
+        if not is_year:
+            out.append(nm.raw.strip())
+    return out
+
+
 def validate_spec(spec: Any, cells: list[SourceCell]) -> Validated:
     v = Validated()
     if not _structure(v, spec):
@@ -390,6 +408,11 @@ def validate_spec(spec: Any, cells: list[SourceCell]) -> Validated:
         if len(text) > MAX_TEXT:
             _err(v, "too_large", where, f"text longer than {MAX_TEXT} characters")
             continue
+        if spec["kind"] != "scene":
+            leftover = _typed_figures(text)
+            if leftover:
+                _err(v, "untied_figure", where, f"the text contains {leftover[0]} typed by hand; every figure must be a {{fact:format}} slot tied to a source cell, or be removed")
+                continue
         for m in SLOT.finditer(text):
             fid, fmt = m.group(1), m.group(2)
             if fid not in spec["facts"]:

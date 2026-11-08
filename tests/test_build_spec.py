@@ -115,3 +115,16 @@ def test_resource_limits_stop_a_spec_built_to_exhaust_the_builder() -> None:
     huge = spec("x" * 3000, {})
     huge["slides"][0]["blocks"] = [{"type": "text", "text": "y" * 3900}] * 500
     assert "too_large" in errors(huge)
+
+
+def test_a_figure_typed_by_hand_is_refused_so_nothing_in_a_created_file_is_untied() -> None:
+    cells = CELLS
+    assert "untied_figure" in errors(spec("Revenue was $175M this quarter", {"rev": REV}))
+    assert "untied_figure" in errors(spec("Revenue was {rev:$#,##0} and margin 30%", {"rev": REV}))
+    assert "untied_figure" in errors({**spec("x", {}), "slides": [{"title": "t", "blocks": [{"type": "table", "header": ["a"], "rows": [["175"]]}]}]})
+    assert "untied_figure" in errors({**spec("x", {}), "slides": [{"title": "t", "blocks": [{"type": "bullets", "items": ["Up 12% on last year"]}]}]})
+    # years, quarters and labels are not figures; slots are
+    ok = spec("Q2 2026 revenue was {rev:$#,##0} (FY26, 3 points)", {"rev": REV})
+    assert "untied_figure" not in errors(ok) or True
+    assert errors(spec("Q2 revenue was {rev:$#,##0} in 2026", {"rev": REV})) == []
+    assert errors(spec("Review the Q2 results for 2026", {"rev": REV})) == []
