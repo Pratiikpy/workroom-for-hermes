@@ -34,3 +34,17 @@ Until 8 Nov the evidence used documents, workbooks and an owner that I generated
 | How long it takes | reading a project of 4 documents against a 105,000-cell workbook went from 207 s to 11 s | one layout; some workbooks whose rows differ only by a number now ask instead of linking |
 | An independently authored pair: a government agency's 2020-21 annual report (Word, 85 pages) and its own financial statements workbook | blind run: 1,127 figures found, 226 linked automatically (20%), 586 sent to the owner (52%), 315 with no source cell; 0 wrong in the 70 links read by hand, 0 of 83 year checks disagree; releasing 10 changed cells rewrote exactly 20 paragraphs (every other paragraph identical), and the real Word opened the file | one pair, one blind run; the 156 links that passed a mechanical heading check were not read one by one; automation was 20%, so the owner confirms about half of a real report's figures; section and note numbers were wrongly treated as figures and are now skipped (after seeing the result, so the rerun is not blind); `bench/verify/VPSC_RESULT.md` |
 | The 22 update cycles on real data, rerun after a defect these files exposed | 119 owner actions (was 135), 0 silent errors | templates and owner are mine |
+
+## The two independently authored reports
+
+Both come from one government agency, were downloaded from its own site, and were run once, blind, against a protocol committed before the run ([protocol 1](../bench/verify/VPSC_PROTOCOL.md), [result 1](../bench/verify/VPSC_RESULT.md), [protocol 2](../bench/verify/VPSC2_PROTOCOL.md), [result 2](../bench/verify/VPSC2_RESULT.md)).
+
+| | Report against its own year's workbook | Last year's report against this year's workbook |
+|---|---|---|
+| Figures found | 1,127 | 1,133 |
+| Linked automatically (blind run) | 226 (20%) | 181 (16%) |
+| Wrong by label among the links read by hand | 0 of 70 | 6 of 181 (closing figure linked to an opening cell), 3 unclear |
+| Release of 10 changed cells | exactly 20 paragraphs rewritten, nothing else | exactly 20 paragraphs rewritten, nothing else |
+
+After reading each result, rules were added (headings and note numbers are not figures; dashes are not headings; short numbers that match a cell by chance are listed apart; opposite words on an equal value are asked about; a table column that agrees row by row with one source column is linked as a whole). With them, the first report goes to 340 automatic links and 129 questions of 1,072 figures, and the second to 171 and 219 of 1,129. These later numbers are not blind. Two reports from one agency are two data points, not a rate.
+
