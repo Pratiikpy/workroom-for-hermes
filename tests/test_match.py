@@ -97,3 +97,26 @@ def test_the_value_index_finds_exactly_the_cells_a_full_scan_would() -> None:
             brute = [i for i, c in enumerate(index.cells) if consistent_with_source(m, c.value)[0]]
             via_index = [i for i in index.candidates(m) if consistent_with_source(m, index.cells[i].value)[0]]
             assert via_index == brute, (text, brute[:5], via_index[:5])
+
+
+def test_every_written_form_of_a_quarter_is_read_as_that_quarter() -> None:
+    """The quarter patterns once shipped with a backspace character where a word boundary belonged, so none of them matched."""
+    assert periods("third quarter 2026") == frozenset({"q3", "2026"})
+    assert periods("3rd quarter results") == frozenset({"q3"})
+    assert periods("1Q 2026") == frozenset({"q1", "2026"})
+    assert periods("Q 2 2025") == frozenset({"q2", "2025"})
+    assert periods("fourth quarter of 2025") == frozenset({"q4", "2025"})
+
+
+def test_no_source_file_holds_a_stray_control_character() -> None:
+    """A shell once turned backslash-b and backslash-1 inside regular expressions into control characters; nothing in the sources may contain one."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    offenders = []
+    for pattern in ("workroom_core/**/*.py", "adapters/*.py", "dashboard/*.py", "desktop/*.js", "dashboard/*.html", "tests/*.py", "bench/*.py"):
+        for f in root.glob(pattern):
+            text = f.read_text(encoding="utf-8")
+            if any(ord(c) < 32 and c not in "\n\r\t" for c in text):
+                offenders.append(str(f.relative_to(root)))
+    assert offenders == [], offenders

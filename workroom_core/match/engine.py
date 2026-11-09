@@ -36,12 +36,12 @@ def _stem(w: str) -> str:
 
 
 _QUARTER_FORMS = (
-    (re.compile(r"([1-4])\s?\.?\s?q\.?"), r"q"),       # 1.Q.  1Q  1 Q
-    (re.compile(r"q\s?\.?\s?([1-4])"), r"q"),           # Q 1  Q.1
-    (re.compile(r"(first|1st)\s+quarter"), "q1"),
-    (re.compile(r"(second|2nd)\s+quarter"), "q2"),
-    (re.compile(r"(third|3rd)\s+quarter"), "q3"),
-    (re.compile(r"(fourth|4th)\s+quarter"), "q4"),
+    (re.compile(r"\b([1-4])\s?\.?\s?q\b\.?"), r"q\1"),       # 1.Q.  1Q  1 Q
+    (re.compile(r"\bq\s?\.?\s?([1-4])\b"), r"q\1"),           # Q 1  Q.1
+    (re.compile(r"\b(first|1st)\s+quarter\b"), "q1"),
+    (re.compile(r"\b(second|2nd)\s+quarter\b"), "q2"),
+    (re.compile(r"\b(third|3rd)\s+quarter\b"), "q3"),
+    (re.compile(r"\b(fourth|4th)\s+quarter\b"), "q4"),
 )
 
 
@@ -195,6 +195,7 @@ class SourceIndex:
 
 
 UNIQUE_DIGITS = 5  # a number this long that fits exactly one source cell is a fingerprint, not a coincidence
+CHANCE_DIGITS = 3  # with no label evidence at all, a number with fewer significant digits than this is a coincidence, not a candidate
 UNIQUE_LABEL = 0.15  # ...provided the text names at least part of that cell
 NEAR_CHARS = 160  # in a long paragraph only the words around the number describe it
 _IMPLICIT_SCALES = ("thousands", "millions", "billions")
@@ -218,6 +219,12 @@ def _scale_is_named(transform: str, context_text: str, cell: SourceCell) -> bool
 def _significant_digits(raw: str) -> int:
     digits = re.sub(r"\D", "", raw).lstrip("0")
     return len(digits)
+
+
+def is_coincidence(label_score: float, raw: str) -> bool:
+    """A candidate that rests on nothing but an equal value: the text names no part of the cell and the number is short enough to equal some cell by chance
+    (or by a power of a thousand). Such a candidate stays on offer, but it is not a question the owner needs to answer."""
+    return label_score == 0.0 and _significant_digits(raw) < CHANCE_DIGITS
 
 
 def _near(text: str, span: tuple[int, int] | None) -> tuple[str, tuple[int, int] | None]:

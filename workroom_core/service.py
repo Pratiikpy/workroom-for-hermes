@@ -17,6 +17,7 @@ from .controller.lock import LockTimeout, project_lock
 from .controller.approvals import ApprovalError, sign
 from .build.formats import plain
 from .controller.release import Controller, NotReady, ReleaseError, StaleRelease
+from .match.engine import is_coincidence
 from .project import Plan, Project, is_scene, open_document
 from .store.manifest import MANIFEST_NAME, Anchor, Manifest, ManifestError
 
@@ -249,7 +250,8 @@ class Service:
         return {
             "numbers_found": found.found,
             "accepted": sum(1 for t in ties if t.state == "accepted"),
-            "need_confirmation": [self._tie_view(t) for t in ties if t.state == "confirm"],
+            "need_confirmation": [self._tie_view(t) for t in ties if t.state == "confirm" and not is_coincidence(t.label_score, t.raw)],
+            "coincidences": [self._tie_view(t) for t in ties if t.state == "confirm" and is_coincidence(t.label_score, t.raw)],
             "no_source": found.no_source,
             "kept": found.kept,
             "unreadable": list(found.unreadable),
@@ -260,7 +262,8 @@ class Service:
     @staticmethod
     def _tie_view(t) -> dict[str, Any]:
         return {"id": t.id, "deck": t.deck, "slide": t.slide, "text": t.raw, "sentence": t.context,
-                "source": f"{t.src_file} {t.sheet}!{t.ref}", "state": t.state, "note": t.held_note if t.state == "confirm" else ""}
+                "source": f"{t.src_file} {t.sheet}!{t.ref}", "state": t.state, "note": t.held_note if t.state == "confirm" else "",
+                "coincidence": t.state == "confirm" and is_coincidence(t.label_score, t.raw)}
 
     @_closing
     def ties(self, pid: str) -> list[dict[str, Any]]:

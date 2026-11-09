@@ -341,7 +341,8 @@ function Why({ info, onClose }) {
 }
 
 function Links({ ties, onConfirm, onSkip, onWhy, why, busy }) {
-  const need = ties.filter(t => t.state === 'confirm')
+  const need = ties.filter(t => t.state === 'confirm' && !t.coincidence)
+  const chance = ties.filter(t => t.state === 'confirm' && t.coincidence)
   const done = ties.filter(t => t.state === 'accepted' || t.state === 'confirmed')
   return h('div', { style: { marginTop: 10 } },
     need.length ? h('div', null,
@@ -354,6 +355,12 @@ function Links({ ties, onConfirm, onSkip, onWhy, why, busy }) {
           btn('Yes, that is the source', () => onConfirm(t.id), { disabled: busy, primary: true }),
           btn('No, leave it alone', () => onSkip(t.id), { disabled: busy }),
           btn('Where could it come from?', () => onWhy(t.id), { disabled: busy }))))) : null,
+    chance.length ? h('details', { style: { marginTop: 8 } },
+      h('summary', { style: { cursor: 'pointer' } }, `${chance.length} short number${chance.length === 1 ? '' : 's'} equal to a cell by chance, not asked about`),
+      h('div', { style: { ...css.muted, fontSize: 12, margin: '6px 0' } }, 'Nothing in the text names these cells and the numbers are short enough to match any cell. They are left unlinked unless you say otherwise.'),
+      h('ul', { style: { listStyle: 'none', margin: '6px 0 0', padding: 0 } }, chance.map(t => h('li', { key: t.id, style: { ...css.row, justifyContent: 'space-between', padding: '4px 0', borderTop: '1px solid var(--ui-stroke-tertiary, #8883)' } },
+        h('span', null, h('strong', null, t.text), h('span', { style: css.muted }, `  ${t.sentence || ''} (${t.source})`)),
+        h('span', { style: css.row }, btn('It is this cell', () => onConfirm(t.id), { disabled: busy, name: `Link ${t.text} to ${t.source}` }), btn('Leave it', () => onSkip(t.id), { disabled: busy })))))) : null,
     done.length ? h('details', { style: { marginTop: 8 } },
       h('summary', { style: { cursor: 'pointer' } }, `${done.length} linked number${done.length === 1 ? '' : 's'}`),
       h('ul', { style: { listStyle: 'none', margin: '6px 0 0', padding: 0 } }, done.map(t => h('li', { key: t.id, style: { ...css.row, justifyContent: 'space-between', padding: '4px 0', borderTop: '1px solid var(--ui-stroke-tertiary, #8883)' } },
@@ -640,7 +647,7 @@ function WorkroomPage({ ctx }) {
         h('div', { style: css.row },
           h('span', { style: css.chip }, `${found.numbers_found} numbers found`),
           h('span', { style: { ...css.chip, borderColor: 'var(--ui-green, #16a34a)' } }, `${ties.filter(t => t.state === 'accepted' || t.state === 'confirmed').length} linked`),
-          h('span', { style: css.chip }, `${ties.filter(t => t.state === 'confirm').length} need you`),
+          h('span', { style: css.chip }, `${ties.filter(t => t.state === 'confirm' && !t.coincidence).length} need you`),
           h('span', { style: css.chip }, `${found.no_source} have no source`)),
         found.unreadable && found.unreadable.length ? h('p', { role: 'alert', style: { ...css.muted, margin: '6px 0 0', fontSize: 12, color: 'var(--ui-amber, #d97706)' } }, `${found.unreadable.length} file${found.unreadable.length === 1 ? '' : 's'} could not be read and ${found.unreadable.length === 1 ? 'was' : 'were'} left alone: ${found.unreadable.slice(0, 3).join(', ')}${found.unreadable.length > 3 ? ' and more' : ''}.`) : null,
         found.uncalculated && found.uncalculated.length ? h('p', { role: 'alert', style: { ...css.muted, margin: '6px 0 0', fontSize: 12, color: 'var(--ui-amber, #d97706)' } }, `${found.uncalculated.map(u => `${u.file} has ${u.formulas} formula${u.formulas === 1 ? '' : 's'} with no saved value`).slice(0, 2).join('; ')}. A program wrote that file without calculating it: open it in Excel and save it, then find links again.`) : null,

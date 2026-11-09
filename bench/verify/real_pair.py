@@ -103,6 +103,8 @@ def main() -> None:
     for t in ties:
         states[t["state"]] = states.get(t["state"], 0) + 1
     result["states"] = states
+    result["asked"] = sum(1 for t in ties if t["state"] == "confirm" and not t["coincidence"])
+    result["coincidences_not_asked"] = sum(1 for t in ties if t["state"] == "confirm" and t["coincidence"])
     accepted = [t for t in ties if t["state"] in ("accepted", "confirmed")]
     rows = []
     for t in accepted:
@@ -127,7 +129,7 @@ def main() -> None:
             changed.append({"id": r["id"], "source": r["source"], "old": cur, "new": new, "text": r["text"]})
     result["changed_cells"] = changed
     out.write_text(json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
-    print(json.dumps({k: result[k] for k in ("discover_seconds", "discover", "states")}, indent=1), flush=True)
+    print(json.dumps({k: result[k] for k in ("discover_seconds", "discover", "states", "asked", "coincidences_not_asked")}, indent=1), flush=True)
     print("automatic links:", len(rows), "| cells changed for the release test:", len(changed), flush=True)
     try:
         staged = svc.stage(pid)
