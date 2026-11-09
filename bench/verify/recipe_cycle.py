@@ -31,15 +31,16 @@ def norm(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", re.sub(r"\(.*?\)", "", text.lower())).strip()
 
 
-def figures(docx: Path) -> dict[tuple, str]:
-    """Every figure of a Word report keyed by (section, row heading, column position, nth), so two years can be laid side by side."""
+def figures(docx: Path, by_head: bool = False) -> dict[tuple, str]:
+    """Every figure of a Word report keyed by (section, row heading, column position or column heading, nth), so two years can be laid side by side.
+    Keyed by column heading, a table whose columns were reordered or regrouped between the years still lines up."""
     out: dict[tuple, str] = {}
     seen: collections.Counter = collections.Counter()
     for dm in Doc(docx.read_bytes()).mentions():
         if dm.cell is None or not dm.row_head:
             continue
         ids = DOTTED.findall(dm.section)
-        key = (ids[0] if ids else norm(dm.section), norm(dm.row_head), dm.cell[1])
+        key = (ids[0] if ids else norm(dm.section), norm(dm.row_head), norm(dm.col_head) if by_head else dm.cell[1])
         n = seen[key]
         seen[key] += 1
         out[key + (n,)] = dm.number.raw
@@ -128,9 +129,18 @@ def main() -> None:
         "of_those_updated_to_the_official_figure": sum(1 for k in should if after.get(k) == official[k]),
         "of_those_left_as_last_year": sum(1 for k in should if after.get(k) == before[k]),
     }
-    result["wrong_examples"] = wrong[:40]
+    result["wrong_examples"] = wrong[:400]
+    b_before, b_after, b_official = figures(tmp / "archive" / "statements_y1.docx", True), figures(root / "statements_y2.docx", True), figures(y2_doc, True)
+    by_head_scored = collections.Counter()
+    for k, v in b_after.items():
+        if k in b_before and b_before[k] != v:
+            by_head_scored["changed, no counterpart in the official report" if k not in b_official else ("changed to the official figure" if b_official[k] == v else "changed to something else")] += 1
+    b_should = {k for k in b_before if k in b_official and b_before[k] != b_official[k]}
+    result["score_by_column_heading"] = {"outcomes": dict(by_head_scored), "figures_that_differ_between_the_two_official_years": len(b_should),
+                                         "of_those_updated_to_the_official_figure": sum(1 for k in b_should if b_after.get(k) == b_official[k]),
+                                         "of_those_left_as_last_year": sum(1 for k in b_should if b_after.get(k) == b_before[k])}
     out.write_text(json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
-    print(json.dumps({k: result[k] for k in ("cycle1", "recipe", "cycle2", "score")}, indent=1, ensure_ascii=False))
+    print(json.dumps({k: result[k] for k in ("cycle1", "recipe", "cycle2", "score", "score_by_column_heading")}, indent=1, ensure_ascii=False))
     shutil.rmtree(tmp, ignore_errors=True)
 
 

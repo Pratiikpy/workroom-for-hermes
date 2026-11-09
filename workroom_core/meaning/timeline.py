@@ -25,6 +25,13 @@ def _period_of(labels: tuple[str, ...]) -> Period | None:
     return next(iter(found)) if len(found) == 1 else None
 
 
+def _series_key(cell: SourceCell, axis: str) -> tuple:
+    """Cells of one series share a row (time across the columns) or a column plus the same row headings apart from the period one (time down the rows)."""
+    if axis == "col":
+        return (cell.file, cell.sheet, axis, cell.row)
+    return (cell.file, cell.sheet, axis, cell.col, tuple(x for x in cell.row_labels if parse_period(x) is None))
+
+
 def place(cell: SourceCell) -> Placed | None:
     across, down = _period_of(cell.col_labels), _period_of(cell.row_labels)
     if (across is None) == (down is None):
@@ -42,7 +49,7 @@ class Timeline:
             p = place(c)
             if p is None:
                 continue
-            key = (c.file, c.sheet, p.axis, c.row if p.axis == "col" else c.col)
+            key = _series_key(c, p.axis)
             self._series[key][p.period].append(c)
             self._placed[(c.file, c.sheet, c.ref)] = p
 
@@ -52,7 +59,7 @@ class Timeline:
     def _at(self, p: Placed, period: Period | None) -> SourceCell | None:
         if period is None:
             return None
-        key = (p.cell.file, p.cell.sheet, p.axis, p.cell.row if p.axis == "col" else p.cell.col)
+        key = _series_key(p.cell, p.axis)
         hits = self._series.get(key, {}).get(period, [])
         return hits[0] if len(hits) == 1 else None  # two cells for one period is a conflict, not an answer
 
@@ -78,6 +85,6 @@ class Timeline:
         p = self.placed(cell)
         if p is None:
             return []
-        key = (cell.file, cell.sheet, p.axis, cell.row if p.axis == "col" else cell.col)
+        key = _series_key(cell, p.axis)
         out = [(per, cs[0]) for per, cs in self._series.get(key, {}).items() if len(cs) == 1 and per.kind == p.period.kind and per.index < p.period.index]
         return [c for _, c in sorted(out, key=lambda x: x[0].index)]

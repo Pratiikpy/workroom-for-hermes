@@ -664,7 +664,7 @@ class Service:
 
         from .build.formats import format_value
         from .build.spec import SLOT
-        from .match.numbers import format_like
+        from .match.numbers import format_like, house_of
 
         proj, _ = self._open(pid)
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
@@ -692,7 +692,7 @@ class Service:
                     if dm is None or dm.number.raw != t.raw:
                         reason = "no longer where it was linked"
                     else:
-                        would = format_like(dm.number, float(value), t.transform)
+                        would = format_like(dm.number, float(value), t.transform, house_of(docs[t.deck]))
             except (StopIteration, KeyError, ValueError, OSError, IndexError):
                 reason = "could not be worked out"
             places.append({"deck": t.deck, "text": t.raw, "would_say": would, "decision": "auto" if would else "hold", "reason": reason or "rewritten from the source"})

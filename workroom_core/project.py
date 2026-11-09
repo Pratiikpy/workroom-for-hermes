@@ -22,7 +22,7 @@ from . import recipe
 from .match.engine import Mention, MatchResult, SourceIndex, match_mentions, tokens
 from .match.tables import REASON as TABLE_ALIGNMENT
 from .match.tables import align_tables
-from .match.numbers import _TRANSFORMS, consistent_with_source, format_like, parse_numbers
+from .match.numbers import _TRANSFORMS, consistent_with_source, format_like, house_of, parse_numbers
 from .ooxml.package import PackageError, open_package
 from .ooxml.runs import EditError
 from .ooxml.book import Book
@@ -1018,7 +1018,7 @@ class Project:
                     plan.skipped.append(why)
                     continue
                 shown = self._display_value(t, new)
-                new_text = format_like(dm.number, shown, t.transform)
+                new_text = format_like(dm.number, shown, t.transform, house_of(deck))
                 ok, _ = consistent_with_source(_reparse(new_text), shown)
                 if new_text == t.raw:
                     continue

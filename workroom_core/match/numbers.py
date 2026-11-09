@@ -194,10 +194,52 @@ def _indian(integer_text: str) -> str:
     return ",".join(groups + [last])
 
 
-def format_like(old: NumberMention, new_source_value: float, transform: str) -> str:
+@dataclass(frozen=True)
+class HouseStyle:
+    """How a document writes large and negative figures, for the moment a figure's own text gives no evidence (a 77 that becomes 3,893, a 68 that becomes (59,816))."""
+
+    commas: bool
+    parens: bool
+
+
+_MIN_EVIDENCE = 3
+
+
+def house_style(numbers) -> HouseStyle:
+    with_comma = without = paren = other = 0
+    for n in numbers:
+        if n.aside or not (n.unit == "plain" or n.unit.startswith("currency")):
+            continue
+        if abs(n.value) >= 1000 and not (n.decimals == 0 and 1900 <= abs(n.value) <= 2100 and "," not in n.raw):
+            if "," in n.raw:
+                with_comma += 1
+            else:
+                without += 1
+        if n.negative:
+            if n.raw.lstrip().startswith("("):
+                paren += 1
+            else:
+                other += 1
+    return HouseStyle(commas=with_comma >= _MIN_EVIDENCE and with_comma > 2 * without, parens=paren >= _MIN_EVIDENCE and paren > 2 * other)
+
+
+def house_of(doc) -> HouseStyle:
+    """The house style of a document, worked out once from every figure it holds."""
+    cached = getattr(doc, "_house_style", None)
+    if cached is None:
+        cached = house_style(m.number for m in doc.mentions())
+        try:
+            doc._house_style = cached
+        except AttributeError:
+            pass
+    return cached
+
+
+def format_like(old: NumberMention, new_source_value: float, transform: str, house: HouseStyle | None = None) -> str:
     """Write ``new_source_value`` the way ``old`` was written: same affixes, decimals, separators and sign style.
 
-    ``transform`` is the one the matcher found when it linked the mention to its source (see consistent_with_source).
+    ``transform`` is the one the matcher found when it linked the mention to its source (see consistent_with_source). ``house`` fills in what the old text cannot say:
+    a small figure carries no thousands separator and a positive one no brackets, yet the document writes 3,893 and (59,816).
     """
     shown = _TRANSFORMS[transform](new_source_value, old.scale)
     if old.aside:
@@ -206,7 +248,7 @@ def format_like(old: NumberMention, new_source_value: float, transform: str) -> 
         pre, post = old.raw[1:m.start()], old.raw[m.end():-1]
         return f"({'-' if shown < 0 and float(body.replace(',', '')) != 0 else ''}{pre}{body}{post})"
     rounded = display_round(abs(shown), old.decimals)
-    use_commas = "," in old.raw
+    use_commas = "," in old.raw or bool(house and house.commas and abs(old.value) < 1000 and rounded >= 1000)
     body = f"{rounded:,.{old.decimals}f}" if use_commas else f"{rounded:.{old.decimals}f}"
     if use_commas and re.search(r"\d{1,2}(?:,\d{2})+,\d{3}", old.raw):
         whole, _, frac = f"{rounded:.{old.decimals}f}".partition(".")
@@ -219,5 +261,6 @@ def format_like(old: NumberMention, new_source_value: float, transform: str) -> 
     explicit = old.raw.lstrip()[:1] in ("+", "-", "−", "–")  # a column of changes written with its sign keeps its sign style
     if shown < 0 and rounded != 0:
         minus = old.raw.lstrip()[:1] if old.raw.lstrip()[:1] in ("-", "−", "–") else "-"
-        return f"({prefix}{body}{suffix})" if old.raw.lstrip().startswith("(") else f"{minus}{prefix}{body}{suffix}"
+        brackets = old.raw.lstrip().startswith("(") or bool(house and house.parens and not explicit and not old.negative)
+        return f"({prefix}{body}{suffix})" if brackets else f"{minus}{prefix}{body}{suffix}"
     return f"{'+' if explicit and rounded != 0 else ''}{prefix}{body}{suffix}"

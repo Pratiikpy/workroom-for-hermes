@@ -265,6 +265,50 @@ def footnoted_number(text: str) -> float | None:
     return -value if (m.group("sign") or (m.group("open") and m.group("close"))) else value
 
 
+_YEARS = range(1950, 2101)
+
+
+def _is_year(value: float) -> bool:
+    return float(value).is_integer() and int(value) in _YEARS
+
+
+def _year_headings(numbers: list, strings: dict[tuple[int, int], str]) -> tuple[dict, list[tuple[int, int]]]:
+    """Years printed as numbers that act as headings. ``header_years`` maps a column to its (row, year) headings, taken from rows whose every number is a
+    year (a heading row such as 2024 | 2023 above a column of figures); ``dividers`` lists (row, year) for a year alone on its row at the left edge, which opens a block of rows."""
+    by_row: dict[int, list] = {}
+    for n in numbers:
+        by_row.setdefault(n[0], []).append(n)
+    text_rows = {r for r, _ in strings}
+    header_years: dict = {"cells": set()}
+    dividers: list[tuple[int, int]] = []
+    for r, cells in by_row.items():
+        if not all(_is_year(n[3]) and not n[5] for n in cells):
+            continue
+        if len(cells) == 1 and cells[0][1] <= 2 and r not in text_rows:
+            dividers.append((r, int(cells[0][3])))
+            continue
+        for n in cells:
+            header_years.setdefault(n[1], []).append((r, int(n[3])))
+            header_years["cells"].add((r, n[1]))
+    for key, vals in header_years.items():
+        if key != "cells":
+            vals.sort()
+    dividers.sort()
+    return header_years, dividers
+
+
+def _nearest_above(entries: list[tuple[int, int]] | None, row: int) -> int | None:
+    if not entries:
+        return None
+    hit = None
+    for r, y in entries:
+        if r < row:
+            hit = y
+        else:
+            break
+    return hit
+
+
 def index_workbook(pkg: Package, max_cells: int = 500_000, file: str = "", stats: dict | None = None) -> list[SourceCell]:
     """Every numeric cell with the text labels on its row and column. Dates are flagged; cells in hidden rows, hidden columns and hidden
     sheets are flagged hidden. Rows and cells that omit their position (legal in the format) are placed in reading order. When ``stats`` is
@@ -330,10 +374,18 @@ def index_workbook(pkg: Package, max_cells: int = 500_000, file: str = "", stats
                 rows_by.setdefault(r, []).append((c, s))
                 cols_by.setdefault(c, []).append((r, s))
         share: dict[tuple[str, ...], tuple[str, ...]] = {}  # cells of one row or column hold the same label tuples; keep one copy of each
+        header_years, dividers = _year_headings(numbers, strings)
         for r_, c_, ref, val, isf, isd, hid in numbers:
             row_labels = tuple(s for cc, s in sorted(rows_by.get(r_, []), key=lambda t: -t[0]) if cc < c_)[:3]
             above = sorted((rr, s) for rr, s in cols_by.get(c_, []) if rr < r_)
             col_labels = tuple(dict.fromkeys([s for _, s in reversed(above)][:2] + ([above[0][1]] if above else [])))
+            year = _nearest_above(header_years.get(c_), r_)
+            if year is not None and (r_, c_) not in header_years.get("cells", ()):
+                col_labels = tuple(dict.fromkeys(col_labels + (str(year),)))  # a year printed as a number heads its column like a year printed as text
+            elif year is None:
+                block = _nearest_above(dividers, r_)
+                if block is not None:
+                    row_labels = tuple(dict.fromkeys(row_labels + (str(block),)))  # a year alone on its row opens a block of rows
             row_labels = share.setdefault(row_labels, row_labels)
             col_labels = share.setdefault(col_labels, col_labels)
             out.append(SourceCell(sh.name, ref, r_, c_, val, isf, isd, row_labels, col_labels, hid, file))

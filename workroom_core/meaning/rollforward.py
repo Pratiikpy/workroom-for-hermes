@@ -14,7 +14,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from ..match.numbers import consistent_with_source, format_like
+from ..match.numbers import consistent_with_source, format_like, house_of
 from .calc import evaluate
 from .periods import Period, describe_period, find_periods, parse_period, period_label
 from .timeline import Timeline
@@ -190,7 +190,7 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
                 plan.blocked.append(f"{rel} slide {t.slide}: '{t.raw}' is no longer where it was linked; discover again before rolling forward")
                 continue
             shown = project._display_value(t, it["new_value"])
-            new_text = format_like(dm.number, shown, t.transform)
+            new_text = format_like(dm.number, shown, t.transform, house_of(doc))
             ok, _ = consistent_with_source(_reparse(new_text), shown)
             if not ok:
                 plan.blocked.append(f"{rel} slide {t.slide}: could not write {it['new_value']} as '{new_text}' faithfully")
