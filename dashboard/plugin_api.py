@@ -169,6 +169,16 @@ async def instruction_apply(body: InstructionBody) -> dict:
     return _guard(lambda: _service().apply_instruction_proposal(body.project, body.proposal))
 
 
+class RecordBody(BaseModel):
+    project: str
+    release_id: str = ""
+
+
+@router.post("/release-record")
+async def release_record(body: RecordBody) -> dict:
+    return _guard(lambda: _service().release_record(body.project, body.release_id))
+
+
 class ReviewBody(BaseModel):
     project: str
     deck: str = ""

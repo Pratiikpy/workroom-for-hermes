@@ -17,6 +17,7 @@ from .controller.lock import LockTimeout, project_lock
 from .controller.approvals import ApprovalError, sign
 from .build.formats import plain
 from .controller.release import Controller, NotReady, ReleaseError, StaleRelease
+from . import dossier as dossier_mod
 from . import recipe as recipe_mod
 from . import review as review_mod
 from .match.engine import is_coincidence
@@ -517,6 +518,28 @@ class Service:
             out.append({"created": bool(meta_doc.get("created")), "release_id": rid, "published_at": ctl.journal.when(rid, "PUBLISHED"), "changes": changes,
                         "restored": "ROLLED_BACK" in steps[steps.index("PUBLISHED"):]})
         return list(reversed(out))
+
+    @_closing
+    def release_record(self, pid: str, release_id: str) -> dict[str, Any]:
+        """The dossier of one published release: what changed, the files by hash, the checks that ran, who approved it, and how to restore it."""
+        import re
+
+        if not re.fullmatch(r"[0-9a-f]{16}", release_id or ""):
+            raise ServiceError("not a release id")
+        proj, ctl = self._open(pid)
+        pid = self._resolve(pid)
+        rows = ctl.journal.rows(release_id)
+        steps = [r.step for r in rows]
+        if "PUBLISHED" not in steps:
+            raise ServiceError("that release was not published")
+        meta_path = self.data_dir / "projects" / pid / "meta" / f"{release_id}.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+        times = {s: ctl.journal.when(release_id, s) for s in ("STAGED", "VERIFIED", "APPROVED", "PUBLISHED")}
+        approval = next((r.detail for r in rows if r.step == "APPROVED"), {})
+        staged = next((r.detail.get("changes", []) for r in rows if r.step == "STAGED"), [])
+        restored = ctl.journal.when(release_id, "ROLLED_BACK") if "ROLLED_BACK" in steps[steps.index("PUBLISHED"):] else None
+        data = dossier_mod.build(pid, release_id, meta, times, approval, ctl.digest(release_id), staged, restored)
+        return {"data": data, "text": dossier_mod.text(data)}
 
     @_closing
     def restore_release(self, pid: str, release_id: str, principal: str = DESKTOP_PRINCIPAL) -> dict[str, Any]:

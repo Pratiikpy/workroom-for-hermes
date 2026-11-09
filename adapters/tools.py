@@ -52,6 +52,13 @@ STAGE_SCHEMA = {
 }
 
 
+RECORD_SCHEMA = {
+    "name": "workroom_release_record",
+    "description": ("The record of one published release: every figure that changed with its source cell, the files by hash, the checks that ran, found something or could not run, "
+                    "what was held back, who approved it and how to restore it. Read-only."),
+    "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "release": {"type": "string", "description": "Release id from the past releases list"}}, "required": ["project", "release"]},
+}
+
 RECIPE_PROPOSE_SCHEMA = {
     "name": "workroom_recipe_propose",
     "description": ("Propose one report as the model for a recurring report: its accepted and confirmed links are snapshotted so that a copy of it is linked to the same sources "
@@ -222,3 +229,4 @@ def _directive(staged: dict[str, Any]) -> str:
     return '::workroom-release{project="%s" release="%s"}' % (staged.get("project", ""), staged.get("release_id", ""))
 workroom_recipe_propose = _wrap(lambda a: service().recipe_propose(a["project"], a["report"]))
 workroom_recipe_status = _wrap(lambda a: service().recipe_status(a["project"]))
+workroom_release_record = _wrap(lambda a: service().release_record(a["project"], a["release"]))

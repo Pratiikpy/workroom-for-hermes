@@ -32,6 +32,7 @@ provides_tools:
   - workroom_export_page
   - workroom_where_used
   - workroom_what_if
+  - workroom_release_record
   - workroom_recipe_status
   - workroom_recipe_propose
 provides_hooks:

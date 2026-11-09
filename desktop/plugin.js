@@ -630,6 +630,17 @@ function ReviewRoom({ api, pid }) {
           h('button', { type: 'button', onClick: () => choose(m), style: { all: 'unset', cursor: 'pointer', textDecoration: 'underline', color: 'inherit' } }, markLabel(m, side))))))) : null)
 }
 
+function ReleaseRecord({ api, pid, releaseId }) {
+  const [text, setText] = useState(null)
+  const [error, setError] = useState(null)
+  const load = () => api('/release-record', { project: pid, release_id: releaseId }).then(r => setText(r.text)).catch(e => setError(String(e && e.message ? e.message : e)))
+  if (error) return h('span', { role: 'alert', style: { color: 'var(--ui-red, #dc2626)', fontSize: 12 } }, error)
+  if (text === null) return btn('Open the record', load, { name: 'Open the record of this release' })
+  return h('details', { open: true, style: { width: '100%' } },
+    h('summary', { style: css.muted }, 'The record of this release'),
+    h('pre', { style: { whiteSpace: 'pre-wrap', fontSize: 12, margin: '6px 0', padding: 8, border: '1px solid var(--ui-stroke-secondary, #8884)', borderRadius: 6, maxHeight: 360, overflow: 'auto' }, tabIndex: 0, 'aria-label': 'Release record' }, text))
+}
+
 function WorkroomPage({ ctx }) {
   const api = useCallback((path, body) => ctx.rest(path, body === undefined ? undefined : { method: 'POST', body }), [ctx])
   const [projects, setProjects] = useState([])
@@ -810,7 +821,7 @@ function WorkroomPage({ ctx }) {
           h('summary', { style: { ...css.muted, cursor: 'pointer' } }, 'Moving to the next period?'),
           h('p', { style: { ...css.muted, margin: '6px 0 8px' } }, 'When the workbook has the next period, Workroom can move every linked number to it and advance the period words beside them (Q3 2026 becomes Q4 2026). You approve it once, and Restore undoes the whole move. It refuses, naming each number, if any has no value for the next period.'),
           btn('Roll forward one period', rollForward, { disabled: busy }))) : null) : null,
-    pid && found ? h(ReviewRoom, { api, pid }) : null,
+    pid && found ? h(ReviewRoom, { key: 'room-' + past.length, api, pid }) : null,
     release ? h('section', { style: { ...css.card, borderColor: 'var(--ui-accent, #3b82f6)' }, 'aria-label': 'Release' },
       h('h2', { style: css.h2 }, '3. Approve the release'),
       release.state === 'blocked'
@@ -848,6 +859,7 @@ function WorkroomPage({ ctx }) {
       h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'Restoring puts the files of that release back as they were before it. It is refused if you have worked in those files since, so nothing you did later is overwritten.'),
       past.map(r => h('div', { key: r.release_id, style: { ...css.row, justifyContent: 'space-between', padding: '4px 0' } },
         h('span', { style: { fontSize: 13 } }, `${new Date(r.published_at * 1000).toLocaleString()} · ${r.created ? 'created ' + r.changes[0].deck : r.changes.length + ' number' + (r.changes.length === 1 ? '' : 's')}${r.restored ? ' · restored' : ''}`),
+        h(ReleaseRecord, { api, pid, releaseId: r.release_id }),
         r.restored ? null : confirmRestore === r.release_id
           ? h('span', { style: css.row }, btn(r.created ? 'Yes, remove this file' : 'Yes, restore these files', () => restoreRelease(r.release_id), { disabled: busy, primary: true }), btn('Cancel', () => setConfirmRestore(null), { disabled: busy }))
           : btn('Restore', () => setConfirmRestore(r.release_id), { disabled: busy })))) : null,
