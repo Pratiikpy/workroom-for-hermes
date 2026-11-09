@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .build.formats import plain
+from . import recipe
 from .match.engine import Mention, MatchResult, SourceIndex, match_mentions, tokens
 from .match.tables import REASON as TABLE_ALIGNMENT
 from .match.tables import align_tables
@@ -535,6 +536,8 @@ class Project:
         self.relocate_sources()
         index = self.source_index()
         self._seed_snapshot(index.cells)
+        for p in self._files(DECK_EXT):
+            recipe.carry(self, self._rel(p))  # a copy of the model report starts with the model's links; each is checked against the copy below
         existing = self.ties()
         kept_ids: set[int] = set()
         found = no_source = kept = reanchored = 0

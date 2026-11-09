@@ -13,15 +13,15 @@ from datetime import date
 
 _MONTHS = {m: i + 1 for i, m in enumerate(("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"))}
 _ORD = {"first": 1, "second": 2, "third": 3, "fourth": 4, "1st": 1, "2nd": 2, "3rd": 3, "4th": 4}
-_STEP = {"q": 4, "m": 12, "h": 2, "y": 1}  # how many periods of this kind make a year
+_STEP = {"q": 4, "m": 12, "h": 2, "y": 1, "dt": 1}  # how many periods of this kind make a year
 _NAME = {"q": "quarter", "m": "month", "h": "half", "y": "year"}
 
 
 @dataclass(frozen=True)
 class Period:
-    kind: str   # q (quarter) | m (month) | h (half-year) | y (year) | ytd (year to date, tagged with its length in months)
+    kind: str   # q (quarter) | m (month) | h (half-year) | y (year) | ytd (year to date, tagged with its length in months) | dt (a dated point such as 30 June 2025)
     index: int  # position on the kind's own number line
-    months: int = 0  # only for ytd
+    months: int = 0  # ytd: the length in months; dt: month * 100 + day, so 30 June 2025 and 1 July 2025 are different series that each step a year
 
     def shifted(self, n: int) -> Period:
         return Period(self.kind, self.index + n, self.months)
@@ -53,6 +53,7 @@ _H1 = re.compile(r"\bh\s*([12])\s*[-'’ /]?\s*(?:fy\s*)?((?:19|20)?\d{2})\b", r
 _H2 = re.compile(r"\b(first|second)\s+half(?:\s+of)?\s+(?:fiscal\s+|fy\s*)?((?:19|20)\d{2})\b", re.I)
 _FY = re.compile(r"\b(?:fy|fiscal(?:\s+year)?)\s*[-'’ ]?\s*((?:19|20)?\d{2})\b", re.I)
 _MON = re.compile(r"\b((?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?))\.?[ \t\-’']*((?:19|20)?\d{2})\b", re.I)
+_DMY = re.compile(r"\b(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept?|oct|nov|dec)\.?,?\s+((?:19|20)\d{2})\b", re.I)
 _ISO_M = re.compile(r"^\s*((?:19|20)\d{2})[-/](0?[1-9]|1[0-2])\s*$")
 _ENDED = re.compile(r"\b(three|six|nine|twelve|3|6|9|12)\s+months?\s+ended\s+(.+)", re.I)
 _DATE_ISO = re.compile(r"((?:19|20)\d{2})-(\d{2})-(\d{2})")
@@ -115,6 +116,10 @@ def parse_period(label: str) -> Period | None:
             if yr:
                 found.append(Period("y", yr))
     if not found:
+        for day, mon, y in _DMY.findall(text):
+            if 1 <= int(day) <= 31:
+                found.append(Period("dt", int(y), _MONTHS[mon[:3].lower()] * 100 + int(day)))
+    if not found:
         for mon, y in _MON.findall(text):
             yr = _year(y)
             if yr:
@@ -170,6 +175,10 @@ def period_label(p: Period, template: str) -> str:
                 return out[:m.start(1)] + fix_year(ytxt, p.index, len(ytxt) == 2) + out[m.end(1):]
         if re.fullmatch(r"(?:19|20)\d{2}", out.strip()):
             return str(p.index)
+    if p.kind == "dt":
+        m = _DMY.search(out)
+        if m:
+            return out[:m.start(3)] + str(p.index) + out[m.end(3):]
     if p.kind == "m":
         m = _MON.search(out)
         if m:
@@ -185,7 +194,7 @@ def period_label(p: Period, template: str) -> str:
 def find_periods(text: str) -> list[tuple[int, int, Period]]:
     """Every period named in a stretch of prose, left to right, as (start, end, period). A match that does not read as exactly one period is skipped."""
     spans: list[tuple[int, int]] = []
-    for rx in (_Q3, _Q1, _Q2, _H2, _H1, _FY, _MON):
+    for rx in (_Q3, _Q1, _Q2, _H2, _H1, _FY, _DMY, _MON):
         for m in rx.finditer(text):
             spans.append((m.start(), m.end()))
     spans.sort(key=lambda x: (x[0], -(x[1] - x[0])))
@@ -211,4 +220,6 @@ def describe_period(p: Period) -> str:
         return f"H{p.index % 2 + 1} {p.index // 2}"
     if p.kind == "y":
         return f"FY{p.index}"
+    if p.kind == "dt":
+        return f"{p.months % 100} {('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')[p.months // 100 - 1]} {p.index}"
     return f"{p.months} months to {(p.index % 12) + 1}/{p.index // 12}"

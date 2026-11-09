@@ -52,6 +52,20 @@ STAGE_SCHEMA = {
 }
 
 
+RECIPE_PROPOSE_SCHEMA = {
+    "name": "workroom_recipe_propose",
+    "description": ("Propose one report as the model for a recurring report: its accepted and confirmed links are snapshotted so that a copy of it is linked to the same sources "
+                    "in one step. This changes nothing; only the owner can make it the recipe, in the Workroom tab."),
+    "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "report": {"type": "string", "description": "The report file, relative to the project folder"}}, "required": ["project", "report"]},
+}
+
+RECIPE_STATUS_SCHEMA = {
+    "name": "workroom_recipe_status",
+    "description": "Which recipe is active for a project (its model report, how many links, who approved it, when), its history and the proposals waiting for the owner. Read-only.",
+    "parameters": PROJECT_ONLY,
+}
+
+
 ROLL_SCHEMA = {
     "name": "workroom_roll_forward",
     "description": ("Prepare one release that rolls the project's documents forward to the next reporting period: every linked figure moves to the same row's next period column, "
@@ -206,3 +220,5 @@ def _stage_summary(staged: dict[str, Any]) -> dict[str, Any]:
 
 def _directive(staged: dict[str, Any]) -> str:
     return '::workroom-release{project="%s" release="%s"}' % (staged.get("project", ""), staged.get("release_id", ""))
+workroom_recipe_propose = _wrap(lambda a: service().recipe_propose(a["project"], a["report"]))
+workroom_recipe_status = _wrap(lambda a: service().recipe_status(a["project"]))

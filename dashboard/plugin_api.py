@@ -169,6 +169,33 @@ async def instruction_apply(body: InstructionBody) -> dict:
     return _guard(lambda: _service().apply_instruction_proposal(body.project, body.proposal))
 
 
+class RecipeBody(BaseModel):
+    project: str
+    deck: str = ""
+    proposal: str = ""
+    digest: str = ""
+
+
+@router.post("/recipe")
+async def recipe_status(body: RecipeBody) -> dict:
+    return _guard(lambda: _service().recipe_status(body.project))
+
+
+@router.post("/recipe-propose")
+async def recipe_propose(body: RecipeBody) -> dict:
+    return _guard(lambda: _service().recipe_propose(body.project, body.deck))
+
+
+@router.post("/recipe-approve")
+async def recipe_approve(body: RecipeBody) -> dict:
+    return _guard(lambda: _service().recipe_approve(body.project, body.proposal, body.digest))
+
+
+@router.post("/recipe-revoke")
+async def recipe_revoke(body: RecipeBody) -> dict:
+    return _guard(lambda: _service().recipe_revoke(body.project))
+
+
 class SceneBody(BaseModel):
     project: str
     path: str = ""

@@ -30,6 +30,8 @@ TOOLS = (
     ("workroom_where_used", tools.WHERE_USED_SCHEMA, tools.workroom_where_used, "Where is a source cell used.", READ_ONLY_TOOLSET),
     ("workroom_what_if", tools.WHAT_IF_SCHEMA, tools.workroom_what_if, "What would change if a cell had another value.", READ_ONLY_TOOLSET),
     ("workroom_explain_figure", tools.EXPLAIN_SCHEMA, tools.workroom_explain_figure, "Explain where a number came from.", READ_ONLY_TOOLSET),
+    ("workroom_recipe_status", tools.RECIPE_STATUS_SCHEMA, tools.workroom_recipe_status, "Which recipe is active for a project.", READ_ONLY_TOOLSET),
+    ("workroom_recipe_propose", tools.RECIPE_PROPOSE_SCHEMA, tools.workroom_recipe_propose, "Propose a report as the model for a recurring report.", FULL_TOOLSET),
 )
 
 

@@ -17,6 +17,7 @@ from .controller.lock import LockTimeout, project_lock
 from .controller.approvals import ApprovalError, sign
 from .build.formats import plain
 from .controller.release import Controller, NotReady, ReleaseError, StaleRelease
+from . import recipe as recipe_mod
 from .match.engine import is_coincidence
 from .project import Plan, Project, is_scene, open_document
 from .store.manifest import MANIFEST_NAME, Anchor, Manifest, ManifestError
@@ -275,6 +276,14 @@ class Service:
         proj, _ = self._open(pid)
         proj.skip(tie_id)
 
+    @staticmethod
+    def _how_linked(t, default: str) -> str:
+        if t.state == "accepted" and t.basis == "aligned":
+            return "Workroom linked it because this whole column of the table agrees with one column of that sheet, row by row, under the same row headings, and no other column fits as well."
+        if t.state == "accepted" and t.basis == "recipe":
+            return "Workroom linked it because it sits where it sat in the model report you approved as the recipe, and that figure came from this cell."
+        return default
+
     @_closing
     def explain(self, pid: str, tie_id: int) -> dict[str, Any]:
         """Ask Why: where a number came from, how it was linked, and what would happen if the source changed."""
@@ -301,7 +310,7 @@ class Service:
             "text": t.raw, "sentence": t.context, "deck": t.deck, "slide": t.slide,
             "source": {"file": t.src_file, "sheet": t.sheet, "cell": t.ref, "row": list(row_labels), "column": list(col_labels),
                        "formula": cell.formula, "value_now": current, "value_at_last_release": t.linked_value},
-            "state": t.state, "how": ("Workroom linked it because this whole column of the table agrees with one column of that sheet, row by row, under the same row headings, and no other column fits as well." if t.basis == "aligned" and t.state == "accepted" else how), "source_changed_since_last_release": changed,
+            "state": t.state, "how": self._how_linked(t, how), "source_changed_since_last_release": changed,
             "displayed_as": t.transform,
             "if_source_changes": "The number in the document would be rewritten in the same style after you approve a release." if t.state in ("accepted", "confirmed") else "Nothing changes: this link is not active.",
         }
@@ -862,6 +871,75 @@ class Service:
         path.write_bytes(doc["text"].encode("utf-8"))
         pfile.unlink()
         return self.authorise_instruction(pid, doc["name"], hashlib.sha256(doc["text"].encode("utf-8")).hexdigest())
+
+    # ---- the reporting recipe: a model report whose links a copy inherits ----
+    def _recipe_dir(self, pid: str) -> Path:
+        return self.data_dir / "projects" / pid / "recipes"
+
+    @_closing
+    def recipe_propose(self, pid: str, deck: str) -> dict[str, Any]:
+        """Agent or owner route: snapshot the accepted and confirmed links of one report as a proposed recipe. Stored outside the project; changes nothing."""
+        proj, _ = self._open(pid)
+        pid = self._resolve(pid)
+        try:
+            doc = recipe_mod.propose(proj, deck)
+        except recipe_mod.RecipeError as exc:
+            raise ServiceError(str(exc)) from exc
+        folder = self._recipe_dir(pid)
+        folder.mkdir(parents=True, exist_ok=True)
+        pid_ = doc["digest"][:16]
+        (folder / f"{pid_}.json").write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+        return {"proposal": pid_, "digest": doc["digest"], "model": doc["model"], "links": len(doc["rules"]), "sources": doc["sources"], "left_out": doc["left_out"],
+                "next": "Only the owner can make this the recipe (Workroom tab, Recipe). Until then nothing changes."}
+
+    @_closing
+    def recipe_status(self, pid: str) -> dict[str, Any]:
+        """The active recipe, its history and the proposals waiting for the owner. No rule text is returned."""
+        proj, _ = self._open(pid)
+        pid = self._resolve(pid)
+        active = recipe_mod.current(proj)
+        pending = []
+        folder = self._recipe_dir(pid)
+        for f in sorted(folder.glob("*.json")) if folder.is_dir() else []:
+            try:
+                doc = json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if active and doc.get("digest") == active["digest"]:
+                continue
+            pending.append({"proposal": f.stem, "model": doc.get("model"), "links": len(doc.get("rules", [])), "digest": doc.get("digest"), "left_out": doc.get("left_out", {})})
+        return {
+            "active": None if active is None else {"version": active["version"], "model": active["doc"]["model"], "links": len(active["doc"]["rules"]), "digest": active["digest"],
+                                                  "approved_at": active["approved_at"], "approver": active["approver"], "sources": active["doc"]["sources"]},
+            "history": recipe_mod.history(proj), "pending": pending,
+        }
+
+    @_closing
+    def recipe_approve(self, pid: str, proposal: str, digest: str, principal: str = DESKTOP_PRINCIPAL) -> dict[str, Any]:
+        """Owner route (never an agent tool): make a proposed recipe the active one. Bound to the digest the owner was shown."""
+        import re
+
+        proj, _ = self._open(pid)
+        pid = self._resolve(pid)
+        if not re.fullmatch(r"[0-9a-f]{16}", proposal or ""):
+            raise ServiceError("not a proposal id")
+        f = self._recipe_dir(pid) / f"{proposal}.json"
+        if not f.is_file():
+            raise ServiceError("unknown recipe proposal")
+        doc = json.loads(f.read_text(encoding="utf-8"))
+        if doc.get("digest") != digest:
+            raise ServiceError("this is not the recipe you were shown; read it again")
+        try:
+            return recipe_mod.install(proj, doc, principal)
+        except recipe_mod.RecipeError as exc:
+            raise ServiceError(str(exc)) from exc
+
+    @_closing
+    def recipe_revoke(self, pid: str) -> dict[str, Any]:
+        """Owner route: stop using the recipe. Links already made stay; new copies get none."""
+        proj, _ = self._open(pid)
+        recipe_mod.revoke(proj)
+        return {"active": None}
 
     # ---- visual pages: drafts, edits, save ----
     def _scene_paths(self, pid: str, proj: Project, rel: str) -> tuple[Path, Path]:
