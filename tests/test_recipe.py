@@ -209,3 +209,91 @@ def test_a_table_that_lost_a_source_is_not_half_updated_and_an_acknowledgement_c
     after = texts((root / "report.docx").read_bytes())
     assert "120" in after and "150" not in after[2:5] + after[5:8]  # the table kept every old figure
     assert "Revenue in Q2 was 150 for the year." in after  # the sentence is not in the broken table and follows the workbook
+
+
+def _window_project(tmp_path: Path, columns: list[str], values: list[list[int]]):
+    import io
+
+    import openpyxl
+    from docx import Document
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Results"
+    ws.append(["Line", *columns])
+    for name, row in zip(("Revenue", "Costs", "Margin"), values):
+        ws.append([name, *row])
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def test_a_copy_is_refreshed_from_a_workbook_whose_window_of_years_has_slid(tmp_path: Path) -> None:
+    import io
+
+    from docx import Document
+
+    root = tmp_path / "proj"
+    root.mkdir()
+    (root / "data.xlsx").write_bytes(_window_project(tmp_path, ["2024", "2023"], [[500, 410], [300, 250], [200, 160]]))
+    d = Document()
+    d.add_paragraph("Results")
+    t = d.add_table(rows=4, cols=3)
+    for c, v in enumerate(["Line", "2024", "2023"]):
+        t.cell(0, c).text = v
+    for r, (name, a, b) in enumerate((("Revenue", 500, 410), ("Costs", 300, 250), ("Margin", 200, 160)), 1):
+        t.cell(r, 0).text, t.cell(r, 1).text, t.cell(r, 2).text = name, str(a), str(b)
+    buf = io.BytesIO()
+    d.save(buf)
+    (root / "report_2024.docx").write_bytes(buf.getvalue())
+    svc = Service(tmp_path / "data")
+    pid = svc.add_project(str(root))["project"]
+    svc.discover(pid)
+    approved(svc, pid, "report_2024.docx")
+    # next year: the model is put away, a copy is made, and the workbook now holds 2025 and 2024
+    (root / "report_2025.docx").write_bytes((root / "report_2024.docx").read_bytes())
+    away = tmp_path / "away"
+    away.mkdir()
+    (root / "report_2024.docx").replace(away / "report_2024.docx")
+    (root / "data.xlsx").write_bytes(_window_project(tmp_path, ["2025", "2024"], [[620, 500], [350, 300], [270, 200]]))
+    svc.discover(pid)
+    staged = svc.stage_rollforward(pid, 1, window=True)
+    assert staged["state"] == "awaiting_approval" and staged["figures"] == 6
+    svc.approve_and_publish(pid, staged["release_id"], staged["digest"])
+    cells = texts((root / "report_2025.docx").read_bytes())[1:]  # the first text is the heading paragraph
+    assert cells[:3] == ["Line", "2025", "2024"]  # the period words moved with the figures
+    assert cells[3:] == ["Revenue", "620", "500", "Costs", "350", "300", "Margin", "270", "200"]
+    assert svc.plan(pid)["changes"] == []  # nothing is out of step afterwards
+
+
+def test_a_window_refresh_leaves_a_figure_alone_when_the_workbook_no_longer_holds_its_new_period(tmp_path: Path) -> None:
+    import io
+
+    from docx import Document
+
+    root = tmp_path / "proj"
+    root.mkdir()
+    (root / "data.xlsx").write_bytes(_window_project(tmp_path, ["2024", "2023"], [[500, 410], [300, 250], [200, 160]]))
+    d = Document()
+    d.add_paragraph("Results")
+    t = d.add_table(rows=4, cols=3)
+    for c, v in enumerate(["Line", "2024", "2023"]):
+        t.cell(0, c).text = v
+    for r, (name, a, b) in enumerate((("Revenue", 500, 410), ("Costs", 300, 250), ("Margin", 200, 160)), 1):
+        t.cell(r, 0).text, t.cell(r, 1).text, t.cell(r, 2).text = name, str(a), str(b)
+    buf = io.BytesIO()
+    d.save(buf)
+    (root / "report_2024.docx").write_bytes(buf.getvalue())
+    svc = Service(tmp_path / "data")
+    pid = svc.add_project(str(root))["project"]
+    svc.discover(pid)
+    approved(svc, pid, "report_2024.docx")
+    (root / "report_2025.docx").write_bytes((root / "report_2024.docx").read_bytes())
+    away = tmp_path / "away"
+    away.mkdir()
+    (root / "report_2024.docx").replace(away / "report_2024.docx")
+    (root / "data.xlsx").write_bytes(_window_project(tmp_path, ["2024"], [[500], [300], [200]]))  # 2025 has not arrived yet
+    svc.discover(pid)
+    staged = svc.stage_rollforward(pid, 1, window=True)
+    assert staged["figures"] == 3  # last year's column can move to 2024, which the workbook holds; this year's has no 2025 yet
+    assert len([h for h in staged["held"] if "no FY2025 value" in h or "2025" in h]) == 3 and all("keeps the figure as written" in h for h in staged["held"])

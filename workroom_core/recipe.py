@@ -121,10 +121,10 @@ def carry(project: Project, deck: str) -> int:
         for r in active["doc"]["rules"]:
             project.db.execute(
                 "INSERT INTO ties (deck, slide, shape_id, para, seg, offset, cell_rc, raw, state, src_file, sheet, ref, transform, linked_value, label_score, context,"
-                " slide_uid, fp_near, anchor, basis, receipt, kind, chart, formula, src_labels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                " slide_uid, fp_near, anchor, basis, receipt, kind, chart, formula, src_labels, intent_labels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (deck, r["slide"], r["shape_id"], r["para"], r["seg"], r["offset"], json.dumps(r["cell_rc"]), r["raw"], "accepted", r["src_file"], r["sheet"], r["ref"],
                  r["transform"], r["linked_value"], r["label_score"], r["context"], r["slide_uid"], r["fp_near"], "exact", "matched" if r["kind"] == "chart" else "recipe", "", r["kind"], r["chart"],
-                 r["formula"], r["src_labels"]),
+                 r["formula"], r["src_labels"], r["src_labels"]),
             )
             made += 1
     return made

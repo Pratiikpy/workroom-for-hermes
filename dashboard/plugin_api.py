@@ -41,6 +41,7 @@ class ReleaseBody(BaseModel):
 
 
 class RollBody(BaseModel):
+    window: bool = False
     project: str = Field(min_length=1, max_length=64)
     periods: int = Field(default=1, ge=1, le=4)
 
@@ -384,4 +385,4 @@ async def finding_decision(body: FindingBody) -> dict:
 @router.post("/stage-rollforward")
 async def stage_rollforward(body: RollBody) -> dict:
     """Prepares a release that moves the documents to the next reporting period. It approves nothing."""
-    return _guard(lambda: _service().stage_rollforward(body.project, body.periods))
+    return _guard(lambda: _service().stage_rollforward(body.project, body.periods, body.window))

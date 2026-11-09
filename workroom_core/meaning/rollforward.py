@@ -9,13 +9,14 @@ word that cannot be moved is listed, not left to be found later.
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from ..match.numbers import consistent_with_source, format_like
 from .calc import evaluate
-from .periods import Period, describe_period, find_periods, period_label
+from .periods import Period, describe_period, find_periods, parse_period, period_label
 from .timeline import Timeline
 
 if TYPE_CHECKING:
@@ -40,7 +41,7 @@ class RollPlan:
         return {"steps": self.steps, "kind": self.kind, "ties": self.items, "labels": self.labels, "turned": self.turned}
 
 
-def plan_rollforward(project: Project, steps: int = 1) -> RollPlan:
+def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> RollPlan:
     from ..project import Impact, open_document
 
     plan = RollPlan(steps)
@@ -50,8 +51,38 @@ def plan_rollforward(project: Project, steps: int = 1) -> RollPlan:
     tl = Timeline(index.cells)
     values = {k: c.value for k, c in cells.items()}
     ties = [t for t in project.ties() if t.state in ("accepted", "confirmed", "held") and t.kind in ("text", "derived", "chart")]
+    ties = [t for t in ties if (project.root / t.deck).is_file()]  # a document that is put away keeps its links but is not part of the roll, and cannot block it
+
+    by_labels: dict[tuple, list] = {}
+    for c in index.cells:
+        by_labels.setdefault((c.file, c.sheet, tuple(c.row_labels), tuple(c.col_labels)), []).append(c)
+
+    def intent(t):
+        """(period, labels moved by ``steps``, the cell that now carries them) for a figure inherited from a model report, else None."""
+        if not (window and t.intent_labels):
+            return None
+        try:
+            rows, cols = json.loads(t.intent_labels)
+        except ValueError:
+            return None
+        found = [(axis, i, p) for axis, labels in ((0, rows), (1, cols)) for i, x in enumerate(labels) if (p := parse_period(x)) is not None]
+        if len(found) != 1:
+            return None
+        axis, i, p = found[0]
+        groups = [list(rows), list(cols)]
+        try:
+            groups[axis][i] = period_label(p.shifted(steps), groups[axis][i])
+        except ValueError:
+            return None
+        hits = by_labels.get((t.src_file, t.sheet, tuple(groups[0]), tuple(groups[1])), [])
+        return p, groups, (hits[0] if len(hits) == 1 else None)
 
     def placed_of(t):
+        if window and t.intent_labels and t.kind == "text":
+            got = intent(t)
+            if got is not None:
+                p, _g, tgt = got
+                return (tgt if tgt is not None else cells.get((t.src_file, t.sheet, t.ref))), type("Placed", (), {"period": p})()
         c = cells.get((t.src_file, t.sheet, t.ref))
         return (c, tl.placed(c)) if c is not None else (None, None)
 
@@ -80,14 +111,25 @@ def plan_rollforward(project: Project, steps: int = 1) -> RollPlan:
             plan.not_rolled.append(f"{where}: the chart point '{t.raw}' belongs to a chart with a fixed set of periods; change the chart's periods in PowerPoint")
             unrolled_paras.add((t.deck, t.slide, t.shape_id, t.para, t.cell_rc))
             continue
+        if t.kind == "text" and window and not t.intent_labels:
+            plan.kept.append(f"{where}: '{t.raw}' was linked here by its value, not inherited from the model report, so a window refresh leaves it as written")
+            continue
         if t.kind == "text":
             c, pl = placed_of(t)
             if pl is None or pl.period.kind != plan.kind:
                 plan.kept.append(f"{where}: '{t.raw}' does not sit in a {plan.kind} period and is kept")
                 continue
-            tgt = tl.shifted(c, plan.steps)
+            got = intent(t)
+            tgt = got[2] if got is not None else tl.shifted(c, plan.steps)
             if tgt is None:
-                plan.blocked.append(f"{where}: '{t.raw}' ({' '.join(dict.fromkeys(c.row_labels + c.col_labels))[:50]}) has no {describe_period(pl.period.shifted(plan.steps))} value in {c.file}")
+                labels = " ".join(dict.fromkeys(c.row_labels + c.col_labels)) if c is not None else " ".join(json.loads(t.intent_labels)[0] + json.loads(t.intent_labels)[1])
+                why = f"{where}: '{t.raw}' ({labels[:50]}) has no {describe_period(pl.period.shifted(plan.steps))} value in {t.src_file}"
+                if window and got is not None:
+                    # a copy of last period's report can quote periods the new workbook no longer holds; those figures keep their old numbers, and the release says so
+                    plan.not_rolled.append(why + "; it keeps the figure as written")
+                    unrolled_paras.add((t.deck, t.slide, t.shape_id, t.para, t.cell_rc))
+                    continue
+                plan.blocked.append(why)
                 continue
             rolled[t.id] = {"id": t.id, "deck": t.deck, "slide": t.slide, "raw": t.raw, "from": [t.src_file, t.sheet, t.ref], "to": [tgt.file, tgt.sheet, tgt.ref],
                             "old_value": t.linked_value, "new_value": tgt.value, "old_formula": "", "new_formula": "", "period": [pl.period.kind, pl.period.index]}
@@ -162,7 +204,11 @@ def plan_rollforward(project: Project, steps: int = 1) -> RollPlan:
         skipped_slides: set[tuple] = set()
         for slide, shape_id, para, cell, text in paragraphs:
             seen: Counter[str] = Counter()
-            for a, b, p in find_periods(text):
+            found_here = find_periods(text)
+            bare = text.strip()
+            if not found_here and re.fullmatch(r"(?:19|20)\d{2}", bare):  # a cell that holds only a year is a column heading in a table of years
+                found_here = [(text.index(bare), text.index(bare) + len(bare), Period("y", int(bare)))]
+            for a, b, p in found_here:
                 word = text[a:b]
                 occurrence = seen[word]
                 seen[word] += 1
@@ -214,7 +260,7 @@ def apply_rollforward(project: Project, meta: dict[str, Any]) -> None:
     """After a rolled release is published: each tie now points at the next period's cell and, for a calculation, its new formula."""
     for it in meta["ties"]:
         f, s, r = it["to"]
-        project.db.execute("UPDATE ties SET src_file=?, sheet=?, ref=?, linked_value=?, formula=CASE WHEN ?<>'' THEN ? ELSE formula END, src_labels=NULL WHERE id=?",
+        project.db.execute("UPDATE ties SET src_file=?, sheet=?, ref=?, linked_value=?, formula=CASE WHEN ?<>'' THEN ? ELSE formula END, src_labels=NULL, intent_labels=NULL WHERE id=?",
                            (f, s, r, it["new_value"], it["new_formula"], it["new_formula"], it["id"]))
     project.relocate_sources()  # the ties learn the headings of the cells they now follow
 

@@ -78,7 +78,7 @@ ROLL_SCHEMA = {
     "description": ("Prepare one release that rolls the project's documents forward to the next reporting period: every linked figure moves to the same row's next period column, "
                     "and the period words beside them (Q3 2026 becomes Q4 2026) advance. It is refused, naming each figure, when a linked figure has no next-period value. "
                     "This does not change any document; only the owner can approve it, and the owner can restore the whole roll."),
-    "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "periods": {"type": "integer", "description": "How many periods to roll forward (1 to 4, default 1)"}}, "required": ["project"]},
+    "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "periods": {"type": "integer", "description": "How many periods to roll forward (1 to 4, default 1)"}, "window": {"type": "boolean", "description": "True for a copy of last period's report whose workbook has slid its window of periods (this year's file holds 2025 and 2024 where last year's held 2024 and 2023)"}}, "required": ["project"]},
 }
 
 CALCULATIONS_SCHEMA = {
@@ -201,7 +201,7 @@ workroom_plan = _wrap(lambda a: service().plan(a["project"]))
 workroom_explain_figure = _wrap(lambda a: service().explain(a["project"], int(a["link"])))
 workroom_selftest = _wrap(lambda a: selftest.run(int(a.get("seed", 7))))
 workroom_list_sources = _wrap(lambda a: service().source_cells(a["project"], a.get("query", ""), int(a.get("limit", 60))))
-workroom_roll_forward = _wrap(lambda a: _stage_summary({**service().stage_rollforward(a["project"], int(a.get("periods", 1))), "project": a["project"]}))
+workroom_roll_forward = _wrap(lambda a: _stage_summary({**service().stage_rollforward(a["project"], int(a.get("periods", 1)), bool(a.get("window", False))), "project": a["project"]}))
 workroom_find_calculations = _wrap(lambda a: service().calculations(a["project"]))
 workroom_create = _wrap(lambda a: _stage_summary({**service().create_from_spec(a["project"], a["spec"]), "project": a["project"]}))
 workroom_instructions = _wrap(lambda a: service().instructions_for_agent(a["project"]))

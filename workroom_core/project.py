@@ -75,6 +75,7 @@ class Tie:
     chart: str = ""  # JSON for a chart tie: {"series": index, "category": label}
     formula: str = ""  # JSON for a derived tie: {"op": "pct_change"|"ratio"|"diff"|"sum", "terms": [[file, sheet, ref], ...], "cue": "up"|"down"|"", "labels": [...]}
     src_labels: str = ""  # JSON [row headings, column headings] of the source cell when the tie was made, so the tie can follow the cell if the sheet is edited
+    intent_labels: str = ""  # JSON headings of the cell this figure was linked to in the model report it was copied from; a roll of a sliding workbook starts from these, not from where the link was moved to
 
 
 @dataclass(frozen=True)
@@ -148,6 +149,7 @@ class Project:
     def __init__(self, root: Path, state: Path) -> None:
         self.root = Path(root).resolve()
         self.state = Path(state).resolve()
+        self.hold_carried = True  # links inherited from a model report keep the headings they were made for until a release is prepared or rolled
         self.state.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(str(self.state / "project.db"), isolation_level=None)
         self.db.execute(
@@ -158,7 +160,7 @@ class Project:
         self.db.execute("CREATE TABLE IF NOT EXISTS snapshot2 (file TEXT, sheet TEXT, key TEXT, value REAL, PRIMARY KEY (file, sheet, key))")
         self.db.execute("CREATE TABLE IF NOT EXISTS column_maps (sig TEXT PRIMARY KEY, deck TEXT, src_file TEXT, sheet TEXT, col INT, decided REAL, by TEXT)")
         self.db.execute("CREATE TABLE IF NOT EXISTS column_questions (sig TEXT PRIMARY KEY, deck TEXT, section TEXT, col_head TEXT, rows INT, alternatives TEXT)")
-        for column in ("context TEXT", "slide_uid TEXT", "fp_near TEXT", "anchor TEXT", "prior_state TEXT", "held_note TEXT", "basis TEXT", "receipt TEXT", "kind TEXT", "chart TEXT", "formula TEXT", "src_labels TEXT"):
+        for column in ("context TEXT", "slide_uid TEXT", "fp_near TEXT", "anchor TEXT", "prior_state TEXT", "held_note TEXT", "basis TEXT", "receipt TEXT", "kind TEXT", "chart TEXT", "formula TEXT", "src_labels TEXT", "intent_labels TEXT"):
             try:
                 self.db.execute(f"ALTER TABLE ties ADD COLUMN {column}")
             except sqlite3.OperationalError:
@@ -720,7 +722,7 @@ class Project:
             ties.append(Tie(row["id"], row["deck"], row["slide"], row["shape_id"], row["para"], row["seg"], row["offset"], tuple(cell) if cell else None,
                             row["raw"], row["state"], row["src_file"], row["sheet"], row["ref"], row["transform"], row["linked_value"], row["label_score"],
                             row.get("context") or "", row.get("slide_uid") or "", row.get("fp_near") or "", row.get("anchor") or "exact",
-                            row.get("prior_state") or "", row.get("held_note") or "", row.get("basis") or "matched", row.get("receipt") or "", row.get("kind") or "text", row.get("chart") or "", row.get("formula") or "", row.get("src_labels") or ""))
+                            row.get("prior_state") or "", row.get("held_note") or "", row.get("basis") or "matched", row.get("receipt") or "", row.get("kind") or "text", row.get("chart") or "", row.get("formula") or "", row.get("src_labels") or "", row.get("intent_labels") or ""))
         return [t for t in ties if states is None or t.state in states]
 
     def confirm_many(self, tie_ids: list[int]) -> int:
@@ -794,11 +796,18 @@ class Project:
         else:
             doc.edit_mention(dm, new_text)
 
-    def plan_rollforward(self, steps: int = 1):
-        """Everything needed to roll the project's documents to the next reporting period, as new file bytes. Writes nothing."""
+    def plan_rollforward(self, steps: int = 1, window: bool = False):
+        """Everything needed to roll the project's documents to the next reporting period, as new file bytes. Writes nothing.
+
+        With ``window`` a figure that was inherited from a model report is rolled from the cell it had in the model (its headings are remembered), so a
+        workbook whose window of periods has slid since then (this year's file holds 2025 and 2024 where last year's held 2024 and 2023) is followed."""
         from .meaning.rollforward import plan_rollforward
 
-        return plan_rollforward(self, steps)
+        self.hold_carried = window
+        try:
+            return plan_rollforward(self, steps, window)
+        finally:
+            self.hold_carried = True
 
     def apply_rollforward(self, meta: dict) -> None:
         from .meaning.rollforward import apply_rollforward
@@ -939,9 +948,13 @@ class Project:
             return default if got is None else got
         return values.get((t.src_file, t.sheet, t.ref), default)
 
-    def plan_refresh(self) -> Plan:
+    def plan_refresh(self, relocate_carried: bool = False) -> Plan:
         plan = Plan()
-        plan.notes = self.relocate_sources()
+        self.hold_carried = not relocate_carried
+        try:
+            plan.notes = self.relocate_sources()
+        finally:
+            self.hold_carried = True
         values = self._current_values()
         by_deck: dict[str, list[tuple[Tie, float]]] = {}
         lost: dict[str, list[Tie]] = {}  # figures whose source cell has no number now, by document

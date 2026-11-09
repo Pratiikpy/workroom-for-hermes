@@ -1271,7 +1271,7 @@ class Service:
     def stage(self, pid: str, mode: str = "inplace") -> dict[str, Any]:
         proj, ctl = self._open(pid)
         self._integrity(pid, proj, ctl)
-        plan = proj.plan_refresh()
+        plan = proj.plan_refresh(relocate_carried=True)
         if not plan.files and plan.blocked:
             raise ServiceError(f"nothing could be released: {len(plan.blocked)} figure(s) were held back because their table would mix old and new numbers (for example: {plan.blocked[0]}). Restore the missing source, or skip the figures that lost it, then try again")
         if not plan.files:
@@ -1295,7 +1295,7 @@ class Service:
                 "changes": self._changes(proj, plan), "held": plan.skipped, "blocked": plan.blocked, "flags": flags, "coverage": coverage}
 
     @_closing
-    def stage_rollforward(self, pid: str, steps: int = 1) -> dict[str, Any]:
+    def stage_rollforward(self, pid: str, steps: int = 1, window: bool = False) -> dict[str, Any]:
         """Prepare one release that moves every tied figure to the next reporting period and advances the period words beside them.
         Refused, naming each figure, when any tied figure has no next-period value. Nothing changes until the owner approves."""
         if not isinstance(steps, int) or not 1 <= steps <= 4:
@@ -1303,7 +1303,7 @@ class Service:
         proj, ctl = self._open(pid)
         self._integrity(pid, proj, ctl)
         proj.discover()
-        plan = proj.plan_rollforward(steps)
+        plan = proj.plan_rollforward(steps, window)
         if plan.blocked:
             raise ServiceError("cannot roll forward: " + "; ".join(plan.blocked[:5]) + (f"; and {len(plan.blocked) - 5} more" if len(plan.blocked) > 5 else "") + ". Nothing was changed.")
         if not plan.files:
@@ -1330,8 +1330,9 @@ class Service:
         out = []
         for f in found:
             if f.deck not in docs:
-                docs[f.deck] = open_document((proj.root / f.deck).read_bytes(), f.deck)
-            out.append({**f.view(), "where": location_label(docs[f.deck], f.slide), "decision": decided.get(f.id) or ""})
+                path = proj.root / f.deck
+                docs[f.deck] = open_document(path.read_bytes(), f.deck) if path.is_file() else None  # a document that is put away still has its findings listed
+            out.append({**f.view(), "where": location_label(docs[f.deck], f.slide) if docs[f.deck] is not None else "document not in the folder", "decision": decided.get(f.id) or ""})
         return out, cov.view()
 
     @staticmethod
@@ -1438,6 +1439,7 @@ class Service:
             if rolled:
                 proj.apply_rollforward(rolled)
             proj.commit_snapshot(Plan(files=staged))
+            proj.db.execute("UPDATE ties SET intent_labels=NULL WHERE deck IN (%s)" % ",".join("?" * len(staged)), tuple(staged))  # a published refresh ends the carried state of those documents' links
         return {"release_id": release_id, "state": "published"}
 
     @_closing

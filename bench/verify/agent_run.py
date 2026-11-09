@@ -82,7 +82,7 @@ def main() -> None:
     if not os.environ.get("WORKROOM_AGENT_NO_YOLO"):
         cmd.append("--yolo")  # auto-approves every approval prompt, so a guard that asks the human answers itself; set WORKROOM_AGENT_NO_YOLO=1 to test the gate
     if provider == "custom":
-        cmd += ["--base-url", base_url, "--api-key", "local"]
+        cmd += ["--base-url", base_url, "--api-key", os.environ.get("WORKROOM_AGENT_KEY", "local")]
     t0 = time.time()
     proc = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=900, encoding="utf-8", errors="replace")
     seconds = round(time.time() - t0, 1)

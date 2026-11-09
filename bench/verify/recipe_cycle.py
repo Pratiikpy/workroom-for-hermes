@@ -76,9 +76,12 @@ def main() -> None:
     result["cycle2"] = {"seconds": round(time.time() - t0, 1), "copy_links_by_state": dict(states), "all_decks_accepted": second["accepted"],
                         "asked_in_project": len(second["need_confirmation"]), "listed_apart": len(second["coincidences"])}
     try:
-        staged = svc.stage_rollforward(pid, 1)
+        staged = svc.stage_rollforward(pid, 1, window=True)
     except Exception as exc:  # noqa: BLE001
+        import traceback
+
         result["cycle2"]["roll_forward_refused"] = str(exc)[:400]
+        result["cycle2"]["trace"] = traceback.format_exc()[-900:]
         staged = {}
     result["cycle2"]["planned_changes"] = len(staged.get("changes", []))
     result["cycle2"]["figures_rolled"] = staged.get("figures")
@@ -90,6 +93,18 @@ def main() -> None:
             svc.approve_and_publish(pid, staged["release_id"], staged["digest"])
         except NeedsAcknowledgement:
             svc.approve_and_publish(pid, staged["release_id"], staged["digest"], acknowledge=True)
+    # figures whose source headings carry no period are followed by their address, so after the roll one ordinary refresh brings them up to date
+    try:
+        svc.discover(pid)
+        second = svc.stage(pid)
+        result["cycle2"]["refresh_after_roll"] = {"changes": len(second.get("changes", [])), "state": second.get("state"), "blocked": len(second.get("blocked", []))}
+        if second.get("state") == "awaiting_approval":
+            try:
+                svc.approve_and_publish(pid, second["release_id"], second["digest"])
+            except NeedsAcknowledgement:
+                svc.approve_and_publish(pid, second["release_id"], second["digest"], acknowledge=True)
+    except Exception as exc:  # noqa: BLE001
+        result["cycle2"]["refresh_after_roll"] = {"refused": str(exc)[:300]}
     # score the copy against the department's own year-2 report
     before = figures(tmp / "archive" / "statements_y1.docx")
     after = figures(root / "statements_y2.docx")

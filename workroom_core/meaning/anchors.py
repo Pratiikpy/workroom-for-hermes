@@ -95,6 +95,8 @@ def relocate_sources(project: Project) -> list[str]:
     for t in ties:
         if t.kind == "scene":
             continue
+        if t.intent_labels and getattr(project, "hold_carried", True):
+            continue  # inherited from a model report: it follows its remembered headings only when a release is prepared or rolled
         if t.kind == "derived":
             try:
                 f = json.loads(t.formula)
