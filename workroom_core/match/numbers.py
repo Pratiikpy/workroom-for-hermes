@@ -65,10 +65,18 @@ def _part_of_longer_token(text: str, start: int, end: int) -> bool:
     return nxt == "." and nxt2.isdigit()
 
 
+_CALL = re.compile(r"[A-Za-z_][A-Za-z_0-9]*\([^()]*\)")
+
+
 def parse_numbers(text: str) -> list[NumberMention]:
-    """All numeric mentions in ``text``. Years such as 2024 are returned like any number; callers decide."""
+    """All numeric mentions in ``text``. Years such as 2024 are returned like any number; callers decide.
+
+    Arguments of a call written like code (RGB(79,129,189), f(2, 3)) are not quantities and are skipped."""
     out: list[NumberMention] = []
+    calls = [(c.start(), c.end()) for c in _CALL.finditer(text)]
     for m in _NUMBER.finditer(text):
+        if calls and any(lo <= m.start("num") < hi for lo, hi in calls):
+            continue
         raw_num = m.group("num")
         # a bare number glued to letters (A1, Q2, FY25) is a label, not a quantity
         before = text[m.start("num") - 1] if m.start("num") > 0 else " "

@@ -129,3 +129,9 @@ def test_a_bracketed_percentage_inside_a_sentence_is_an_aside_not_a_negative() -
     assert alone.negative and not alone.aside
     money = parse_numbers("the loss was ($4.5m) this year")[0]
     assert money.negative and not money.aside
+
+
+def test_the_arguments_of_a_call_written_like_code_are_not_quantities() -> None:
+    assert parse_numbers("Fill: RGB(79,129,189) Text: white") == []
+    assert parse_numbers("Text is white Fill: RGB(148, 198,0)") == []
+    assert [m.raw for m in parse_numbers("Revenue ($5.1m) and f(2) with 7 offices")] == ["($5.1m)", "7"]

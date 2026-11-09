@@ -182,7 +182,13 @@ def worker(kind: str, jobs_file: str, out: str) -> None:
         for j in jobs:
             row = {"file": j["name"]}
             try:
-                tb = reader(app, j["before"])
+                try:
+                    tb = reader(app, j["before"])
+                except Exception as exc:  # noqa: BLE001
+                    row.update(original_unopenable=True, text_note=f"the original file does not open in the real app either ({type(exc).__name__})")
+                    rows.append(row)
+                    Path(out).write_text(json.dumps(rows), encoding="utf-8")
+                    continue
                 ta = reader(app, j["after"])
                 ok, why = compare_text(tb, ta, [tuple(e) for e in j["edits"]])
                 row.update(office_opens=True, text_ok=ok, text_note=why, texts=len(tb))
@@ -289,6 +295,9 @@ def main() -> None:
                 rows[name].update({k: v for k, v in r.items() if k != "file"})
     for r in rows.values():
         if r["status"] == "pending":
+            if r.get("original_unopenable"):
+                r["status"] = "original_not_openable"
+                continue
             bad = []
             if not r["others_identical"]:
                 bad.append("parts Workroom did not touch differ")
@@ -302,7 +311,7 @@ def main() -> None:
             r["why"] = bad
     vals = list(rows.values())
     summary = {"files": len(vals), "ok": sum(r["status"] == "ok" for r in vals), "failed": sum(r["status"] == "FAILED" for r in vals),
-               "skipped": sum(r["status"] == "skipped" for r in vals), "by_kind": {k: sum(1 for r in vals if r["kind"] == k and r["status"] == "ok") for k in (".docx", ".pptx")}}
+               "skipped": sum(r["status"] == "skipped" for r in vals), "original_not_openable": sum(r["status"] == "original_not_openable" for r in vals), "by_kind": {k: sum(1 for r in vals if r["kind"] == k and r["status"] == "ok") for k in (".docx", ".pptx")}}
     Path(ns.out).write_text(json.dumps({"summary": summary, "rows": vals}, indent=1, default=str), encoding="utf-8")
     print(json.dumps(summary))
     for r in vals:
