@@ -135,3 +135,15 @@ def test_the_arguments_of_a_call_written_like_code_are_not_quantities() -> None:
     assert parse_numbers("Fill: RGB(79,129,189) Text: white") == []
     assert parse_numbers("Text is white Fill: RGB(148, 198,0)") == []
     assert [m.raw for m in parse_numbers("Revenue ($5.1m) and f(2) with 7 offices")] == ["($5.1m)", "7"]
+
+
+def test_a_dash_with_a_space_after_it_is_punctuation_and_a_rewritten_minus_keeps_its_character() -> None:
+    assert [(m.raw, m.negative) for m in parse_numbers("Custom transition – 0.25 s")] == [("0.25", False)]
+    assert [(m.raw, m.negative) for m in parse_numbers("fell to −3.1% from 2%")] == [("−3.1%", True), ("2%", False)]
+    assert format_like(parse_numbers("−3.1%")[0], -4.2, "exact") == "−4.2%"
+    assert format_like(parse_numbers("-3.1%")[0], -4.2, "exact") == "-4.2%"
+
+
+def test_braced_values_and_citation_numbers_are_not_quantities() -> None:
+    assert parse_numbers("Originally HSV: {0,0,76}") == []
+    assert [m.raw for m in parse_numbers("see [12] and [3, 4] for 5 items")] == ["5"]

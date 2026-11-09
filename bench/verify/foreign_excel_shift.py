@@ -87,6 +87,28 @@ def op_hide_column(xl, wb, ws):
     ws.Columns(3).Hidden = True
 
 
+def op_delete_row(xl, wb, ws):
+    cell = locate(ws, "Q1 2025", "Nominal GDP")
+    if cell is not None:
+        ws.Rows(cell.Row).Delete()
+
+
+def op_move_to_other_sheet(xl, wb, ws):
+    dest = wb.Worksheets.Add(After=ws)
+    dest.Name = "Archive"
+    ws.UsedRange.Cut(dest.Cells(1, 1))
+
+
+def op_rename_header(xl, wb, ws):
+    for c in range(2, ws.UsedRange.Columns.Count + 1):
+        ws.Cells(1, c).Value = str(ws.Cells(1, c).Value).replace(" ($ billions)", ", USD bn")
+
+
+def op_sort_by_value(xl, wb, ws):
+    last = ws.UsedRange.Rows.Count
+    ws.Range(ws.Cells(2, 1), ws.Cells(last, ws.UsedRange.Columns.Count)).Sort(Key1=ws.Cells(2, 2), Order1=2, Header=2)
+
+
 OPS = {
     "excel save-as only": op_saveas,
     "a column inserted before the data": op_insert_column,
@@ -97,6 +119,9 @@ OPS = {
     "range turned into an Excel table": op_table,
     "constants turned into formulas over an Inputs sheet": op_formulas,
     "a column hidden": op_hide_column,
+    "rows sorted by value": op_sort_by_value,
+    "the data cut and pasted onto a new sheet": op_move_to_other_sheet,
+    "the column headings reworded": op_rename_header,
 }
 
 

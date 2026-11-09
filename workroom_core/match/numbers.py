@@ -14,7 +14,7 @@ _CURRENCY = {"$": "USD", "€": "EUR", "£": "GBP", "¥": "JPY", "₹": "INR"}
 _NUMBER = re.compile(
     r"""
     (?P<neg_open>\()?
-    (?P<sign>[-−–]\s?)?
+    (?P<sign>[-–]|−\s?)?
     (?P<cur>[$€£¥₹])?\s?
     (?P<num>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?|\.\d+)
     \s?(?P<scale>(?:thousand|millions?|billions?|trillion|bn|mm|mn|k|m|b|t)\b)?
@@ -65,13 +65,14 @@ def _part_of_longer_token(text: str, start: int, end: int) -> bool:
     return nxt == "." and nxt2.isdigit()
 
 
-_CALL = re.compile(r"[A-Za-z_][A-Za-z_0-9]*\([^()]*\)")
+_CALL = re.compile(r"[A-Za-z_][A-Za-z_0-9]*\([^()]*\)|\{[^{}]*\}|\[\d+(?:\s?[,–-]\s?\d+)*\]")
 
 
 def parse_numbers(text: str) -> list[NumberMention]:
     """All numeric mentions in ``text``. Years such as 2024 are returned like any number; callers decide.
 
-    Arguments of a call written like code (RGB(79,129,189), f(2, 3)) are not quantities and are skipped."""
+    Arguments of a call written like code (RGB(79,129,189), f(2, 3)), values in braces ({0,0,76}) and bracketed citation numbers ([12], [3, 4]) are not
+    quantities and are skipped."""
     out: list[NumberMention] = []
     calls = [(c.start(), c.end()) for c in _CALL.finditer(text)]
     for m in _NUMBER.finditer(text):
@@ -95,6 +96,8 @@ def parse_numbers(text: str) -> list[NumberMention]:
         sign_at = m.start("sign")
         # a dash glued to the figure before it (10-15%, 2026-27) is a range, not a minus sign
         is_range = sign_at >= 1 and (text[sign_at - 1].isalnum() or text[sign_at - 1] in "%)")
+        if m.group("sign") in ("-", "–") and not m.group("cur") and text[m.end("sign"):m.start("num")].strip() == "" and m.start("num") > m.end("sign"):
+            is_range = True  # a dash then a space is punctuation ("Custom transition – 0.25 s"), not a minus sign
         negative = (bool(m.group("sign")) and not is_range) or balanced
         scale_word = (m.group("scale") or "").lower()
         scale = _SCALE_WORDS.get(scale_word, 1.0)
@@ -183,5 +186,6 @@ def format_like(old: NumberMention, new_source_value: float, transform: str) -> 
     suffix = old.raw[m.end():].replace(")", "")
     explicit = old.raw.lstrip()[:1] in ("+", "-", "−", "–")  # a column of changes written with its sign keeps its sign style
     if shown < 0 and rounded != 0:
-        return f"({prefix}{body}{suffix})" if old.raw.lstrip().startswith("(") else f"-{prefix}{body}{suffix}"
+        minus = old.raw.lstrip()[:1] if old.raw.lstrip()[:1] in ("-", "−", "–") else "-"
+        return f"({prefix}{body}{suffix})" if old.raw.lstrip().startswith("(") else f"{minus}{prefix}{body}{suffix}"
     return f"{'+' if explicit and rounded != 0 else ''}{prefix}{body}{suffix}"
