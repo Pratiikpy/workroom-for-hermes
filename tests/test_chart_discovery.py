@@ -98,3 +98,19 @@ def test_a_chart_the_person_edited_is_left_alone(tmp_path: Path) -> None:
     _workbook(proj.root, revenue=[12.5, 14.0, 15.9, 16.2])
     plan = proj.plan_refresh()
     assert all(i.new_text != "15.9" for i in plan.impacts)
+
+
+def test_a_value_with_many_decimals_is_not_blocked_by_the_label_rounding(tmp_path: Path) -> None:
+    from workroom.workroom_core.service import Service
+
+    root = tmp_path / "proj"
+    root.mkdir()
+    _workbook(root)
+    _deck(root)
+    svc = Service(tmp_path / "state")
+    pid = svc.add_project(str(root))["project"]
+    svc.discover(pid)
+    _workbook(root, revenue=[12.5, 14.0, 15.123456789012345, 16.2])
+    svc.discover(pid)
+    staged = svc.stage(pid)
+    assert staged["state"] == "awaiting_approval" and staged["digest"]

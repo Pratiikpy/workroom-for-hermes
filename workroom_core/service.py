@@ -1108,8 +1108,8 @@ class Service:
                             chart_values.update(v for v in ser.values if v is not None)
                 for i in plan.impacts:
                     nv = parse_numbers(i.new_text)
-                    if i.deck == rel and nv and nv[0].value in chart_values:
-                        continue
+                    if i.deck == rel and nv and any(abs(v - nv[0].value) <= 5e-10 * max(1.0, abs(v)) for v in chart_values):
+                        continue  # the label shows 10 significant digits; the chart holds the exact value
                     if i.deck == rel and i.new_text not in text and not (nv and nv[0].value in shown):
                         findings.append(f"{rel}: new text '{i.new_text}' not found after the edit")
             except Exception as exc:  # noqa: BLE001

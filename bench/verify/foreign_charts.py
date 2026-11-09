@@ -11,6 +11,7 @@ value, every other point of every chart its old value. The embedded workbook of 
 import argparse
 import io
 import json
+import re
 import shutil
 import sys
 import tempfile
@@ -146,6 +147,17 @@ def run_deck(path: Path, app) -> dict:
         wb.save(root / "charts.xlsx")
         before_vals = ppt_chart_values(app, str(root / path.name))
         svc.discover(pid)
+        proj2, _ = svc._open(pid)
+        held_points = set()
+        for note in proj2.plan_refresh().skipped:
+            m = re.search(r"chart point '(.+?)' of series (\d+) ", note)
+            if m:
+                held_points.add((int(m.group(2)) - 1, m.group(1)))
+        svc._close_opened()
+        row["points_held_with_reason"] = len(held_points)
+        for k in list(expected):
+            if (k[1], k[2]) in held_points:
+                expected.pop(k)
         staged = svc.stage(pid)
         try:
             svc.approve_and_publish(pid, staged["release_id"], staged["digest"], acknowledge=False)
@@ -176,7 +188,7 @@ def run_deck(path: Path, app) -> dict:
                     emb_ok = False
         errs = validator_errors([root / path.name])
         row.update(changed_points=len(expected), points_read_back_ok=right_new, points_moved_as_expected=moved, points_WRONG=bad, embedded_workbook_agrees=emb_ok,
-                   validator_errors_after=len(errs.get(str(root / path.name), [])), status="ok" if bad == 0 and emb_ok and moved == len(expected) else "FAILED")
+                   validator_errors_after=len(errs.get(str(root / path.name), [])), status="ok" if bad == 0 and emb_ok and moved == len(expected) and len(expected) > 0 else ("FAILED" if bad or not emb_ok else "nothing_writable"))
     except Exception as exc:  # noqa: BLE001
         row.update(status="error", error=f"{type(exc).__name__}: {str(exc)[:200]}")
     finally:

@@ -19,7 +19,7 @@ from pathlib import Path
 
 from .build.formats import plain
 from .controller.release import Controller
-from .match.engine import Mention, MatchResult, SourceIndex, match_mentions
+from .match.engine import Mention, MatchResult, SourceIndex, match_mentions, tokens
 from .match.numbers import _TRANSFORMS, consistent_with_source, format_like, parse_numbers
 from .ooxml.package import PackageError, open_package
 from .ooxml.runs import EditError
@@ -468,15 +468,22 @@ class Project:
                     category = ser.categories[pi] if pi < len(ser.categories) else ""
                     if not category or list(ser.categories).count(category) != 1:
                         continue  # a point is rewritten by its category, which must name it exactly once
+                    if "!" not in (ser.val_formula or ""):
+                        continue  # values typed into the chart with no sheet behind them cannot be written back, so they are not linked
                     mentions = parse_numbers(repr(float(value)))
                     if not mentions:
                         continue
                     res = match_mentions([Mention(f"chart:{key}", mentions[0], (str(ser.name or ""), str(category)))], index)[0]
-                    if res.best is None or res.best.label_score < 0.15 or res.best.period_conflict:
+                    # the cell must carry every word of the series name and of the category: "Series 2" is not "Series 1", whatever the values
+                    need = set(tokens(str(ser.name or ""))) | set(tokens(str(category)))
+                    pick = next((c for c in res.candidates if not c.period_conflict and c.label_score >= 0.15
+                                 and need <= set(tokens(" ".join(c.cell.row_labels + c.cell.col_labels + (c.cell.sheet,))))), None)
+                    if pick is None:
                         continue
-                    ok, transform = consistent_with_source(mentions[0], res.best.cell.value)
+                    ok, transform = consistent_with_source(mentions[0], pick.cell.value)
                     if not ok:
                         continue
+                    res = MatchResult(res.mention, res.decision if pick is res.best else "confirm", pick, res.runner_up, res.reason, res.candidates)
                     self.db.execute(
                         "INSERT INTO ties (deck, slide, shape_id, para, seg, offset, cell_rc, raw, state, src_file, sheet, ref, transform, linked_value, label_score, context, slide_uid, fp_near, anchor, basis, receipt, kind, chart)"
                         " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -945,11 +952,11 @@ class Project:
                     sers = deck.chart_series(slide_no, t.shape_id)
                     holds = sers[t.para].values[t.seg] if t.para < len(sers) and t.seg < len(sers[t.para].values) else None
                     if holds is None or abs(holds - expected_now) > 1e-9 * max(1.0, abs(expected_now)):
-                        plan.skipped.append(f"{deck_rel} slide {slide_no}: chart point '{category}' holds {holds} where Workroom last left {expected_now}; it was changed by hand, so it is held for you, not updated")
+                        plan.skipped.append(f"{deck_rel} slide {slide_no}: chart point '{category}' of series {t.para + 1} holds {holds} where Workroom last left {expected_now}; it was changed by hand, so it is held for you, not updated")
                         continue
                     deck.set_chart_value(slide_no, t.shape_id, t.para, category, new)
                 except (EditError, ValueError, KeyError) as exc:
-                    plan.skipped.append(f"{deck_rel} slide {t.slide}: chart point '{category or t.raw}' could not be updated ({exc}); held")
+                    plan.skipped.append(f"{deck_rel} slide {t.slide}: chart point '{category or t.raw}' of series {t.para + 1} could not be updated ({exc}); held")
                     continue
                 applied += 1
                 plan.impacts.append(Impact(deck_rel, slide_no, t.raw, plain(new), f"{t.src_file}!{t.sheet}!{t.ref}", t.linked_value, new))
