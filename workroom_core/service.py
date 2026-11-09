@@ -1285,14 +1285,25 @@ class Service:
         meta_dir = self.data_dir / "projects" / pid / "meta"
         meta_dir.mkdir(parents=True, exist_ok=True)
         flags, coverage = self._flags(proj, plan)
+        nil_cells = self._nil_cells(proj)
         (meta_dir / f"{rid}.json").write_text(
-            json.dumps({"changes": self._changes(proj, plan), "held": plan.skipped, "blocked": plan.blocked, "flags": flags, "coverage": coverage, "notes": plan.notes}), encoding="utf-8")
+            json.dumps({"changes": self._changes(proj, plan), "held": plan.skipped, "blocked": plan.blocked, "flags": flags, "coverage": coverage, "notes": plan.notes, "nil_cells": nil_cells}), encoding="utf-8")
         try:
             ctl.mark_verified(rid, findings)
         except NotReady:
             return {"release_id": rid, "state": "blocked", "findings": findings}
         return {"release_id": rid, "state": "awaiting_approval", "digest": ctl.digest(rid),
-                "changes": self._changes(proj, plan), "held": plan.skipped, "blocked": plan.blocked, "flags": flags, "coverage": coverage}
+                "changes": self._changes(proj, plan), "held": plan.skipped, "blocked": plan.blocked, "flags": flags, "coverage": coverage, "nil_cells": nil_cells}
+
+    def _nil_cells(self, proj: Project) -> list[str]:
+        """Dashes in the project's reports whose workbook cell may now hold a figure (listed, never written)."""
+        from .meaning.nilcells import nil_notes
+
+        ties = [x for x in proj.ties() if x.kind == "text" and x.state in ("accepted", "confirmed") and (proj.root / x.deck).is_file()]
+        docs = {rel: open_document((proj.root / rel).read_bytes(), rel) for rel in {x.deck for x in ties}}
+        cells = proj.source_index().cells
+        by_ref = {(c.file, c.sheet, c.ref): c for c in cells}
+        return nil_notes(proj, docs, ties, lambda x: by_ref.get((x.src_file, x.sheet, x.ref)), cells)
 
     @_closing
     def stage_rollforward(self, pid: str, steps: int = 1, window: bool = False) -> dict[str, Any]:
@@ -1313,14 +1324,14 @@ class Service:
         meta_dir = self.data_dir / "projects" / pid / "meta"
         meta_dir.mkdir(parents=True, exist_ok=True)
         flags, coverage = self._flags(proj, plan, plan.meta())
-        meta = {"changes": self._changes(proj, plan), "held": plan.not_rolled, "kept": plan.kept, "flags": flags, "coverage": coverage, "rolled": plan.meta(), "notes": plan.notes, "restated": plan.restated}
+        meta = {"changes": self._changes(proj, plan), "held": plan.not_rolled, "kept": plan.kept, "flags": flags, "coverage": coverage, "rolled": plan.meta(), "notes": plan.notes, "restated": plan.restated, "nil_cells": plan.nil_cells}
         (meta_dir / f"{rid}.json").write_text(json.dumps(meta), encoding="utf-8")
         try:
             ctl.mark_verified(rid, findings)
         except NotReady:
             return {"release_id": rid, "state": "blocked", "findings": findings}
         return {"release_id": rid, "state": "awaiting_approval", "digest": ctl.digest(rid), "changes": meta["changes"], "held": plan.not_rolled, "kept": plan.kept,
-                "flags": flags, "coverage": coverage, "figures": len(plan.items), "period_words": len(plan.labels), "restated": plan.restated}
+                "flags": flags, "coverage": coverage, "figures": len(plan.items), "period_words": len(plan.labels), "restated": plan.restated, "nil_cells": plan.nil_cells}
 
     def _flags(self, proj: Project, plan: Plan, roll: dict | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """What the update means for the sentences around the numbers, each with the owner's earlier decision about it, if any."""
@@ -1491,6 +1502,7 @@ class Service:
         return {"release_id": release_id, "state": state, "digest": digest, "changes": meta["changes"], "held": meta["held"], "findings": findings,
                 "created": bool(meta.get("created")), "figures": meta.get("figures", []), "edited_page": bool(meta.get("edited_page")),
                 "flags": flags, "coverage": meta.get("coverage", {}), "rolled": self._rolled_summary(meta.get("rolled")), "kept": meta.get("kept", []), "notes": meta.get("notes", []),
+                "restated": (meta.get("rolled") or {}).get("restated", []), "nil_cells": meta.get("nil_cells", []),
                 "needs_acknowledgement": [f["id"] for f in flags if f["severity"] == "high" and not f["decision"]]}
 
     @_closing

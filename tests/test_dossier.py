@@ -56,3 +56,18 @@ def test_the_record_is_read_only_for_agents() -> None:
     from workroom import TOOLS
 
     assert {t[4] for t in TOOLS if t[0] == "workroom_release_record"} == {"workroom_ro"}
+
+
+
+def test_the_record_carries_restated_figures_and_dashes_that_may_now_hold_a_figure(tmp_path: Path) -> None:
+    import json
+
+    root, svc, pid, rid = published(tmp_path)
+    meta_path = svc.data_dir / "projects" / pid / "meta" / f"{rid}.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["rolled"] = {"restated": ["report.docx slide 1: '12' becomes FY2024, which this report already gave as '15'"]}
+    meta["nil_cells"] = ["report.docx: the '-' beside 'Grants' may now hold a figure: 40"]
+    meta_path.write_text(json.dumps(meta), encoding="utf-8")
+    record = svc.release_record(pid, rid)
+    assert "already gave as '15'" in record["text"] and "beside 'Grants'" in record["text"]
+    assert record["data"]["restated"] and record["data"]["nil_cells"]

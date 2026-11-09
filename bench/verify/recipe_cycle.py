@@ -92,6 +92,8 @@ def main() -> None:
     result["cycle2"]["stage_state"] = staged.get("state")
     result["cycle2"]["restated"] = len(staged.get("restated", []))
     result["restated_examples"] = staged.get("restated", [])
+    result["cycle2"]["nil_cells_listed"] = len(staged.get("nil_cells", []))
+    result["nil_cell_examples"] = staged.get("nil_cells", [])
     result["cycle2"]["flags"] = [f["kind"] for f in staged.get("flags", [])]
     if staged.get("state") == "awaiting_approval":
         try:

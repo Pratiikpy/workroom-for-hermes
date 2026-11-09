@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import time
+from dataclasses import dataclass
 from collections.abc import Iterator
 
 from lxml import etree
@@ -28,6 +29,7 @@ _EXTRA = re.compile(r"word/(header\d*|footer\d*|footnotes|endnotes)\.xml")
 
 _NUMBERED_HEADING = re.compile(r"\d{1,2}(?:\.\d{1,2})+\s+(?!(?i:million|billion|thousand|trillion|percent|per)\b)[A-Z]")
 _REFERENCE_NUMBER = re.compile(r"\d+(?:\.\d+)*")
+NIL_MARKS = frozenset({"-", "–", "—", "‒", "−", "nil", "Nil", "NIL"})  # what a statement prints in place of a zero
 _SECTION_HEADING = re.compile(r"\s*\d{1,2}(?:\.\d{1,2})+\s*(?!(?i:million|billion|thousand|trillion|percent|per)\b)[A-Za-z]")
 
 
@@ -49,6 +51,19 @@ def _reference_column(rows: list[etree._Element], index: int) -> bool:
 
 def _w(tag: str) -> str:
     return "{%s}%s" % (W_NS, tag)
+
+
+@dataclass(frozen=True)
+class NilCell:
+    slide: int
+    slide_uid: str
+    table: int
+    row: int
+    col: int
+    para: int
+    mark: str
+    row_head: str
+    section: str
 
 
 class Doc:
@@ -145,6 +160,35 @@ class Doc:
                     po = seg_start + nm.start
                     po = po if plain[po : po + len(nm.raw)] == nm.raw else None
                     yield DocMention(part_no, 0, pi, seg_i, nm.start, nm, ctx, cell_rc, po, part, table_no, row_head, col_head, heading)
+
+    def nil_cells(self) -> Iterator[NilCell]:
+        """The table cells that hold only a mark for nothing (a dash): not figures, but a place where next period's figure may have to go.
+        Table numbering is the same as in ``mentions``, so a nil cell can be set beside the figures of its row."""
+        for part_no, part in enumerate(self._parts, 1):
+            tables: list[etree._Element] = []
+            heading = ""
+            for pi, p in enumerate(self._paragraphs(part)):
+                style = self._style(p).lower()
+                plain = self._plain(p)
+                tc = next((a for a in p.iterancestors() if a.tag == _w("tc")), None)
+                if style.startswith("heading") or style == "title" or (tc is None and len(plain) <= 120 and _SECTION_HEADING.match(plain)):
+                    heading = plain
+                if tc is None:
+                    continue
+                tr = next(a for a in tc.iterancestors() if a.tag == _w("tr"))
+                tbl = next(a for a in tr.iterancestors() if a.tag == _w("tbl"))
+                if not any(t is tbl for t in tables):
+                    tables.append(tbl)
+                table_no = next(k for k, t in enumerate(tables) if t is tbl)
+                if plain.strip() not in NIL_MARKS or len([q for q in tc.iter(_w("p"))]) != 1:
+                    continue
+                rows = [x for x in tbl.iter(_w("tr")) if next(x.iterancestors(_w("tbl"))) is tbl]
+                cells = [x for x in tr.iter(_w("tc")) if next(x.iterancestors(_w("tr"))) is tr]
+                ci = cells.index(tc)
+                if ci == 0:
+                    continue
+                row_head = "".join(self._plain(q) for q in cells[0].iter(_w("p")))
+                yield NilCell(part_no, part, table_no, rows.index(tr), ci, pi, plain.strip(), row_head, heading)
 
     def _next_revision_id(self) -> int:
         if self._rev is None:

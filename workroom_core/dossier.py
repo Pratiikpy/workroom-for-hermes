@@ -40,6 +40,7 @@ def build(project_name: str, release_id: str, meta: dict[str, Any], times: dict[
             "could_not_run": coverage.get("not_checked", []) if isinstance(coverage.get("not_checked"), list) else [],
         },
         "held": meta.get("held", []) or [], "blocked": meta.get("blocked", []) or [], "notes": meta.get("notes", []) or [],
+        "restated": (meta.get("rolled") or {}).get("restated", []) or [], "nil_cells": meta.get("nil_cells", []) or [],
     }
 
 
@@ -70,6 +71,10 @@ def text(d: dict[str, Any]) -> str:
         out.append("- Nothing was held back.")
     if d["notes"]:
         out += ["", "## Sources that moved", ""] + [f"- {x}" for x in d["notes"]]
+    if d["restated"]:
+        out += ["", "## Figures for a period the report already showed, now different", ""] + [f"- {x}" for x in d["restated"]]
+    if d["nil_cells"]:
+        out += ["", "## Dashes that may now hold a figure (not changed)", ""] + [f"- {x}" for x in d["nil_cells"]]
     out += ["", "## Restoring", "",
             "Workroom keeps a backup of every file this release replaced. Restore puts them back as they were, and is refused when you have worked in those files since, so later work is never overwritten.",
             "", "## What this record does not prove", "",

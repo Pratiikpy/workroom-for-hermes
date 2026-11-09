@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from ..match.numbers import consistent_with_source, format_like, house_of, parse_numbers
+from .nilcells import heading_key, nil_notes
 from .calc import evaluate
 from .periods import Period, describe_period, find_periods, parse_period, period_label
 from .timeline import Timeline
@@ -34,12 +35,13 @@ class RollPlan:
     notes: list[str] = field(default_factory=list)
     kept: list[str] = field(default_factory=list)
     not_rolled: list[str] = field(default_factory=list)
+    nil_cells: list[str] = field(default_factory=list)  # dashes that may now hold a figure
     restated: list[str] = field(default_factory=list)  # a figure for a period the report already showed, which the workbook now gives differently
     files: dict[str, bytes] = field(default_factory=dict)
     impacts: list[Impact] = field(default_factory=list)
 
     def meta(self) -> dict[str, Any]:
-        return {"steps": self.steps, "kind": self.kind, "ties": self.items, "labels": self.labels, "turned": self.turned, "restated": self.restated}
+        return {"steps": self.steps, "kind": self.kind, "ties": self.items, "labels": self.labels, "turned": self.turned, "restated": self.restated, "nil_cells": self.nil_cells}
 
 
 def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> RollPlan:
@@ -53,10 +55,6 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
     values = {k: c.value for k, c in cells.items()}
     ties = [t for t in project.ties() if t.state in ("accepted", "confirmed", "held") and t.kind in ("text", "derived", "chart")]
     ties = [t for t in ties if (project.root / t.deck).is_file()]  # a document that is put away keeps its links but is not part of the roll, and cannot block it
-
-    def heading_key(labels) -> tuple:
-        """Headings compared without footnote marks, case or spacing: "Agriculture(i)" this year is "Agriculture" next year."""
-        return tuple(re.sub(r"\s+", " ", re.sub(r"\s*\((?:[ivxlc]+|[a-z]|\d{1,2})\)\s*$", "", x.strip().lower())) for x in labels)
 
     by_labels: dict[tuple, list] = {}
     for c in index.cells:
@@ -180,11 +178,13 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
     row_of: dict[int, tuple] = {}
     # ---- write the new figures and period words into new copies of the documents ----
     by_tie = {t.id: t for t in ties}
+    docs_seen: dict[str, Any] = {}
     for rel in sorted({it["deck"] for it in rolled.values()} | {d for d in {t.deck for t in ties}}):
         path = project.root / rel
         if not path.is_file() or rel.lower().endswith(".scene.json"):
             continue
         doc = open_document(path.read_bytes(), rel)
+        docs_seen[rel] = open_document(path.read_bytes(), rel)  # an untouched copy: the dashes are read from the report as it stands
         dms = {}
         for d in doc.mentions():
             dms[project._mkey(d)] = d
@@ -283,6 +283,8 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
         resolution = 0.5 * 10 ** -(shown_before[0].decimals if shown_before else 0)
         if said is not None and now is not None and abs(project._display_value(earlier, said) - project._display_value(earlier, now)) >= resolution:
             plan.restated.append(f"{t0.deck} slide {t0.slide}: '{t0.raw}' becomes {describe_period(period_of[tid].shifted(plan.steps))}, which this report already gave as '{earlier.raw}'; the workbook now says {now:,.6g}. Restated, or a row that moved in the workbook: check before releasing")
+    new_cell = {tid: next((c for c in index.cells if (c.file, c.sheet, c.ref) == tuple(it["to"])), None) for tid, it in rolled.items()}
+    plan.nil_cells = nil_notes(project, docs_seen, ties, lambda t: new_cell.get(t.id) or cells.get((t.src_file, t.sheet, t.ref)), index.cells)
     if plan.blocked:
         plan.files.clear()
         plan.impacts.clear()
