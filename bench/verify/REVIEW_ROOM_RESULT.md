@@ -15,7 +15,7 @@ How: Word or PowerPoint (or, where Microsoft Office is missing, LibreOffice) sav
 ## Not verified, said plainly
 
 - LibreOffice: the invocation is tested with a stand-in program only; it has not been run against a real LibreOffice, and the macOS and Linux Desktop were not run.
-- Dark mode, narrow windows and screen-reader use of the review room were not checked yet; the marks are keyboard buttons with spoken labels and the figures are also listed under the page.
+- Dark mode: checked once with Chromium's dark colour scheme switched on (`desktop_review_05_dark.png`: the Desktop followed it, the page stays white as a document page does, marks and card stay readable); the Desktop's own theme picker was not driven. Narrow windows and screen-reader use were not checked; the marks are keyboard buttons with spoken labels and the figures are also listed under the page.
 - Speed on first use: a large report takes about 30 s to draw once, then it is cached.
 - A document edited in Word while the room is open is redrawn only when the files change (the cache is keyed by their bytes and times).
 - "Select a figure and ask for a change" is not built as an edit: asking Hermes about a figure puts a read-only question in the message box. Changing a figure is done by changing its source; that keeps every write on the approved release path.
