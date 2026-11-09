@@ -82,14 +82,22 @@ def _norm(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
 
 
-def column_signature(mentions: list[DocMention], members: list[int], column: int) -> str:
+def _tables_by_section(mentions: list[DocMention]) -> dict[str, list[int]]:
+    found: dict[str, set[int]] = defaultdict(set)
+    for m in mentions:
+        if m.cell is not None:
+            found[m.section].add(m.table)
+    return {k: sorted(v) for k, v in found.items()}
+
+
+def column_signature(mentions: list[DocMention], members: list[int], column: int, tables: dict[str, list[int]] | None = None) -> str:
     """A name for one column of one report table that survives the document being copied or its other tables being edited: the section the table
     sits under, which of that section's tables it is, and the column's position and heading."""
     first = mentions[members[0]]
     if first.shape_id:  # PowerPoint: the slide's own id and the shape
         base = f"{first.slide_uid or first.slide}/{first.shape_id}"
     else:
-        same = sorted({mentions[i].table for i in range(len(mentions)) if mentions[i].section == first.section and mentions[i].cell is not None})
+        same = (tables if tables is not None else _tables_by_section(mentions)).get(first.section, [])
         base = f"{_norm(first.section)}#{same.index(first.table) if first.table in same else 0}"
     head = next((mentions[i].col_head for i in members if mentions[i].cell and mentions[i].cell[1] == column and mentions[i].col_head), "")
     return f"{base}|{column}|{_norm(head)}"
@@ -109,6 +117,7 @@ def align_tables(mentions: list[DocMention], results: list[MatchResult], index: 
         return results
     rows = _rows_of(index)
     out = list(results)
+    tables = _tables_by_section(mentions)
     for members in groups.values():
         by_cell: dict[tuple[int, int], list[int]] = defaultdict(list)
         for i in members:
@@ -124,7 +133,7 @@ def align_tables(mentions: list[DocMention], results: list[MatchResult], index: 
         for column, items in columns.items():
             if len(items) < MIN_ROWS:
                 continue
-            sig = column_signature(mentions, members, column)
+            sig = column_signature(mentions, members, column, tables)
             _verify_column(items, mentions, candidates, rows, out, chosen.get(sig) if chosen else None, questions, sig)
     return out
 

@@ -7,6 +7,7 @@ and a clear margin over the next candidate; everything else is reported as needs
 from __future__ import annotations
 
 import bisect
+from functools import lru_cache
 import math
 import re
 from collections import Counter
@@ -201,6 +202,7 @@ SECTION_BONUS = 0.25  # added to a candidate whose sheet is named by the heading
 _DOTTED_ID = re.compile(r"(?<![\d.])\d+(?:\.\d+)+(?![\d.])")
 
 
+@lru_cache(maxsize=65536)
 def section_agrees(sheet: str, section: str) -> bool:
     """Does the heading a figure sits under name the sheet a candidate cell is on? Statements number their notes and the data sets number their
     sheets the same way ("4.1.2 Departmental Outputs" over sheet "4.1.2"), or the sheet takes the heading's words ("Balance sheet")."""
@@ -249,14 +251,27 @@ _SCALE_NAMED = {
 }
 
 
-def _scale_is_named(transform: str, context_text: str, cell: SourceCell | None) -> bool:
+def _text_names_scale(transform: str, context_text: str, memo: dict[str, bool]) -> bool:
+    """The text around a figure names the unit that explains a 1,000-fold difference (asked once per figure and unit)."""
+    hit = memo.get(transform)
+    if hit is None:
+        pattern = _SCALE_NAMED.get(transform)
+        hit = True if pattern is None else bool(pattern.search(context_text.lower()))
+        memo[transform] = hit
+    return hit
+
+
+def _scale_is_named(transform: str, context_text: str, cell: SourceCell | None, memo: dict[str, bool] | None = None) -> bool:
     """A document figure that differs from its cell by 1,000, 1,000,000 or 1,000,000,000 is the same figure only when something names that unit:
     the text around it ("in thousands", "$M") or the cell's own headings. Without that, equal digits at another scale are a coincidence."""
     pattern = _SCALE_NAMED.get(transform)
     if pattern is None:
         return True
-    haystack = context_text if cell is None else context_text + " " + " ".join(cell.row_labels + cell.col_labels + (cell.sheet,))
-    return bool(pattern.search(haystack.lower()))
+    if memo is not None and _text_names_scale(transform, context_text, memo):
+        return True
+    if cell is None:
+        return memo is None and bool(pattern.search(context_text.lower()))
+    return bool(pattern.search((" ".join(cell.row_labels + cell.col_labels + (cell.sheet,)) if memo is not None else context_text + " " + " ".join(cell.row_labels + cell.col_labels + (cell.sheet,))).lower()))
 
 
 def _significant_digits(raw: str) -> int:
@@ -310,6 +325,7 @@ def match_mentions(mentions: list[Mention], index: SourceIndex, top: int = 5) ->
         doc_row = {t for t in tokens(m.row_head) if t[0].isalpha()}
         change_text = ctx[0][max(0, span[0] - _MOVEMENT_WINDOW) : span[0]] if (ctx and span) else ""
         ctx_tokens = set(tokens(ctx_text))
+        scale_memo: dict[str, bool] = {}
         ctx_periods = periods(ctx_text)
         scored: list[Scored] = []
         for i in index.candidates(m.number):
@@ -321,8 +337,8 @@ def match_mentions(mentions: list[Mention], index: SourceIndex, top: int = 5) ->
                 continue  # a percentage is never a scaled money figure
             ls = index.label_score(i, ctx_tokens)
             if transform in _IMPLICIT_SCALES and (
-                (short and not _scale_is_named(transform, ctx_text, None))  # a short number says its unit itself or it is a count: the workbook's "$000" is not the document's
-                or (not _scale_is_named(transform, ctx_text, cell) and ls < UNNAMED_SCALE_LABEL)
+                (short and not _text_names_scale(transform, ctx_text, scale_memo))  # a short number says its unit itself or it is a count: the workbook's "$000" is not the document's
+                or (not _scale_is_named(transform, ctx_text, cell, scale_memo) and ls < UNNAMED_SCALE_LABEL)
             ):
                 continue  # the same digits at a 1,000-fold scale that nothing names, with no words behind them, are a coincidence, not a candidate
             cp = index.cell_periods(i)
@@ -348,7 +364,7 @@ def match_mentions(mentions: list[Mention], index: SourceIndex, top: int = 5) ->
             decision, reason = "confirm", f"the text says \"{opposite[0]}\" and the cell is labelled \"{opposite[1]}\": the same value, opposite words"
         elif best.transform in _IMPLICIT_SCALES and short:
             decision, reason = "confirm", "a short number fits many cells once scaled, so it needs a person"
-        elif best.transform in _IMPLICIT_SCALES and not _scale_is_named(best.transform, ctx_text, best.cell):
+        elif best.transform in _IMPLICIT_SCALES and not _scale_is_named(best.transform, ctx_text, best.cell, scale_memo):
             factor = {"thousands": "1,000", "millions": "1,000,000", "billions": "1,000,000,000"}[best.transform]
             decision, reason = "confirm", f"the source cell is {factor} times this figure and nothing in the text or the cell's headings names that unit"
         elif best.period_conflict:
