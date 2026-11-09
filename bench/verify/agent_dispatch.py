@@ -27,8 +27,10 @@ sys.path.insert(0, str(NOUS))
 sys.path.insert(0, str(HERE))
 
 import cycles  # noqa: E402
-import model_tools  # noqa: E402
-from hermes_cli.plugins import discover_plugins  # noqa: E402
+import importlib  # noqa: E402
+
+model_tools = importlib.import_module("model_tools")
+discover_plugins = importlib.import_module("hermes_cli.plugins").discover_plugins
 
 from workroom.workroom_core.service import Service  # noqa: E402
 
