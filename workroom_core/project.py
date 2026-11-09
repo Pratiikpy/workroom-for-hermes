@@ -1032,6 +1032,39 @@ class Project:
         out.sort(key=lambda c: -c.delta_pct)
         return Inbox(out, blocked)
 
+    def _realign(self, ties: list[Tie], mentions: list[DocMention], values: dict[tuple[str, str, str], float]) -> None:
+        """After a release, point each tie of one paragraph at the number it now sits on.
+
+        A paragraph usually holds numbers that were never linked (a year, a count of offices), so ties and numbers are not one to one. Each
+        tie looks, in order, for a number written as it was or as the release just wrote it, and among those takes the one nearest where it
+        stood once earlier edits in the same text run are allowed for. A tie that finds nothing goes back to "confirm" by itself; the others
+        in the paragraph are not disturbed."""
+        ties = sorted(ties, key=lambda t: (t.seg, t.offset))
+        taken: set[int] = set()
+        shift: dict[int, int] = {}  # seg -> characters added by edits to the left, so far
+        for t in ties:
+            new = self._tie_value(t, values, t.linked_value)
+            raws = {t.raw}
+            probe = parse_numbers(t.raw)
+            if probe and new is not None and t.kind in ("text", "derived"):
+                try:
+                    raws.add(format_like(probe[0], self._display_value(t, new), t.transform))
+                except (ValueError, KeyError):
+                    pass
+            expected = t.offset + shift.get(t.seg, 0)
+            choices = [(abs(d.offset - expected) if d.seg == t.seg else 10**6 + abs(d.seg - t.seg), i) for i, d in enumerate(mentions) if i not in taken and d.number.raw in raws]
+            if not choices:
+                if t.state != "held":
+                    self.db.execute("UPDATE ties SET state='confirm' WHERE id=?", (t.id,))
+                continue
+            _, i = min(choices)
+            taken.add(i)
+            d = mentions[i]
+            shift[t.seg] = shift.get(t.seg, 0) + (len(d.number.raw) - len(t.raw) if d.number.raw != t.raw else 0)
+            if t.state == "held":
+                continue
+            self.db.execute("UPDATE ties SET seg=?, offset=?, raw=?, linked_value=?, fp_near=? WHERE id=?", (d.seg, d.offset, d.number.raw, new, self._fp_near(d), t.id))
+
     def commit_snapshot(self, plan: Plan, override: dict[tuple[str, str, str], float] | None = None) -> None:
         """After a successful release: new source values become the baseline, and ties in edited decks are re-anchored.
 
@@ -1060,18 +1093,7 @@ class Project:
                 elif t.deck == deck_rel:
                     groups.setdefault((t.slide_uid or f"#{t.slide}", t.shape_id, t.para, t.cell_rc), []).append(t)
             for key, ts in groups.items():
-                ts.sort(key=lambda t: (t.seg, t.offset))
-                nms = sorted(fresh.get(key, []), key=lambda d: (d.seg, d.offset))
-                if len(nms) != len(ts):
-                    for t in ts:
-                        if t.state != "held":
-                            self.db.execute("UPDATE ties SET state='confirm' WHERE id=?", (t.id,))
-                    continue
-                for t, d in zip(ts, nms):
-                    if t.state == "held":
-                        continue
-                    new = self._tie_value(t, values, t.linked_value)
-                    self.db.execute("UPDATE ties SET seg=?, offset=?, raw=?, linked_value=?, fp_near=? WHERE id=?", (d.seg, d.offset, d.number.raw, new, self._fp_near(d), t.id))
+                self._realign(ts, sorted(fresh.get(key, []), key=lambda d: (d.seg, d.offset)), values)
         self._write_snapshot({**current, **(override or {})})
         for t in self.ties():
             if t.deck not in plan.files:
