@@ -195,12 +195,20 @@ def run_doc(doc: Path, word) -> dict:
         after = word_paragraphs(word, path)
         steps["cycle1"] = dict(zip(("ok", "note"), check_step(before, after, e1)), changes=n1)
         # the person edits in Word
-        retype_i, reword_i = pick[5], pick[6]
+        taken_paras = {seeds[j]["para"] for j in group1}
+        rest = [i for i in pick[5:] if seeds[i]["para"] not in taken_paras]  # the person edits figures in paragraphs Workroom has not touched
+        if len(rest) < 2 or seeds[rest[0]]["para"] == seeds[rest[1]]["para"]:
+            row.update(status="skipped", reason="no two untouched paragraphs for the person's edits")
+            return row
+        retype_i, reword_i = rest[0], rest[1]
         s_r, s_w = seeds[retype_i], seeds[reword_i]
         shown_r = ft.new_token({**s_r, "value": s_r["_now"]}, factor=ft.Decimal("1"))
         mine = ft.new_token({**s_r, "value": s_r["_now"]}, factor=ft.Decimal("1.5"))
         did = person_edits(word, path, {"anchor": s_r["para"][:120], "old": shown_r, "new": mine}, {"anchor": s_w["para"][:120], "front": "Overall, "}, "Note added by hand: 123 units were reviewed.")
         steps["person"] = did
+        if not (did["retyped"] and did["reworded"]):
+            row.update(status="skipped", reason=f"the person's edit could not be made in Word ({did})", steps=steps)
+            return row
         before = word_paragraphs(word, path)
         # cycle 2: all of group1, the retyped and the reworded sources change
         group2 = group1[:2] + [retype_i, reword_i]

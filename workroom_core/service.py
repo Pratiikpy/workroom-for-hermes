@@ -13,6 +13,7 @@ from typing import Any
 
 from .childenv import child_env
 from .meaning.decisions import Decisions
+from .controller.lock import LockTimeout, project_lock
 from .controller.approvals import ApprovalError, sign
 from .build.formats import plain
 from .controller.release import Controller, NotReady, ReleaseError, StaleRelease
@@ -438,6 +439,14 @@ class Service:
 
     @_closing
     def restore_release(self, pid: str, release_id: str, principal: str = DESKTOP_PRINCIPAL) -> dict[str, Any]:
+        pid = self._resolve(pid)
+        try:
+            with project_lock(self.data_dir / "projects" / pid / ".publish.lock"):
+                return self._restore_release(pid, release_id, principal)
+        except LockTimeout as exc:
+            raise ServiceError(str(exc)) from exc
+
+    def _restore_release(self, pid: str, release_id: str, principal: str) -> dict[str, Any]:
         """Owner action (an authenticated route, never an agent tool): put the files of one published release back as they were.
         Refused when any of those files changed since the release, so later work is never overwritten."""
         proj, ctl = self._open(pid)
@@ -1121,7 +1130,16 @@ class Service:
 
     @_closing
     def approve_and_publish(self, pid: str, release_id: str, digest: str, principal: str = DESKTOP_PRINCIPAL, channel: str = "desktop", acknowledge: bool = False) -> dict[str, Any]:
-        """Called only from the authenticated Desktop route with the digest the human was shown."""
+        """Called only from the authenticated Desktop route with the digest the human was shown. One at a time per project, so two approvals of
+        one release arriving together publish it once."""
+        pid = self._resolve(pid)
+        try:
+            with project_lock(self.data_dir / "projects" / pid / ".publish.lock"):
+                return self._approve_and_publish(pid, release_id, digest, principal, channel, acknowledge)
+        except LockTimeout as exc:
+            raise ServiceError(str(exc)) from exc
+
+    def _approve_and_publish(self, pid: str, release_id: str, digest: str, principal: str, channel: str, acknowledge: bool) -> dict[str, Any]:
         proj, ctl = self._open(pid)
         manifest, anchor = self._integrity(pid, proj, ctl)
         if ctl.digest(release_id) != digest:

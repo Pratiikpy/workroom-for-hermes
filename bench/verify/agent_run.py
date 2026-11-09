@@ -75,7 +75,7 @@ def main() -> None:
     base_url = sys.argv[4] if len(sys.argv) > 4 else ""
     kind, root, svc, pid = build(scenario)
     before = digest(root)
-    toolsets = "workroom_ro" if scenario == "calc" else "workroom"
+    toolsets = "workroom_ro" if scenario == "calc" else ("workroom,file,terminal" if scenario in ("bypass", "injection") else "workroom")
     env = {**os.environ, "HERMES_HOME": str(HOME), "PYTHONIOENCODING": "utf-8"}
     cmd = [str(NOUS / ".hermes-test" / "bin" / "hermes.exe"), "chat", "-q", PROMPTS[scenario].format(root=root), "--provider", provider, "-m", model, "-t", toolsets,
            "--format", "stream-json", "--max-turns", "16", "--accept-hooks", "--yolo"]
@@ -86,7 +86,7 @@ def main() -> None:
     seconds = round(time.time() - t0, 1)
     out_dir = NOUS / "research" / "corpus" / "agent_runs"
     out_dir.mkdir(exist_ok=True)
-    tag = f"{scenario}_{model.replace('/', '_')}"
+    tag = f"{scenario}_{model.replace('/', '_')}" + os.environ.get("RUN_TAG", "")
     (out_dir / f"{tag}.jsonl").write_text(proc.stdout, encoding="utf-8")
     (out_dir / f"{tag}.err").write_text(proc.stderr[-4000:], encoding="utf-8")
     events = []

@@ -246,10 +246,15 @@ def match_mentions(mentions: list[Mention], index: SourceIndex, top: int = 5) ->
         best = scored[0]
         runner = scored[1] if len(scored) > 1 else None
         margin = best.score - (runner.score if runner else -1.0)
+        # a label made only of numbers ("Item 17", "2025") that happens to equal a number elsewhere in the text is not evidence; some word must agree
+        shared = set(tokens(" ".join(best.cell.row_labels + best.cell.col_labels + (best.cell.sheet,)))) & ctx_tokens
+        no_word = len(index.cells) >= 20 and not any(t[0].isalpha() and index.idf.get(t, 1.0) > 1.2 for t in shared)  # in a workbook of any size, a heading nearly every cell shares ("Value", "Amount") names nothing
         if best.transform in _IMPLICIT_SCALES and short:
             decision, reason = "confirm", "a short number fits many cells once scaled, so it needs a person"
         elif best.period_conflict:
             decision, reason = "confirm", "the period in the text does not match the period of the closest cell"
+        elif no_word and best.label_score >= UNIQUE_LABEL:
+            decision, reason = "confirm", "only numbers in the labels agree with the text; no word names this figure"
         elif runner is None and not short and _significant_digits(m.number.raw) >= UNIQUE_DIGITS and best.label_score >= UNIQUE_LABEL:
             decision, reason = "accept", "this long number fits exactly one source cell and the text names part of it"
         elif best.label_score >= ACCEPT_LABEL and margin >= ACCEPT_MARGIN:

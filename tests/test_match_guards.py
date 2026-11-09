@@ -47,3 +47,16 @@ def test_only_the_words_near_a_number_describe_it_in_a_long_paragraph() -> None:
     cells = [cell("B2", 6.15, "Accounts receivable")]
     assert decide(far, "6.15", cells).best.label_score == 0.0
     assert decide(near, "6.15", cells).best.label_score > 0.0
+
+
+def test_numbers_alone_in_a_label_do_not_make_a_link() -> None:
+    """A row called "Item 17" is not evidence for a sentence that happens to contain 17; some word must agree."""
+    from workroom.workroom_core.match.engine import Mention, SourceIndex, match_mentions
+    from workroom.workroom_core.match.numbers import parse_numbers
+    from workroom.workroom_core.ooxml.xlsx import SourceCell
+
+    cells = [SourceCell("Data", f"B{i}", i, 2, 1000.0 + i, False, False, (f"Item {i}",), ("Value",), False) for i in range(2, 30)]
+    index = SourceIndex(cells)
+    mention = Mention("m", parse_numbers("Between 17 offices and 2,017 staff")[1], ("Between 17 offices and 2,017 staff",))
+    res = match_mentions([mention], index)[0]
+    assert res.decision != "accept"

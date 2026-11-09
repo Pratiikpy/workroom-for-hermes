@@ -79,7 +79,7 @@ def test_four_approvals_of_one_release_at_once_publish_it_exactly_once(tmp_path:
         except (ServiceError, Exception) as exc:  # noqa: BLE001
             outcome.append(type(exc).__name__)
 
-    threads = [threading.Thread(target=approve) for _ in range(4)]
+    threads = [threading.Thread(target=approve) for _ in range(8)]
     [t.start() for t in threads]
     [t.join() for t in threads]
     assert outcome.count("published") == 1
