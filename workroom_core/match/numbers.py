@@ -73,6 +73,8 @@ def _part_of_longer_token(text: str, start: int, end: int) -> bool:
 
 
 _CALL = re.compile(r"[A-Za-z_][A-Za-z_0-9]*\([^()]*\)|\{[^{}]*\}|\[\d+(?:\s?[,–-]\s?\d+)*\]")
+# a number that names a place in the document ("Note 4.1", "Table 3", "page 12", "Section 2") is a reference, not a quantity
+_REFERENCE_WORD = re.compile(r"\b(?:sections?|notes?|tables?|figures?|fig|pages?|chapters?|parts?|appendix|appendices|items?|steps?|slides?|rows?|columns?|lines?|paragraphs?|clauses?|articles?|schedules?|exhibits?)\b\.?\s*$", re.I)
 
 
 def parse_numbers(text: str) -> list[NumberMention]:
@@ -89,6 +91,8 @@ def parse_numbers(text: str) -> list[NumberMention]:
         # a bare number glued to letters (A1, Q2, FY25) is a label, not a quantity
         before = text[m.start("num") - 1] if m.start("num") > 0 else " "
         if before.isalpha() and not m.group("cur"):
+            continue
+        if _REFERENCE_WORD.search(text[: m.start()]):
             continue
         if _part_of_longer_token(text, m.start("num"), m.end("num")):
             continue

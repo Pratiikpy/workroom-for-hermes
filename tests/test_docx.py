@@ -173,3 +173,39 @@ def test_a_document_without_a_body_is_refused_too() -> None:
             dst.writestr(info, blob)
     with pytest.raises(EditError, match="0 body elements"):
         Doc(out.getvalue())
+
+
+def test_the_section_number_that_opens_a_heading_is_not_a_figure_but_the_same_text_in_a_body_paragraph_is() -> None:
+    from docx import Document
+
+    d = Document()
+    d.add_heading("4.1 Property, plant and equipment", level=2)
+    d.add_paragraph("4.1 percent more equipment was bought than planned")
+    buf = io.BytesIO()
+    d.save(buf)
+    raws = [(m.para, m.number.raw) for m in Doc(buf.getvalue()).mentions()]
+    assert raws == [(1, "4.1")], raws
+
+
+def test_a_formatted_heading_number_and_a_notes_column_are_not_figures() -> None:
+    from docx import Document
+
+    d = Document()
+    d.add_paragraph("4.1 Property, plant and equipment")
+    d.add_paragraph("4.2 Million people use the service")
+    d.add_paragraph("6.5 percent of staff left")
+    t = d.add_table(rows=3, cols=3)
+    for c, v in enumerate(["Item", "Notes", "2021"]):
+        t.cell(0, c).text = v
+    for c, v in enumerate(["Property, plant and equipment", "4.1", "224,609"]):
+        t.cell(1, c).text = v
+    for c, v in enumerate(["Intangible assets", "4.2", "2,238,270"]):
+        t.cell(2, c).text = v
+    buf = io.BytesIO()
+    d.save(buf)
+    nums = [m.number for m in Doc(buf.getvalue()).mentions()]
+    raws = [n.raw for n in nums]
+    assert "4.1" not in raws and "6.5%" in " ".join(raws) + "%" or "6.5" in raws
+    assert any(n.value == 4.2 and n.scale == 1e6 for n in nums), "a number that reads as an amount keeps its place even when the paragraph starts with it"
+    assert "224,609" in raws and "2,238,270" in raws
+    assert raws.count("4.2") == 0, "the notes column's 4.2 is a reference"

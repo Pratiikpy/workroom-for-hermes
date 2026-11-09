@@ -107,7 +107,7 @@ def main() -> None:
     rows = []
     for t in accepted:
         why = svc.explain(pid, t["id"])
-        rows.append({"id": t["id"], "text": t["text"], "sentence": t["sentence"][:240], "source": t["source"], "explain": {k: why[k] for k in why if k in ("labels", "value", "current_value", "row_labels", "col_labels")}})
+        rows.append({"id": t["id"], "text": t["text"], "sentence": t["sentence"][:240], "source": t["source"], "row": why["source"]["row"], "column": why["source"]["column"], "formula": why["source"]["formula"], "value": why["source"]["value_now"]})
     result["automatic_links"] = rows
     result["asked_examples"] = [{"text": t["text"], "sentence": t["sentence"][:160], "note": t["note"]} for t in ties if t["state"] == "confirm"][:15]
 
@@ -119,15 +119,23 @@ def main() -> None:
             break
         file_, rest = r["source"].split(" ", 1)
         sheet, ref = rest.rsplit("!", 1)
-        why = svc.explain(pid, r["id"])
-        cur = why.get("current_value", why.get("value"))
-        if cur is None:
+        cur = r["value"]
+        if cur is None or r["formula"]:
             continue
         new = float(cur) * 1.5 + 1
         if set_constant(root / file_, sheet, ref, new):
             changed.append({"id": r["id"], "source": r["source"], "old": cur, "new": new, "text": r["text"]})
     result["changed_cells"] = changed
-    staged = svc.stage(pid)
+    out.write_text(json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
+    print(json.dumps({k: result[k] for k in ("discover_seconds", "discover", "states")}, indent=1), flush=True)
+    print("automatic links:", len(rows), "| cells changed for the release test:", len(changed), flush=True)
+    try:
+        staged = svc.stage(pid)
+    except Exception as exc:  # noqa: BLE001
+        result["stage_error"] = str(exc)[:300]
+        out.write_text(json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
+        print("stage refused:", result["stage_error"])
+        return
     result["stage"] = {k: staged.get(k) for k in ("state", "held")} | {"changes": len(staged.get("changes", [])), "flags": [f["kind"] for f in staged.get("flags", [])]}
     result["planned"] = [{"old": c["old_text"], "new": c["new_text"], "where": c.get("where")} for c in staged.get("changes", [])][:40]
     if staged.get("state") == "awaiting_approval":
@@ -142,8 +150,7 @@ def main() -> None:
         result["diffs"] = [{"before": a[:200], "after": b[:200]} for a, b in diff[:25]]
         result["word"] = word_read(root / report.name)
     out.write_text(json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
-    print(json.dumps({k: result[k] for k in ("discover_seconds", "discover", "states")}, indent=1))
-    print("automatic links:", len(rows), "| changed cells:", len(changed), "| planned:", len(result["planned"]), "| paragraphs changed:", result.get("paragraphs_changed"))
+    print("planned:", len(result["planned"]), "| paragraphs changed:", result.get("paragraphs_changed"))
     shutil.rmtree(tmp, ignore_errors=True)
 
 

@@ -190,3 +190,12 @@ def test_a_figure_written_without_a_leading_zero_keeps_that_style() -> None:
     m = parse_numbers("linear 2 steps @.5")[-1]
     assert (m.raw, m.value) == (".5", 0.5)
     assert format_like(m, 0.6, "exact") == ".6" and format_like(m, 1.25, "exact") == "1.3"
+
+
+def test_a_number_that_names_a_place_in_the_document_is_a_reference_not_a_quantity() -> None:
+    from workroom.workroom_core.match.numbers import parse_numbers
+
+    assert parse_numbers("See Note 4.1, Table 3, page 12 and Section 2 for details") == []
+    assert [m.raw for m in parse_numbers("Note 4.1 shows revenue of 20,388,510 in the year")] == ["20,388,510"]
+    assert [m.raw for m in parse_numbers("Revenue grew 4.1% in the notes to 12 offices")] == ["4.1%", "12"]
+    assert [m.raw for m in parse_numbers("Items sold: 17")] == ["17"]

@@ -65,6 +65,7 @@ def test_the_drawing_holds_exactly_the_nodes_and_edges_of_the_projects_graph(wor
 
 def test_selecting_a_source_lights_its_links_and_dims_everything_else(world, page) -> None:
     page.locator("svg g[role=button][aria-label^='Source Operating income']").click()
+    page.wait_for_timeout(500)  # the dimming is a 160 ms transition; read the settled state
     panel = page.get_by_role("region", name="Selected link")
     text = panel.inner_text()
     assert "Operating income Q2 2026" in text and "results.xlsx" in text

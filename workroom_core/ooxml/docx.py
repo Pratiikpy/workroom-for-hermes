@@ -26,6 +26,15 @@ MAIN = "word/document.xml"
 _EXTRA = re.compile(r"word/(header\d*|footer\d*|footnotes|endnotes)\.xml")
 
 
+_NUMBERED_HEADING = re.compile(r"\d{1,2}(?:\.\d{1,2})+\s+(?!(?i:million|billion|thousand|trillion|percent|per)\b)[A-Z]")
+_REFERENCE_NUMBER = re.compile(r"\d+(?:\.\d+)*")
+
+
+def _cell_text(tr: etree._Element, index: int) -> str:
+    cells = [x for x in tr.iter(_w("tc")) if next(x.iterancestors(_w("tr"))) is tr]
+    return "".join(_text_of(r, WORD) for q in cells[index].iter(_w("p")) for seg in _text_runs(q, WORD) for r in seg) if index < len(cells) else ""
+
+
 def _w(tag: str) -> str:
     return "{%s}%s" % (W_NS, tag)
 
@@ -96,9 +105,11 @@ class Doc:
                 first_row = [x for x in rows[0].iter(_w("tc")) if next(x.iterancestors(_w("tr"))) is rows[0]]
                 col_head = "".join(self._plain(q) for q in first_row[ci].iter(_w("p"))) if ri > 0 and ci < len(first_row) else ""
                 row_head = "".join(self._plain(q) for q in cells[0].iter(_w("p"))) if ci > 0 else ""
+                note_col = any(_cell_text(rows[k], ci).strip().lower() in ("note", "notes") for k in range(min(4, len(rows))))
             else:
                 cell_rc = None
                 row_head = col_head = ""
+                note_col = False
             consumed = 0
             for seg_i, seg in enumerate(_text_runs(p, WORD)):
                 text = "".join(_text_of(r, WORD) for r in seg)
@@ -107,6 +118,12 @@ class Doc:
                 for nm in parse_numbers(text):
                     if nm.unit == "plain" and nm.decimals == 0 and "," not in nm.raw and len(nm.raw) == 4 and 1900 <= nm.value <= 2100:
                         continue
+                    if (style.startswith("heading") or style == "title") and nm.unit == "plain" and seg_start + nm.start == 0:
+                        continue  # the section number that opens a heading ("4.1 Property, plant and equipment") numbers the section, it is not a quantity
+                    if nm.unit == "plain" and seg_start + nm.start == 0 and _NUMBERED_HEADING.match(plain) and len(plain) <= 100:
+                        continue  # the same, in a heading that is only formatted as one
+                    if note_col and nm.unit == "plain" and _REFERENCE_NUMBER.fullmatch(nm.raw):
+                        continue  # a "Notes" column holds note numbers, not amounts
                     ctx = (plain,) + tuple(x for x in (heading, row_head, col_head) if x)
                     po = seg_start + nm.start
                     po = po if plain[po : po + len(nm.raw)] == nm.raw else None
