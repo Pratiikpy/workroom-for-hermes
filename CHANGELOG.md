@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.4.0
+
+Added
+- Review room: a Word report or PowerPoint deck is drawn as Office draws it, with every linked figure marked on its page, as it stands and as it would be after the release, and a card behind each mark saying where the figure came from. Read-only. Needs Microsoft Office (or LibreOffice, untested here) and the pypdfium2 library; without them a structural list says it is not a drawing.
+- Reporting recipe: the owner approves one model report, and a copy of it inherits its links, each checked again. Agents can propose and read the status; only the owner installs it.
+- Column questions: when a report table column fits two workbook columns about equally, one question for the column instead of one per figure; the answer is the owner's and is remembered for copies.
+- Columns placed by their order: a report table that is a block of a sheet is matched column by column in the sheet's order, when every best assignment agrees and nearly every figure equals its cell. This also corrects links that value alone made to another period.
+- Release record: a readable record of every published release (changes with source cells, files by hash, checks that ran or could not run, who approved, how to restore), in the Past releases list and as a read-only agent tool.
+- A table that lost a source is not half-updated: none of its figures is rewritten and the release lists them as blocked.
+- Evidence: two holdout sets of public Victorian department reports, judged by an independent reader, and the scripts to repeat them (`bench/verify/HOLDOUT1_RESULT.md`, `HOLDOUT2_RESULT.md`).
+
+Fixed
+- Word paragraphs that open a page were not read at all (a cache marker Word writes into the first run of a page).
+- The "000" of `$'000` was read as a quantity.
+- Figures typed into workbook cells as text with a footnote mark ("14,263(i)") were invisible.
+- A merged heading now heads every column or row it spans.
+- A dated balance label ("Balance at 1 July 2024") steps by a year when rolling forward instead of by a month.
+- Section headings that Word styles under another name ("5.1.1Reconciliation...") are read as sections; a source sheet named after the section breaks ties between equal cells.
+- A change in the text ("decreased by") is no longer linked to a balance; a table row heading in the report has to be a heading of the cell; a short number does not borrow the workbook's "$000" to become a candidate.
+- Matching is about six times faster on large reports and gives the same order every time for equal scores.
+
+Changed
+- A figure in a table cell is never set aside as a coincidence; short numbers in sentences with little behind them still are.
+
 ## 0.3.0
 
 Added

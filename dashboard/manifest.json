@@ -2,6 +2,6 @@
   "name": "workroom",
   "label": "Workroom",
   "description": "Backend routes for the Workroom Desktop screens",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "api": "plugin_api.py"
 }

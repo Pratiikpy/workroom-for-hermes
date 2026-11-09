@@ -48,3 +48,12 @@ Both come from one government agency, were downloaded from its own site, and wer
 
 After reading each result, rules were added (headings and note numbers are not figures; dashes are not headings; short numbers that match a cell by chance are listed apart; opposite words on an equal value are asked about; a table column that agrees row by row with one source column is linked as a whole). With them, the first report goes to 340 automatic links and 129 questions of 1,072 figures, and the second to 171 and 219 of 1,129. These later numbers are not blind. Two reports from one agency are two data points, not a rate.
 
+## Reports the builder had not seen (9 Nov 2026)
+
+| Claim | Result | Caveat |
+|---|---|---|
+| Automatic links are right on unseen reports | 357 of 360 judged correct by an independent reader (99.2%, 95% interval 97.6 to 99.8); the three misses are named in `bench/verify/HOLDOUT1_RESULT.md` | Word only, four documents from one government; samples of 120 per report; a later fix found six more wrong links in one table of the second report, about 0.2% of its automatic links |
+| The first import is light | Not yet: 3,841 questions on the Health report's blind run (about 88% real), 1,885 on the first statements report | development work since then cut these (see `HOLDOUT2_RESULT.md`) but the figures after tuning are not blind |
+| The review room draws the real page and marks the right figures | Real Hermes Desktop 9 of 9 checks; 182-page report drawn in 30 s, 99.6% of figures placed, 96% pass a line check | Windows and Microsoft Office; LibreOffice, macOS, Linux, dark mode and screen readers not checked |
+| A table that lost a source is not half-updated | Tested on a generated report | not measured on real documents |
+

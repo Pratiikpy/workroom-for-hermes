@@ -4,7 +4,7 @@
 
 Workroom links every number in your Word, PowerPoint and Excel files to the spreadsheet cell it came from. When a source changes it shows exactly which numbers in which files are affected, updates only those, keeps your own edits, and publishes one release that you approve and can restore. Nothing is written to your files until you approve.
 
-> **Status: version 0.3.0, an early release.** What has been proven and what has not is stated plainly in [Evidence](docs/EVIDENCE.md) and [Limits](docs/LIMITS.md). The most important limit: on one real 85-page report Workroom linked about a third of the numbers on its own and asked about an eighth of them, so a first import of a large report still takes some work.
+> **Status: version 0.4.0, an early release.** What has been proven and what has not is stated plainly in [Evidence](docs/EVIDENCE.md) and [Limits](docs/LIMITS.md). The most important limit: on reports it had not seen, the links Workroom makes by itself were right in 357 of 360 judged cases, but the first import of a large report still asks a great many questions (3,841 on one blind run, about 88% of them real), so setting up a big report still takes real work.
 
 ![The change map in Hermes Desktop: changed source cells on the left, the places in each document they reach on the right](docs/screenshots/00-hero-change-map.png)
 
@@ -46,6 +46,16 @@ Ask Why: for any linked number, Workroom says which cell it came from, which lab
 Under "See what would change", **Map** draws the Changes inbox as a graph. Every box and line is a link the project holds, not a picture of it: on the left the source cells that changed (a dashed red box when a cell no longer holds a number), on the right the places in each document they reach, coloured by what will happen (will update, held for you, source missing), with a red or amber "!" where a finding needs your check. Select a box to follow its links: the old and new value, the sentence, why it will or will not change, and the finding with its evidence. "Show this file in its folder" uses the Desktop's reveal door. It works from the keyboard (Tab, Enter, Escape), and **List** is the same information as text.
 
 What it does not draw: a calculated figure is its own box on the left (the inbox does not list the cells it was calculated from, so no lines are invented to them); at most 80 places are drawn, and the list has all of them; in a window narrower than 700 px the list is shown first. Tested against the project's own link table (every drawn line is a link, every changed link is drawn), in a real browser with the real Desktop script, and driven in the real Hermes Desktop v0.23.0 on Windows (9 of 9 checks). Not clicked in the real Desktop: "Show this file in its folder".
+
+## The review room
+
+Under "Review the documents" the report or deck is drawn as Microsoft Office draws it, with every linked figure marked on its page: blue for the figures that change, green linked, purple needs you, amber your own edit (protected), red held back. A switch shows the page as it is now or as it would be after the release; choosing a mark says where the figure came from. Nothing is changed by looking. It needs Office on the machine (LibreOffice is supported in code and untested here); without it a list says it is not a drawing of the document.
+
+## Recipes, column questions and the release record
+
+- **Recipe.** Approve one report as the model for a recurring report; a copy of it inherits its links, each checked again, so last month's file is linked to the workbook in one step. Only the owner can approve it.
+- **Column questions.** When a column of a report table fits two workbook columns about equally, you are asked once for the column ("this is the Level 3 column, not the carrying amount") instead of once for each figure. Every row is still checked against the column you chose.
+- **Release record.** Every published release has a readable record: what changed with its source cell, the files by hash, the checks that ran or could not run, who approved it, how to restore it. It is evidence for you, not a signed statement.
 
 ## What a change means
 
@@ -101,6 +111,7 @@ That is a guarantee about Workroom's tools and its editor, and it stops there. A
 |---|---|---|
 | Does an update touch only what it should? | Untouched parts stayed byte-identical in 250 of 250 public Word and PowerPoint packages; a release of 10 changed cells on a real government report rewrote exactly the 20 places it should and nothing else | public files and one independent report; Windows |
 | Does the real software agree? | Word, Excel and PowerPoint open and read back every released file; Microsoft's Open XML validator reports no new error | Windows only |
+| Are automatic links right on reports it had not seen? | 357 of 360 judged correct by an independent reader across two sets of public Victorian department reports (99.2%, 95% interval 97.6 to 99.8) | Word only, one government; see [Evidence](docs/EVIDENCE.md) |
 | Are automatic links right? | Two independent reports from one agency: 0 wrong in 70 read by hand on the first; on the second (last year's report against this year's workbook) 6 wrong by label and 3 unclear of 181, all of which the reader now guards against or asks about | the guards were written after seeing those results, so they are not yet tested blind; the links not read by hand were checked mechanically only |
 | Does it recover? | 16 of 16 injected crash points recover; restore is byte for byte | simulated process death, not a power cut |
 | Can the agent publish? | No Workroom tool approves or publishes; capable hosted models refused, ignored a planted instruction and left files unchanged | one run each; a shell guard was bypassed once and hardened, see [Limits](docs/LIMITS.md) |
@@ -109,8 +120,8 @@ Full tables, caveats and the dated record: [Evidence](docs/EVIDENCE.md).
 
 ## What it does not do yet
 
-- **Large first imports take some work.** On one real report, about a third of the numbers linked on their own and about an eighth needed a decision; the rest were short numbers that match a cell only by chance, or figures the workbook does not contain. A table whose column agrees with one source column row by row is now linked as a whole; tables with weaker evidence are still asked about number by number.
-- **One independent report has been measured.** Most other tests used documents and workbooks built for testing.
+- **Large first imports take real work.** On a report that is mostly small tables of counts, the blind run asked 3,841 questions (about 88% real); column questions and column order cut that on the files we tuned on, but not yet on a new one.
+- **Four independent reports from one government have been measured, all Word.** No independent PowerPoint deck and no unrelated author yet; most other tests used documents and workbooks built for testing.
 - **Windows is the tested desktop.** The suite also passes on macOS and Linux; the Hermes Desktop screens and the Office checks were run on Windows only.
 - **The agent boundary covers Workroom's tools.** A shell guard stops the common ways around approval; it is a heuristic, not isolation.
 - **Claims are read in English**, from a fixed set of wordings; anything else is listed as not checked.
@@ -119,7 +130,7 @@ The complete list is in [Limits](docs/LIMITS.md).
 
 ## Disclosure
 
-- Dependencies installed by Hermes: `lxml` (reading and patching Office files), `python-pptx` and `python-docx` (building decks and reports; `XlsxWriter`, which python-pptx brings, writes workbooks). Test-only: pytest, openpyxl, Playwright.
+- Dependencies installed by Hermes: `lxml` (reading and patching Office files), `python-pptx` and `python-docx` (building decks and reports; `XlsxWriter`, which python-pptx brings, writes workbooks). `pypdfium2` and `Pillow` (drawing the pages of a document in the review room: Office saves a private copy as a PDF and pdfium draws it; without them the room lists the figures instead). Test-only: pytest, openpyxl, Playwright.
 - Programs Workroom starts, all local, none with network access of its own:
   1. a Python child process (same interpreter as Hermes, 60 second limit, scrubbed environment) that runs only `workroom_core/build/worker.py` to build a file from a validated spec; it receives no project paths and no secrets and contains no network code (the operating system does not enforce that);
   2. on Windows, the system `icacls` tool once, to make Workroom's own signing-key file readable only by your account;
