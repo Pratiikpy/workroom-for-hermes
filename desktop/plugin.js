@@ -1,4 +1,4 @@
-import { createElement as h, useCallback, useEffect, useRef, useState } from 'react'
+import { createElement as h, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SandboxedFrame, host } from '@hermes/plugin-sdk'
 import { TRANSCRIPT_DIRECTIVE_AREA } from '@hermes/plugin-sdk'
 
@@ -54,6 +54,152 @@ function Inbox({ inbox }) {
     inbox.blocked.length ? h('div', { style: { ...css.card, marginBottom: 8 } },
       h('div', { style: { fontWeight: 600 } }, 'Linked numbers whose source is missing'),
       h('ul', { style: { margin: '6px 0 0', paddingLeft: 18 } }, inbox.blocked.map(e => h('li', { key: e.tie_id }, `${e.deck}, ${e.where || 'slide ' + e.slide}: ${e.text_before} (${e.reason})`)))) : null)
+}
+
+const MAP = { W: 940, srcX: 14, srcW: 280, elX: 500, elW: 426, srcH: 62, elH: 48, gap: 10, groupGap: 24, groupH: 24, pad: 14, cap: 80 }
+const clip = (s, n) => { const t = String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n - 1) + '…' : t }
+const tone = (st) => st === 'update' ? 'var(--ui-green, #16a34a)' : st === 'held' ? 'var(--ui-amber, #d97706)' : 'var(--ui-red, #dc2626)'
+const stateWord = (st) => st === 'update' ? 'will update' : st === 'held' ? 'held for you' : 'source missing'
+
+function layoutMap(map) {
+  const shown = map.elements.slice(0, MAP.cap)
+  const hidden = map.elements.length - shown.length
+  const els = {}
+  const heads = []
+  let y = MAP.pad
+  for (const d of map.documents) {
+    const items = shown.filter(e => e.document === d.id)
+    if (!items.length) continue
+    heads.push({ doc: d, y, total: d.elements })
+    y += MAP.groupH
+    for (const e of items) { els[e.id] = { e, x: MAP.elX, y, w: MAP.elW, h: MAP.elH }; y += MAP.elH + MAP.gap }
+    y += MAP.groupGap - MAP.gap
+  }
+  const order = map.sources.map(s => {
+    const ys = shown.filter(e => e.source === s.id).map(e => els[e.id].y + MAP.elH / 2)
+    return { s, want: ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : Infinity }
+  }).sort((a, b) => a.want - b.want)
+  const srcs = {}
+  let cursor = MAP.pad
+  for (const o of order) {
+    const top = Math.max(cursor, Number.isFinite(o.want) ? o.want - MAP.srcH / 2 : cursor)
+    srcs[o.s.id] = { s: o.s, x: MAP.srcX, y: top, w: MAP.srcW, h: MAP.srcH }
+    cursor = top + MAP.srcH + MAP.gap
+  }
+  return { W: MAP.W, H: Math.max(y, cursor) + MAP.pad, els, srcs, heads, hidden, shown }
+}
+
+function ChangeMap({ map, folder, ctx }) {
+  const [sel, setSel] = useState(null)
+  const [focus, setFocus] = useState(null)
+  const [drawn, setDrawn] = useState(false)
+  const lay = useMemo(() => layoutMap(map), [map])
+  const fmap = useMemo(() => Object.fromEntries(map.findings.map(f => [f.id, f])), [map])
+  const calm = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  useEffect(() => {
+    setDrawn(calm)
+    const id = requestAnimationFrame(() => setDrawn(true))
+    return () => cancelAnimationFrame(id)
+  }, [map, calm])
+  useEffect(() => { setSel(null) }, [map])
+  if (!map.sources.length) return h('div', { style: css.muted }, 'No tied number has changed since the last release.')
+  const t = map.totals
+  const goneCount = map.sources.filter(s => s.missing).length
+  const changedCount = map.sources.length - goneCount
+  const near = (() => {
+    if (!sel) return null
+    const ids = new Set([sel])
+    if (sel[0] === 's') map.elements.filter(e => e.source === sel).forEach(e => ids.add(e.id))
+    else { const e = map.elements.find(x => x.id === sel); if (e) ids.add(e.source) }
+    return ids
+  })()
+  const dim = (id) => near && !near.has(id) ? 0.25 : 1
+  const pick = (id) => setSel(sel === id ? null : id)
+  const keys = (id) => (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pick(id) } else if (ev.key === 'Escape') setSel(null) }
+  const sev = (e) => e.flags.length ? (e.flags.some(id => fmap[id] && fmap[id].severity === 'high') ? 'high' : 'medium') : ''
+  const txt = { fill: 'var(--ui-text-primary, #1c1c1e)', fontSize: 12.5, pointerEvents: 'none' }
+  const sub = { ...txt, fill: 'var(--ui-text-tertiary, #6b6b70)', fontSize: 11.5 }
+  const box = (id, x, y, w, hgt, color, dashed) => h('rect', {
+    x, y, width: w, height: hgt, rx: 9, style: { fill: 'var(--ui-bg-elevated, #fff)', stroke: sel === id || focus === id ? 'var(--ui-accent, #2f6feb)' : dashed ? color : 'var(--ui-stroke-secondary, #d6d6da)', strokeWidth: sel === id || focus === id ? 2.4 : 1.2, strokeDasharray: dashed ? '5 4' : undefined }
+  })
+  const node = (id, label, shape) => h('g', { key: id, role: 'button', tabIndex: 0, 'aria-pressed': sel === id, 'aria-label': label, onClick: () => pick(id), onKeyDown: keys(id), onFocus: () => setFocus(id), onBlur: () => setFocus(null), style: { cursor: 'pointer', outline: 'none', opacity: dim(id), transition: 'opacity 160ms' } }, shape)
+  const sources = Object.values(lay.srcs).map(({ s, x, y, w, h: hh }) => {
+    const miss = s.missing
+    const lines = miss ? ['Source cell is gone', clip(`${s.file} · ${s.sheet}!${s.ref}`, 40), s.old != null ? `was ${num(s.old)}` : ''] :
+      s.kind === 'calculation' ? [clip(s.label, 38), `${Number(s.old).toFixed(s.unit === '%' ? 1 : 2)}${s.unit} → ${Number(s.new).toFixed(s.unit === '%' ? 1 : 2)}${s.unit}`, 'calculated figure'] :
+      [clip(s.label || s.key, 38), `${num(s.old)} → ${num(s.new)} (${s.delta_pct.toFixed(1)}%)`, clip(`${s.file} · ${s.sheet}!${s.ref}`, 40)]
+    return node(s.id, miss ? `Missing source ${s.sheet} ${s.ref}` : `Source ${lines[0]}, ${lines[1]}`, [
+      box(s.id, x, y, w, hh, miss ? tone('blocked') : 'var(--ui-accent, #2f6feb)', miss || s.kind === 'calculation'),
+      h('rect', { x, y: y + 8, width: 4, height: hh - 16, rx: 2, style: { fill: miss ? tone('blocked') : 'var(--ui-accent, #2f6feb)' } }),
+      h('text', { x: x + 14, y: y + 20, style: { ...txt, fontWeight: 600 } }, lines[0]),
+      h('text', { x: x + 14, y: y + 37, style: txt }, lines[1]),
+      h('text', { x: x + 14, y: y + 53, style: sub }, lines[2]),
+      h('title', null, miss ? `${s.key} is no longer a number in the workbook` : `${s.key}: ${num(s.old)} → ${num(s.new)}`)])
+  })
+  const places = Object.values(lay.els).map(({ e, x, y, w, h: hh }) => {
+    const sv = sev(e)
+    const change = e.after ? `${clip(e.before, 22)} → ${clip(e.after, 22)}` : clip(e.before, 30)
+    return node(e.id, `${e.deck}, ${e.where}: ${e.before}${e.after ? ' becomes ' + e.after : ''}, ${stateWord(e.state)}${sv ? ', needs your check' : ''}`, [
+      box(e.id, x, y, w, hh, tone(e.state), false),
+      h('rect', { x, y: y + 7, width: 4, height: hh - 14, rx: 2, style: { fill: tone(e.state) } }),
+      h('text', { x: x + 14, y: y + 20, style: { ...txt, fontWeight: 600 } }, `${clip(e.where, 26)} · ${stateWord(e.state)}`),
+      h('text', { x: x + 14, y: y + 37, style: sub }, `${change}${e.sentence ? '  ·  ' + clip(e.sentence, 34) : ''}`),
+      sv ? h('g', null, h('circle', { cx: x + w - 18, cy: y + hh / 2, r: 10, style: { fill: sv === 'high' ? 'var(--ui-red, #dc2626)' : 'var(--ui-amber, #d97706)' } }), h('text', { x: x + w - 18, y: y + hh / 2 + 4, textAnchor: 'middle', style: { fill: '#fff', fontSize: 13, fontWeight: 700, pointerEvents: 'none' } }, '!')) : null,
+      h('title', null, `${e.sentence || e.before}${e.reason ? ' (' + e.reason + ')' : ''}`)])
+  })
+  const edges = map.edges.filter(ed => lay.els[ed.to] && lay.srcs[ed.from]).map((ed, i) => {
+    const a = lay.srcs[ed.from], b = lay.els[ed.to]
+    const x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y + b.h / 2
+    const lit = near && near.has(ed.from) && near.has(ed.to)
+    return h('path', { key: ed.from + ed.to, d: `M${x1} ${y1} C${x1 + 110} ${y1}, ${x2 - 110} ${y2}, ${x2} ${y2}`, fill: 'none', pathLength: 1,
+      style: { stroke: tone(b.e.state), strokeWidth: lit ? 3 : 1.8, opacity: near ? (lit ? 1 : 0.12) : 0.7, strokeDasharray: 1, strokeDashoffset: drawn ? 0 : 1, transition: calm ? 'none' : `stroke-dashoffset 650ms ease-out ${Math.min(i, 20) * 35}ms, opacity 160ms` } })
+  })
+  const heads = lay.heads.map(g => h('text', { key: g.doc.id, x: MAP.elX, y: g.y + 15, style: { ...txt, fontWeight: 600, fontSize: 12 } }, `${g.doc.name}  ·  ${g.total} place${g.total === 1 ? '' : 's'}`))
+  const chosen = sel && (sel[0] === 's' ? map.sources.find(s => s.id === sel) : map.elements.find(e => e.id === sel))
+  const reach = chosen && chosen.id && sel[0] === 's' ? map.elements.filter(e => e.source === sel) : []
+  const dot = (c) => h('span', { 'aria-hidden': true, style: { display: 'inline-block', width: 9, height: 9, borderRadius: 3, background: c, marginRight: 5 } })
+  const reveal = (deck) => {
+    const os = ctx && ctx.os
+    if (!folder || !os || !os.revealPath) return
+    const sep = folder.includes('\\') ? '\\' : '/'
+    os.revealPath(folder.replace(/[\\/]+$/, '') + sep + deck.split('/').join(sep))
+  }
+  return h('div', null,
+    h('div', { style: { ...css.row, justifyContent: 'space-between', marginBottom: 6 } },
+      h('div', { style: css.muted }, `${changedCount} changed source${changedCount === 1 ? '' : 's'}${goneCount ? ` and ${goneCount} missing` : ''} reach${changedCount + goneCount === 1 ? 'es' : ''} ${t.places} place${t.places === 1 ? '' : 's'} in ${t.documents} document${t.documents === 1 ? '' : 's'}. Select a box to follow its links.`),
+      h('div', { style: { ...css.row, gap: 12, fontSize: 11.5 } },
+        h('span', null, dot(tone('update')), `${t.update} will update`), t.held ? h('span', null, dot(tone('held')), `${t.held} held for you`) : null,
+        t.blocked ? h('span', null, dot(tone('blocked')), `${t.blocked} source missing`) : null)),
+    h('div', { style: { overflowX: 'auto', border: '1px solid var(--ui-stroke-tertiary, #8883)', borderRadius: 10 } },
+      h('svg', { role: 'group', 'aria-label': 'Change map: changed source cells on the left, the places in documents they reach on the right', viewBox: `0 0 ${lay.W} ${lay.H}`, style: { width: '100%', minWidth: 680, height: 'auto', display: 'block' } },
+        h('text', { x: MAP.srcX, y: 11, style: { ...sub, fontSize: 10.5, letterSpacing: 0.4 } }, 'SOURCE CELLS'),
+        h('text', { x: MAP.elX, y: 11, style: { ...sub, fontSize: 10.5, letterSpacing: 0.4 } }, 'WHERE THEY APPEAR'),
+        heads, edges, sources, places)),
+    lay.hidden ? h('div', { style: { ...css.muted, fontSize: 11.5, marginTop: 4 } }, `${lay.hidden} more place${lay.hidden === 1 ? ' is' : 's are'} not drawn to keep the map readable; the list shows all of them.`) : null,
+    map.unattached_findings.length ? h('div', { style: { marginTop: 8, fontSize: 12 } }, `${map.unattached_findings.length} finding${map.unattached_findings.length === 1 ? '' : 's'} about the documents as a whole (listed below the map).`) : null,
+    h('div', { role: 'region', 'aria-live': 'polite', 'aria-label': 'Selected link', style: { ...css.card, marginTop: 8, minHeight: 58 } },
+      !chosen ? h('span', { style: css.muted }, 'Nothing selected. Pick a source cell to see everything it reaches, or a place to see where it comes from and what needs checking.') :
+      sel[0] === 's' ? h('div', null,
+        h('div', { style: { fontWeight: 600 } }, chosen.missing ? `${chosen.sheet}!${chosen.ref} in ${chosen.file} no longer holds a number` : `${chosen.label || chosen.key}: ${num(chosen.old)} → ${num(chosen.new)} (${chosen.delta_pct.toFixed(1)}%)`),
+        h('div', { style: css.muted }, chosen.kind === 'calculation' ? 'A calculated figure: it follows the cells it was calculated from.' : `${chosen.file} · sheet ${chosen.sheet} · cell ${chosen.ref}`),
+        h('ul', { style: { margin: '6px 0 0', paddingLeft: 18 } }, reach.map(e => h('li', { key: e.id }, `${e.deck}, ${e.where}: ${e.before}${e.after ? ' → ' + e.after : ''} (${stateWord(e.state)})`)))) :
+      h('div', null,
+        h('div', { style: { fontWeight: 600 } }, `${chosen.deck}, ${chosen.where}: ${chosen.before}${chosen.after ? ' → ' + chosen.after : ''}`),
+        chosen.sentence ? h('div', { style: css.muted }, `“${clip(chosen.sentence, 160)}”`) : null,
+        h('div', null, `${stateWord(chosen.state)}: ${chosen.reason}`),
+        chosen.flags.map(id => fmap[id] ? h('div', { key: id, style: { marginTop: 6, color: fmap[id].severity === 'high' ? 'var(--ui-red, #dc2626)' : 'var(--ui-amber, #d97706)' } },
+          h('div', { style: { fontWeight: 600 } }, fmap[id].summary), (fmap[id].evidence || []).slice(0, 3).map((x, i) => h('div', { key: i, style: { fontSize: 12 } }, x)),
+          fmap[id].suggestion ? h('div', { style: { fontSize: 12 } }, fmap[id].suggestion) : null) : null),
+        ctx && ctx.os && ctx.os.revealPath && folder ? h('div', { style: { marginTop: 8 } }, btn('Show this file in its folder', () => reveal(chosen.deck), { name: `Show ${chosen.deck} in its folder` })) : null)))
+}
+
+function ChangeViews({ inbox, folder, ctx }) {
+  const [view, setView] = useState(typeof window !== 'undefined' && window.innerWidth < 700 ? 'list' : 'map')
+  if (!inbox || (!inbox.changes.length && !inbox.blocked.length)) return null
+  const tab = (id, label) => h('button', { type: 'button', role: 'tab', 'aria-selected': view === id, onClick: () => setView(id), style: { ...css.btn, ...(view === id ? css.primary : {}), padding: '4px 12px' } }, label)
+  return h('div', { style: { marginTop: 10 } },
+    h('div', { role: 'tablist', 'aria-label': 'How to show the changes', style: { ...css.row, marginBottom: 8 } }, tab('map', 'Map'), tab('list', 'List')),
+    view === 'map' && inbox.map ? h(ChangeMap, { map: inbox.map, folder, ctx }) : h(Inbox, { inbox }))
 }
 
 function groupFigures(figures) {
@@ -505,7 +651,7 @@ function WorkroomPage({ ctx }) {
       h('h2', { style: css.h2 }, '2. See what would change'),
       btn('Check the sources', preview, { disabled: busy }),
       plan ? h('div', { style: { marginTop: 10 } },
-        h(Inbox, { inbox }),
+        h(ChangeViews, { inbox, folder: current && current.folder, ctx: pluginCtx }),
         inbox && inbox.changes.length ? h(Flags, { flags: inbox.flags, coverage: inbox.coverage, onDismiss: dismissFinding, busy, compact: true }) : null,
         inbox && inbox.changes.length ? null : h(Changes, { changes: plan.changes }),
         plan.held.length ? h('div', { style: { marginTop: 10 } },

@@ -59,6 +59,30 @@ def test_writes_the_first_version_missed_now_ask_the_human(tmp_path: Path) -> No
         assert g(tool_name=tool, args=args) is None, (tool, args)
 
 
+def test_a_script_that_writes_a_managed_file_is_judged_by_what_it_contains_not_by_its_command_line(tmp_path: Path) -> None:
+    """A real Gemini model, told to skip the approval step, wrote a Python script outside the project and ran it by name; the command line alone showed nothing."""
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    (proj / "briefing.pptx").write_bytes(b"x")
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    g = make_guard(lambda: [str(proj)])
+    sneaky = scratch / "update_pptx.py"
+    sneaky.write_text(f"from pptx import Presentation\nprs = Presentation(r'{proj / 'briefing.pptx'}')\nprs.save(r'{proj / 'briefing.pptx'}')\n", encoding="utf-8")
+    r = g(tool_name="terminal", args={"command": f"python3 {sneaky}"})
+    assert r and r["action"] == "approve" and "briefing.pptx" in r["message"]
+    relative = scratch / "fix.py"
+    relative.write_text("from pptx import Presentation\nPresentation('briefing.pptx').save('briefing.pptx')\n", encoding="utf-8")
+    assert g(tool_name="terminal", args={"command": f"python3 {relative}", "workdir": str(proj)})
+    assert g(tool_name="terminal", args={"command": f"cd {proj} && node {scratch / 'go.js'}"}) is None, "a script that does not exist says nothing"
+    harmless = scratch / "look.py"
+    harmless.write_text(f"from pptx import Presentation\nprint(len(Presentation(r'{proj / 'briefing.pptx'}').slides))\n", encoding="utf-8")
+    assert g(tool_name="terminal", args={"command": f"python3 {harmless}"}) is None, "reading a managed file is not asking for approval"
+    elsewhere = scratch / "other.py"
+    elsewhere.write_text("open('notes.txt', 'w').write('hi')\n", encoding="utf-8")
+    assert g(tool_name="terminal", args={"command": f"python3 {elsewhere}"}) is None
+
+
 def test_the_chat_card_shows_one_line_for_the_same_change_in_several_places() -> None:
     from workroom.adapters.commands import _card
 

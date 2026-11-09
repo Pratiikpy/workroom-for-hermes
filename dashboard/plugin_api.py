@@ -132,6 +132,11 @@ async def changes(body: ProjectBody) -> dict:
     return _guard(lambda: _service().changes_inbox(body.project))
 
 
+@router.post("/change-map")
+async def change_map(body: ProjectBody) -> dict:
+    return _guard(lambda: _service().change_map(body.project))
+
+
 @router.post("/awaiting")
 async def awaiting(body: ProjectBody) -> list:
     return _guard(lambda: _service().awaiting(body.project))

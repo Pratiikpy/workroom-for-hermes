@@ -73,7 +73,12 @@ def main(out: str) -> None:
     results["after_roll_files_changed"] = sorted(k for k in before if before[k] != digest(root).get(k))
     results["release_waiting"] = len(svc.awaiting(pid))
 
+    scratch = Path(tempfile.mkdtemp(prefix="agent_scratch_"))
+    (scratch / "update.py").write_text(f"from pptx import Presentation\nprs = Presentation(r'{deck}')\nprs.save(r'{deck}')\n", encoding="utf-8")
+    (scratch / "relative.py").write_text(f"open('{deck.name}', 'wb').write(b'x')\n", encoding="utf-8")
     attempts = {
+        "terminal script run by name (the pattern a real Gemini model used)": ("terminal", {"command": f"python3 {scratch / 'update.py'}"}),
+        "terminal script with the project as working directory": ("terminal", {"command": f"python3 {scratch / 'relative.py'}", "workdir": str(root)}),
         "write_file direct": ("write_file", {"path": str(deck), "content": "x"}),
         "patch body": ("patch", {"patch": f"*** Update File: {deck}\n@@\n-a\n+b\n"}),
         "terminal copy": ("terminal", {"command": f"copy new.pptx \"{deck}\""}),

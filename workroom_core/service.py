@@ -331,13 +331,80 @@ class Service:
 
         inbox = proj.impact()
         flags, coverage = self._flags(proj, proj.plan_refresh()) if inbox.changes else ([], {})
-        return {
+        out = {
             "changes": [{**{k: v for k, v in asdict(c).items() if k != "elements"}, "elements": [view(e) for e in c.elements],
                          "counts": {d: sum(1 for e in c.elements if e.decision == d) for d in ("auto", "hold")}} for c in inbox.changes],
             "blocked": [view(e) for e in inbox.blocked],
             "flags": [f for f in flags if f["decision"] != "dismissed"],
             "coverage": coverage,
         }
+        out["map"] = self._graph(proj, out)
+        return out
+
+    @_closing
+    def change_map(self, pid: str) -> dict[str, Any]:
+        """The Changes inbox as a graph: changed source cells, the places they reach, and what is wrong with them.
+
+        Every edge is one link from the project's own tie table (a source cell to one place in one document); nothing is inferred for the
+        picture. A link whose source cell is gone hangs from a "missing source" node named after the cell the link still points at.
+        Calculated figures are source nodes of their own: the inbox does not list the cells they are calculated from, so no edge to those cells is drawn."""
+        proj, _ = self._open(pid)
+        return self._graph(proj, self.changes_inbox.__wrapped__(self, pid))
+
+    @staticmethod
+    def _graph(proj: Project, inbox: dict[str, Any]) -> dict[str, Any]:
+        ties = {t.id: t for t in proj.ties()}
+        sources: list[dict[str, Any]] = []
+        elements: list[dict[str, Any]] = []
+        documents: dict[str, dict[str, Any]] = {}
+
+        def document(name: str) -> str:
+            if name not in documents:
+                documents[name] = {"id": f"d{len(documents)}", "name": name, "kind": name.rsplit(".", 1)[-1].lower() if "." in name else "file", "elements": 0}
+            documents[name]["elements"] += 1
+            return documents[name]["id"]
+
+        def element(e: dict[str, Any], source_id: str, state: str) -> None:
+            elements.append({"id": f"e{e['tie_id']}", "tie_id": e["tie_id"], "source": source_id, "document": document(e["deck"]), "deck": e["deck"], "slide": e["slide"],
+                             "where": e["where"], "sentence": e["sentence"], "before": e["text_before"], "after": e["text_after"], "state": state, "reason": e["reason"], "flags": []})
+
+        for c in inbox["changes"]:
+            first = ties.get(c["elements"][0]["tie_id"]) if c["elements"] else None
+            derived = c["kind"] == "calculation"
+            sid = f"s{len(sources)}"
+            sources.append({"id": sid, "kind": c["kind"], "key": c["src"], "label": c["label"], "old": c["old_value"], "new": c["new_value"], "delta_pct": c["delta_pct"], "unit": c.get("unit", ""),
+                            "file": "" if derived or first is None else first.src_file, "sheet": "" if derived or first is None else first.sheet, "ref": "" if derived or first is None else first.ref,
+                            "missing": False})
+            for e in c["elements"]:
+                element(e, sid, "update" if e["decision"] == "auto" else "held")
+        ghosts: dict[str, str] = {}
+        for e in inbox["blocked"]:
+            t = ties.get(e["tie_id"])
+            key = f"{t.src_file}!{t.sheet}!{t.ref}" if t is not None else e["reason"]
+            if key not in ghosts:
+                ghosts[key] = f"s{len(sources)}"
+                sources.append({"id": ghosts[key], "kind": "missing", "key": key, "label": "", "old": t.linked_value if t is not None else None, "new": None, "delta_pct": 0.0, "unit": "",
+                                "file": t.src_file if t is not None else "", "sheet": t.sheet if t is not None else "", "ref": t.ref if t is not None else "", "missing": True})
+            element(e, ghosts[key], "blocked")
+
+        def touches(f: dict[str, Any], e: dict[str, Any]) -> bool:
+            if f["deck"] != e["deck"] or f["slide"] != e["slide"]:
+                return False
+            a, b = (f.get("sentence_before") or "")[:40], e["sentence"] or e["before"]
+            return not a or not b or a in b or b[:40] in (f.get("sentence_before") or "")
+
+        findings = [{"id": f["id"], "kind": f["kind"], "severity": f["severity"], "deck": f["deck"], "slide": f["slide"], "where": f.get("where", ""), "summary": f["summary"],
+                     "evidence": f.get("evidence", []), "suggestion": f.get("suggestion", ""), "decision": f.get("decision", "")} for f in inbox["flags"]]
+        loose = []
+        for f in inbox["flags"]:
+            hit = [e for e in elements if touches(f, e)]
+            for e in hit:
+                e["flags"].append(f["id"])
+            if not hit:
+                loose.append(f["id"])
+        by_state = {k: sum(1 for e in elements if e["state"] == k) for k in ("update", "held", "blocked")}
+        return {"sources": sources, "documents": list(documents.values()), "elements": elements, "edges": [{"from": e["source"], "to": e["id"]} for e in elements],
+                "findings": findings, "unattached_findings": loose, "totals": {"sources": len(sources), "documents": len(documents), "places": len(elements), **by_state}}
 
     # ---- calculated numbers and findings ----
     @_closing

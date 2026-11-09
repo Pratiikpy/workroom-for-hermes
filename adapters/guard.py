@@ -2,7 +2,9 @@
 
 Releases go through Workroom so every change is verified, approved and recoverable. A write that bypasses it would
 silently desynchronise the saved links. File-tool arguments are checked exactly and blocked. Shell commands are checked heuristically (a write-like verb plus the
-name of a managed Office file) and escalated to the human approval gate; a determined script can still evade this.
+name of a managed Office file) and escalated to the human approval gate. A command that runs a script file is read together with that script (a real model, told to skip
+approval, wrote a Python script and ran it by name, so the command text alone showed nothing). A determined program can still evade this, and in an auto-approve mode
+the approval gate answers itself.
 """
 
 from __future__ import annotations
@@ -46,6 +48,30 @@ def _shell_text(args: dict[str, Any]) -> str:
     return " ".join(str(args[k]) for k in ("command", "cmd", "code", "script") if isinstance(args.get(k), str))
 
 
+_SCRIPT_EXT = (".py", ".js", ".mjs", ".cjs", ".ts", ".sh", ".bash", ".ps1", ".bat", ".cmd", ".rb", ".pl", ".php")
+_TOKEN = re.compile(r"\"[^\"]*\"|'[^']*'|[^\s'\"]+")
+MAX_SCRIPT_BYTES = 400_000
+
+
+def _script_text(command: str, args: dict[str, Any]) -> str:
+    """The text of every script file the command names, so a write hidden inside a script is judged like one typed on the command line."""
+    base = next((str(args[k]) for k in ("workdir", "cwd", "working_dir", "directory") if isinstance(args.get(k), str) and args[k].strip()), "")
+    found: list[str] = []
+    for token in _TOKEN.findall(command):
+        name = token.strip("\"'")
+        if not name.lower().endswith(_SCRIPT_EXT):
+            continue
+        try:
+            path = Path(name).expanduser()
+            if not path.is_absolute() and base:
+                path = Path(base).expanduser() / path
+            if path.is_file() and path.stat().st_size <= MAX_SCRIPT_BYTES:
+                found.append(path.read_text(encoding="utf-8", errors="replace"))
+        except OSError:
+            continue
+    return "\n".join(found)
+
+
 def make_guard(roots: Callable[[], list[str]]) -> Callable[..., dict[str, str] | None]:
     def guard(tool_name: str = "", args: dict[str, Any] | None = None, **_: Any) -> dict[str, str] | None:
         if not isinstance(args, dict) or (tool_name not in WRITE_TOOLS and tool_name not in SHELL_TOOLS):
@@ -55,6 +81,7 @@ def make_guard(roots: Callable[[], list[str]]) -> Callable[..., dict[str, str] |
             return None
         if tool_name in SHELL_TOOLS:
             text = _shell_text(args)
+            text = text + "\n" + _script_text(text, args)
             if not _WRITEISH.search(text):
                 return None
             if _GLOB.search(text):
