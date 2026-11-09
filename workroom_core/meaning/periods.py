@@ -23,15 +23,15 @@ class Period:
     index: int  # position on the kind's own number line
     months: int = 0  # only for ytd
 
-    def shifted(self, n: int) -> "Period":
+    def shifted(self, n: int) -> Period:
         return Period(self.kind, self.index + n, self.months)
 
     @property
-    def previous(self) -> "Period | None":
+    def previous(self) -> Period | None:
         return None if self.kind == "ytd" else self.shifted(-1)
 
     @property
-    def year_ago(self) -> "Period":
+    def year_ago(self) -> Period:
         return self.shifted(-(12 if self.kind == "ytd" else _STEP[self.kind]))
 
     @property
@@ -96,7 +96,7 @@ def parse_period(label: str) -> Period | None:
             return Period("ytd", month_index, 9)
         return Period("y", d.year)
     found: list[Period] = []
-    for rx, kind in ((_Q1, "q"), (_Q2, "q")):
+    for rx in (_Q1, _Q2):
         for q, y in rx.findall(text):
             yr = _year(y)
             if yr:

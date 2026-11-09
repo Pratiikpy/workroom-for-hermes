@@ -73,7 +73,7 @@ def _fmt(values: list[float], claim: Claim) -> str:
     return " vs ".join(_num(values[i]) for i in (claim.a, claim.b) if i is not None)
 
 
-def claim_findings(project: "Project", plan: "Plan", roll: dict | None = None) -> tuple[list[Finding], Coverage]:
+def claim_findings(project: Project, plan: Plan, roll: dict | None = None) -> tuple[list[Finding], Coverage]:
     from ..project import is_scene, open_document
 
     index = project.source_index()
@@ -86,7 +86,6 @@ def claim_findings(project: "Project", plan: "Plan", roll: dict | None = None) -
         if t.kind != "derived" and (t.src_file, t.sheet, t.ref) in then:
             then[(t.src_file, t.sheet, t.ref)] = t.linked_value
     tied_at = {project._tkey(t): t for t in ties if t.kind in ("text", "derived") and t.state != "skipped"}
-    decisions = Decisions(project.db)
     findings: list[Finding] = []
     cov = Coverage()
     para_text: dict[tuple, tuple[str, str]] = {}  # (file, paragraph key) -> the sentence before and after this release
@@ -130,8 +129,8 @@ def claim_findings(project: "Project", plan: "Plan", roll: dict | None = None) -
                     if dm0 is None or tie_for(dm0) is not None or (f.unit == "plain" and f.raw.replace(",", "").replace(".", "").isdigit() and abs(f.value) < 10):
                         continue
                     findings.append(make("untied_figure", "medium", rel, mentions_b[0].slide, text_b, text_a,
-                                         f"\"{f.raw}\" in a sentence this release changes is not tied to any source, so nothing updates it",
-                                         ["Check whether it still holds; if a calculation over the tied figures reproduces it, accept that calculation so it follows"],
+                                         f"\"{f.raw}\" in a sentence this release changes is not linked to any source, so nothing updates it",
+                                         ["Check whether it still holds; if a calculation over the linked numbers reproduces it, accept that calculation so it follows"],
                                          fid=Decisions.key("untied", rel, mask_digits(text_b), f.raw)))
             reading = read_claims(text_b, figs_b)
             cov.not_checked.extend(f"{rel} slide {mentions_b[0].slide}: {n}" for n in reading.not_checked)
@@ -174,7 +173,7 @@ def claim_findings(project: "Project", plan: "Plan", roll: dict | None = None) -
                 tie = tie_for(dm) if dm is not None else None
                 cell_b = cells.get((tie.src_file, tie.sheet, tie.ref)) if tie is not None and tie.kind == "text" else None
                 if cell_b is None:
-                    cov.not_checked.append(f"{rel} slide {slide}: \"{claim.cue}\" about {f.raw} was not checked because that figure is not tied to a source cell")
+                    cov.not_checked.append(f"{rel} slide {slide}: \"{claim.cue}\" about {f.raw} was not checked because that figure is not linked to a source cell")
                     continue
                 cell_a = cells.get(roll_to[tie.id]) if tie.id in roll_to else cell_b
                 kb, ka = (cell_b.file, cell_b.sheet, cell_b.ref), (cell_a.file, cell_a.sheet, cell_a.ref)

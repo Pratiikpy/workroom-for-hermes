@@ -9,7 +9,8 @@ platform-specific code is needed. The approval is bound to the release digest sh
 from __future__ import annotations
 
 import re
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from ..workroom_core.service import Service, ServiceError
 
@@ -44,7 +45,7 @@ def _card(view: dict[str, Any]) -> str:
         grouped: dict[tuple, int] = {}
         for f in view.get("figures", []):
             grouped[(f["text"], f["source"])] = grouped.get((f["text"], f["source"]), 0) + 1
-        lines = [f"Workroom release {view['release_id']}: will create {view['changes'][0]['deck']} with {len(view.get('figures', []))} figures, each tied to its source cell."]
+        lines = [f"Workroom release {view['release_id']}: will create {view['changes'][0]['deck']} with {len(view.get('figures', []))} figures, each linked to its source cell."]
         for (text, source), n in list(grouped.items())[:6]:
             lines.append(f"  {text}   ({source}{', in ' + str(n) + ' places' if n > 1 else ''})")
         if len(grouped) > 6:
@@ -56,7 +57,7 @@ def _card(view: dict[str, Any]) -> str:
     elif view.get("rolled"):
         r = view["rolled"]
         span = f" ({r['example']})" if r.get("example") else ""
-        lines = [f"Workroom release {view['release_id']}: rolls your documents forward {r['steps']} period{'s' if r['steps'] != 1 else ''}{span}: {r['figures']} figures re-pointed to the next period, {r['period_words']} period words advanced."]
+        lines = [f"Workroom release {view['release_id']}: rolls your documents forward {r['steps']} period{'s' if r['steps'] != 1 else ''}{span}: {r['figures']} figures moved to the next period, {r['period_words']} period words advanced."]
         lines.extend(_change_lines(view["changes"], 5))
         if view.get("held"):
             lines.append(f"{len(view['held'])} left for you")
@@ -109,7 +110,7 @@ def make_approve_command(service_factory: Callable[[], Service], ask_choice: Cal
                 return "Nothing was changed." if choice == CANCEL else "No answer was given; nothing was changed."
             svc.approve_and_publish(pid, rid, view["digest"], principal=principal, channel=str(getattr(platform, "value", platform) or "local"), acknowledge=needs_ack)
             if view.get("created"):
-                return f"Created {view['changes'][0]['deck']}. Every figure in it is tied to its source; Restore removes it."
+                return f"Created {view['changes'][0]['deck']}. Every figure in it is linked to its source; Restore removes it."
             if view.get("edited_page"):
                 return f"Wrote your edits to {view['changes'][0]['deck']}. A backup of the replaced file is kept."
             return f"Published {len(view['changes'])} number(s). A backup of each replaced file is kept."

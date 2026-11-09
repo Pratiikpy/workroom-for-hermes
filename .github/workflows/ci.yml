@@ -19,3 +19,14 @@ jobs:
       - run: pip install -r workroom/requirements-dev.txt
       - run: python -m pytest workroom/tests -q
       - run: python -c "import json,sys; sys.path.insert(0,'.'); from workroom.workroom_core import selftest; r=selftest.run(); print(json.dumps(r)); sys.exit(0 if r['passed'] else 1)"
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: workroom
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check workroom/workroom_core workroom/adapters workroom/dashboard

@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 OFFICE = (".pptx", ".docx", ".xlsx")
 WRITE_TOOLS = {"write_file", "patch", "edit_file", "apply_patch"}

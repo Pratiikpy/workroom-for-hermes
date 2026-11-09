@@ -11,7 +11,7 @@ true after it, and which numbers say so. Severity is fixed by the kind of eviden
 from __future__ import annotations
 
 import re
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from typing import Any
 
 SEVERITIES = ("high", "medium", "info")

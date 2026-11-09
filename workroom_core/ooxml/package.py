@@ -11,7 +11,7 @@ import struct
 import zlib
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
-from typing import Iterable, Mapping
+from collections.abc import Iterable, Mapping
 
 _SIG_LOCAL = 0x04034B50
 _SIG_CENTRAL = 0x02014B50

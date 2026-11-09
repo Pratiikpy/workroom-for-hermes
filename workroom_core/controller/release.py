@@ -7,13 +7,11 @@ point (including between a file replace and its journal line) is handled the sam
 from __future__ import annotations
 
 import json
-import os
-import shutil
 import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Callable
+from collections.abc import Callable
 
 from .approvals import Approval, ApprovalError, verify
 from .fsio import FileInUse, replace_durable, sha256_bytes, sha256_file, write_durable

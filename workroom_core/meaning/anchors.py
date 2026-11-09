@@ -52,7 +52,7 @@ def _name(cell) -> str:
     return " ".join(dict.fromkeys(cell.row_labels + cell.col_labels))[:60]
 
 
-def relocate_sources(project: "Project") -> list[str]:
+def relocate_sources(project: Project) -> list[str]:
     """Check every tie's source against its remembered headings, follow cells that moved, and return what was done for the owner to read."""
     index = project.source_index()
     cells = {(c.file, c.sheet, c.ref): c for c in index.cells}

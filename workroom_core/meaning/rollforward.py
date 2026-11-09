@@ -34,14 +34,14 @@ class RollPlan:
     kept: list[str] = field(default_factory=list)
     not_rolled: list[str] = field(default_factory=list)
     files: dict[str, bytes] = field(default_factory=dict)
-    impacts: list["Impact"] = field(default_factory=list)
+    impacts: list[Impact] = field(default_factory=list)
 
     def meta(self) -> dict[str, Any]:
         return {"steps": self.steps, "kind": self.kind, "ties": self.items, "labels": self.labels, "turned": self.turned}
 
 
-def plan_rollforward(project: "Project", steps: int = 1) -> RollPlan:
-    from ..project import DECK_EXT, Impact, open_document
+def plan_rollforward(project: Project, steps: int = 1) -> RollPlan:
+    from ..project import Impact, open_document
 
     plan = RollPlan(steps)
     plan.notes = project.relocate_sources()
@@ -182,7 +182,7 @@ def plan_rollforward(project: "Project", steps: int = 1) -> RollPlan:
                     edits.append((slide, shape_id, para, cell, word, period_label(p.shifted(plan.steps), word), occurrence, a))
                 elif p in deck_periods.get(rel, set()):
                     plan.not_rolled.append(f"{rel} slide {slide}: the period '{word}' stands on a slide whose figures show other periods, so it was not moved")
-        for slide, shape_id, para, cell, old, new, occurrence, a in sorted(edits, key=lambda e: (e[0], e[1], e[2], str(e[3]), -e[7])):
+        for slide, shape_id, para, cell, old, new, occurrence, _ in sorted(edits, key=lambda e: (e[0], e[1], e[2], str(e[3]), -e[7])):
             try:
                 doc.edit_label(slide, shape_id, para, cell, old, new, occurrence)
             except Exception as exc:  # noqa: BLE001  one label that cannot be moved is listed, not fatal
@@ -210,7 +210,7 @@ def _reparse(text: str):
     return found[0]
 
 
-def apply_rollforward(project: "Project", meta: dict[str, Any]) -> None:
+def apply_rollforward(project: Project, meta: dict[str, Any]) -> None:
     """After a rolled release is published: each tie now points at the next period's cell and, for a calculation, its new formula."""
     for it in meta["ties"]:
         f, s, r = it["to"]
@@ -219,7 +219,7 @@ def apply_rollforward(project: "Project", meta: dict[str, Any]) -> None:
     project.relocate_sources()  # the ties learn the headings of the cells they now follow
 
 
-def revert_rollforward(project: "Project", meta: dict[str, Any]) -> dict[tuple[str, str, str], float]:
+def revert_rollforward(project: Project, meta: dict[str, Any]) -> dict[tuple[str, str, str], float]:
     """Point the ties back at the cells they had before the roll; returns the baseline values the restored documents show."""
     base: dict[tuple[str, str, str], float] = {}
     for it in meta["ties"]:

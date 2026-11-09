@@ -1,0 +1,25 @@
+# Known limits and what is not tested
+
+Stated plainly so nobody has to find them out the hard way. The full dated record is in [`bench/EVIDENCE.md`](../bench/EVIDENCE.md).
+
+- Run end to end in the real Hermes Desktop (v0.23.0, Windows) on small synthetic projects (light and dark, wide and narrow). The files other people made were driven through the service, the real Office apps, Telegram and Hermes' dispatcher, not through the Desktop page.
+- Nothing from professional finance work was available to test on: the foreign files are the user's own documents and public test suites, which hold few numbers.
+- Agent runs: a 3B local model and, on 9 Nov, hosted Gemini models (free tier, so one run per scenario on whichever model had quota) drove the real Hermes agent. The capable models used the tools sensibly, prepared releases, refused to approve and ignored a planted instruction; one of them, told to skip approval, got around the shell guard by writing a script and running it by name (the guard now reads such scripts; the real-model rerun was cut off by the rate limit). Five scenarios, one run each: no repeatability data.
+- Numbers are read in English and US or Indian digit grouping. A decimal comma (189,45) and a European 1.234,56 are skipped, never edited; claims are English only.
+- A short number (fewer than three significant digits) that equals a cell and has no label evidence at all is treated as a coincidence: it is not counted among the questions, it is listed apart in the Desktop ("short numbers equal to a cell by chance, not asked about"), and the owner can still link one. On the independent pair that took the questions from 543 to 249.
+- A workbook whose rows are told apart only by a number ("Store 101") makes the owner confirm the links instead of linking them automatically; a figure that differs from its cell by a factor of 1,000 or more is linked automatically only when the text or the cell's headings name that unit; otherwise the owner is asked.
+- Charts are linked only when a sheet is embedded behind them; a chart whose data is typed into it, or lives in an external file, is left alone.
+- A file written by a program that never calculated its formulas holds no values for them; Workroom says how many and asks you to open and save the file in Excel.
+- Claims are read in English from a closed set of wordings. Anything else is listed as not checked, never guessed. Company earnings releases mostly state amounts ("grew 31%") without naming the baseline, so there Workroom checks a claim only when the percentage is a calculated figure it manages.
+- A sentence is judged false only on its own figures or on the workbook's series; a claim that depends on outside knowledge is out of reach.
+- Rolling forward needs the next period to be in the workbook and the periods to be readable headings (quarters, halves, fiscal years, months). Chart periods are not rolled.
+- The update-cycle trials above use documents and an owner I simulated, on real public data, in one language.
+- Measured on real earnings releases (see the table) but not on other kinds of messy business documents or other languages. On hand-written paraphrase tests the matcher never linked wrongly and, with a small built-in finance synonym list, resolved 94% by itself (that number is contaminated: the list was written after seeing the test wording; real gain unmeasured).
+- The suite passes on Windows, macOS and Linux with Python 3.11 and 3.14 in GitHub Actions; the Hermes Desktop run itself was only done on Windows.
+- A Word file whose main document holds more than one body element (Word shows only the first) is refused rather than edited. Word comments are never edited (human review text). Complex Excel models are tested by real Excel restructuring and by reading public workbooks, not on a large finance model.
+- Messaging approval was run through a real Telegram bot (see the table); Discord and Slack, and a refusal using a second real person's account, were not run.
+- A consistent rollback of every copy of Workroom's state to an older valid point is not detected (a signature proves authenticity, not freshness).
+- The agent's file-write tools are blocked on Office files inside registered projects; a shell command that looks like it writes one is sent to your approval prompt (a heuristic that a determined script can evade).
+- The signing key is readable by any program running as you, including an agent with a shell tool: the approval boundary stops the agent's Workroom tools, not a hostile process on your own account.
+- Plugin-host isolation (`plugins.isolation: host`): Hermes' static audit calls Workroom host-ready, but it has not been run inside a real plugin host.
+- Claude's Microsoft 365 add-ins were not run for comparison.

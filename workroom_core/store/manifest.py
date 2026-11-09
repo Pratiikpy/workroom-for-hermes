@@ -116,7 +116,7 @@ class Manifest:
         return base + after
 
     @classmethod
-    def start_over(cls, path: Path, key: bytes, project_id: str) -> tuple["Manifest", Path | None]:
+    def start_over(cls, path: Path, key: bytes, project_id: str) -> tuple[Manifest, Path | None]:
         """Move an unreadable or altered manifest aside (kept for the owner) and return an empty one at the same path."""
         path = Path(path)
         aside = None

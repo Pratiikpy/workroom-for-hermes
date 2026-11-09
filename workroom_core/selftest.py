@@ -19,7 +19,7 @@ from lxml import etree
 from .controller.approvals import sign
 from .controller.release import Controller
 from .match.engine import Mention, SourceIndex, match_mentions
-from .match.numbers import format_like, parse_numbers
+from .match.numbers import parse_numbers
 from .ooxml.runs import DRAWING, EditError, find_all, replace_once
 from .ooxml.xlsx import SourceCell
 
@@ -49,7 +49,7 @@ def _matching(seed: int, books: int) -> dict[str, Any]:
     rnd = random.Random(seed)
     acc_ok = acc_bad = decoys = decoy_acc = confirm = total = 0
     for b in range(books):
-        cells, truth = [], []
+        cells = []
         n = 0
         for metric in rnd.sample(_METRICS, 5):
             for period in _PERIODS:

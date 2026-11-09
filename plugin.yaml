@@ -1,8 +1,8 @@
 name: workroom
-version: 0.2.0
+version: 0.3.0
 manifest_version: 2
 api_version: 1
-description: "Workroom: keeps reports and decks tied to their source numbers, edits only what must change, protects your own edits, and releases one approved, recoverable update."
+description: "Keeps your reports and decks in step with the numbers behind them: links each number to its source cell, shows what a change affects, updates only what must change, protects your own edits, and publishes one release you approve and can restore."
 license: MIT
 tags: [documents, office, verification]
 requires_hermes: ">=0.23.0"

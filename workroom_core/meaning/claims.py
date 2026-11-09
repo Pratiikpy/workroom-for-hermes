@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from ..match.numbers import NumberMention, parse_numbers
+from ..match.numbers import parse_numbers
 
 # Only words that state a numeric direction. "Improved", "gained", "weakened" and the like depend on whether more is better, so they are not read.
 _UP = (r"(?:up|higher|increase[sd]?|increasing|rose|rise[sn]?|rising|grew|grow(?:s|n|ing)?|growth|"

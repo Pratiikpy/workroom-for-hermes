@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -41,7 +40,7 @@ class Scan:
     dismissed: int
 
 
-def _operands(project: "Project", ties: list, cells: dict, tl: Timeline) -> list[Operand]:
+def _operands(project: Project, ties: list, cells: dict, tl: Timeline) -> list[Operand]:
     out: list[Operand] = []
     for t in ties:
         c = cells.get((t.src_file, t.sheet, t.ref))
@@ -91,7 +90,7 @@ def _structural(dm, by_para: list, by_slide: list, tie_of, text: str, option: Ca
     return False
 
 
-def find_calculations(project: "Project") -> Scan:
+def find_calculations(project: Project) -> Scan:
     from ..project import DECK_EXT, open_document
 
     project.relocate_sources()
@@ -162,7 +161,7 @@ def find_calculations(project: "Project") -> Scan:
     return Scan(out, explained, unexplained, dismissed)
 
 
-def accept_calculation(project: "Project", candidate_id: str, option: int = 0) -> int:
+def accept_calculation(project: Project, candidate_id: str, option: int = 0) -> int:
     scan = find_calculations(project)
     cand = next((c for c in scan.candidates if c.id == candidate_id), None)
     if cand is None:
@@ -185,7 +184,7 @@ def accept_calculation(project: "Project", candidate_id: str, option: int = 0) -
     return new_id
 
 
-def dismiss_calculation(project: "Project", candidate_id: str) -> None:
+def dismiss_calculation(project: Project, candidate_id: str) -> None:
     Decisions(project.db).set(candidate_id, KIND, "dismissed")
 
 

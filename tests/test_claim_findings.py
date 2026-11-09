@@ -115,7 +115,7 @@ def test_a_claim_about_a_figure_with_no_source_is_reported_as_not_checked(tmp_pa
     _sources(proj.root, q3=13_000_000)
     findings, cov = proj.consequences(proj.plan_refresh())
     assert [f.kind for f in findings] == ["untied_figure"] and "241" in findings[0].summary and findings[0].severity == "medium"
-    assert [n for n in cov.not_checked if "241" in n and "not tied to a source cell" in n], cov.not_checked
+    assert [n for n in cov.not_checked if "241" in n and "not linked to a source cell" in n], cov.not_checked
 
 
 def test_loss_wording_is_declined_not_guessed(tmp_path: Path) -> None:

@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import re
 import time
-from typing import Iterator
+from collections.abc import Iterator
 
 from lxml import etree
 
-from ..match.numbers import NumberMention, parse_numbers
+from ..match.numbers import parse_numbers
 from .package import Package, open_package, rewrite
 from .pptx import DocMention, EditReport
 from .runs import OWN_AUTHOR, WORD, EditError, Replacement, _text_of, _text_runs, find_all, replace_once, replace_tracked

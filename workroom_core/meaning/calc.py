@@ -62,7 +62,7 @@ class Calc:
         return " + ".join(names)
 
 
-def describe(calc: "Calc") -> str:
+def describe(calc: Calc) -> str:
     """The calculation with its values, for the owner to check by eye."""
     vals = [format(t.value, ",.10g") for t in calc.terms]
     shown = {"pct_change": f"({vals[0]} - {vals[1]}) / {vals[1]}" if len(vals) == 2 else "", "ratio": " / ".join(vals), "diff": " - ".join(vals), "sum": " + ".join(vals)}[calc.op]

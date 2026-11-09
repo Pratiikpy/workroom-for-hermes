@@ -18,7 +18,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .build.formats import plain
-from .controller.release import Controller
 from .match.engine import Mention, MatchResult, SourceIndex, match_mentions, tokens
 from .match.numbers import _TRANSFORMS, consistent_with_source, format_like, parse_numbers
 from .ooxml.package import PackageError, open_package
@@ -137,7 +136,7 @@ class Discovery:
     held: int = 0
 
 
-_INDEX_CACHE: "OrderedDict[tuple, tuple[SourceIndex, list[str], dict[str, int]]]" = OrderedDict()  # the two most recently read source sets, shared by every Project in this process
+_INDEX_CACHE: OrderedDict[tuple, tuple[SourceIndex, list[str], dict[str, int]]] = OrderedDict()  # the two most recently read source sets, shared by every Project in this process
 _INDEX_LOCK = threading.Lock()
 
 
@@ -275,7 +274,7 @@ class Project:
             )
         return len(found)
 
-    def locate_cells(self, rel: str, data: bytes, cells: list[dict], values: dict[str, float]) -> list[tuple["DocMention", str, str]]:
+    def locate_cells(self, rel: str, data: bytes, cells: list[dict], values: dict[str, float]) -> list[tuple[DocMention, str, str]]:
         """Find the numeric cells a workbook builder wrote and check each can be rewritten faithfully from its source later."""
         dms = {(d.slide, d.cell): d for d in open_document(data, rel).mentions()}
         out = []
@@ -314,9 +313,8 @@ class Project:
             n += 1
         return n
 
-    def _plan_scene(self, plan: "Plan", deck_rel: str, items: list[tuple["Tie", float]]) -> None:
+    def _plan_scene(self, plan: Plan, deck_rel: str, items: list[tuple[Tie, float]]) -> None:
         """Re-render the tied text of a visual page from new source values. A node whose text no longer matches its template was edited by hand and is held."""
-        import re as _re
 
         from .build.formats import format_value
         from .build.spec import SLOT
@@ -359,7 +357,6 @@ class Project:
             plan.files[deck_rel] = (json.dumps(doc, indent=1, ensure_ascii=False) + "\n").encode("utf-8")
 
     def _commit_scene(self, deck_rel: str, data: bytes, values: dict) -> None:
-        import re as _re
 
         from .build.formats import format_value
         from .build.spec import SLOT
@@ -521,11 +518,11 @@ class Project:
             if self._tx_depth == 0:
                 self.db.execute("COMMIT")
 
-    def discover(self) -> "Discovery":
+    def discover(self) -> Discovery:
         with self._transaction():
             return self._discover()
 
-    def _discover(self) -> "Discovery":
+    def _discover(self) -> Discovery:
         """Find numbers and link new ones. A link that already exists is kept as it is: its state (confirmed or skipped by the
         owner), its source cell and the value it was linked at, even when the source value has since changed.
 
@@ -789,7 +786,7 @@ class Project:
 
         return revert_rollforward(self, meta)
 
-    def consequences(self, plan: "Plan", roll: dict | None = None):
+    def consequences(self, plan: Plan, roll: dict | None = None):
         """What the planned update means for the sentences around the numbers: claims it makes false, and what could not be checked."""
         from .meaning.claimscan import claim_findings
         from .meaning.findings import sort_findings

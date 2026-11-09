@@ -8,12 +8,13 @@ Two checks, both read-only:
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING
+from collections.abc import Iterator
 
 from lxml import etree
 
 from ..match.numbers import consistent_with_source, parse_numbers
-from ..ooxml.pptx import A_NS, C_NS, NS, P_NS, R_NS, Deck
+from ..ooxml.pptx import A_NS, C_NS, NS, P_NS, Deck
 from ..ooxml.xlsx import parse_xml, rels_for
 from .decisions import Decisions
 from .findings import Finding, mask_digits
@@ -43,7 +44,7 @@ def _hidden_text(deck: Deck, slide_no: int) -> Iterator[tuple[str, str]]:
         for attr in ("descr", "title"):
             if (nv.get(attr) or "").strip():
                 yield "a picture or shape description", nv.get(attr)
-    for rid, (rtype, target) in rels_for(deck.pkg, part).items():
+    for _rid, (rtype, target) in rels_for(deck.pkg, part).items():
         if rtype.endswith("notesSlide"):
             for t in _paragraphs(parse_xml(deck.pkg.read(target)), ""):
                 yield "the speaker notes", t
@@ -55,8 +56,7 @@ def _hidden_text(deck: Deck, slide_no: int) -> Iterator[tuple[str, str]]:
                         yield "a chart title or label", t
 
 
-def stale_mentions(project: "Project", plan: "Plan", roll: dict | None = None) -> list[Finding]:
-    from ..project import open_document
+def stale_mentions(project: Project, plan: Plan, roll: dict | None = None) -> list[Finding]:
 
     index = project.source_index()
     cells = {(c.file, c.sheet, c.ref): c for c in index.cells}
@@ -74,7 +74,6 @@ def stale_mentions(project: "Project", plan: "Plan", roll: dict | None = None) -
                 changed.append((t, cell, t.linked_value, new))
     if not changed:
         return []
-    decided = Decisions(project.db)
     out: list[Finding] = []
     for path in project._files((".pptx",)):
         rel = project._rel(path)
@@ -85,7 +84,7 @@ def stale_mentions(project: "Project", plan: "Plan", roll: dict | None = None) -
                 for nm in parse_numbers(text):
                     if nm.unit == "plain" and nm.decimals == 0 and abs(nm.value) < 10:
                         continue
-                    for t, cell, old, new in changed:
+                    for _t, cell, old, new in changed:
                         ok, _ = consistent_with_source(nm, old)
                         if not ok or consistent_with_source(nm, new)[0]:
                             continue
@@ -100,7 +99,7 @@ def stale_mentions(project: "Project", plan: "Plan", roll: dict | None = None) -
     return out
 
 
-def clipped_charts(project: "Project", plan: "Plan") -> list[Finding]:
+def clipped_charts(project: Project, plan: Plan) -> list[Finding]:
     out: list[Finding] = []
     for rel, data in plan.files.items():
         if not rel.lower().endswith(".pptx"):
@@ -130,7 +129,7 @@ def clipped_charts(project: "Project", plan: "Plan") -> list[Finding]:
     return out
 
 
-def stale_period_words(project: "Project", plan: "Plan", roll: dict | None) -> list[Finding]:
+def stale_period_words(project: Project, plan: Plan, roll: dict | None) -> list[Finding]:
     """After a roll: a period word in speaker notes, chart text or a picture description that still names a period the roll has left behind."""
     if not roll or not roll.get("ties"):
         return []
@@ -153,7 +152,7 @@ def stale_period_words(project: "Project", plan: "Plan", roll: dict | None) -> l
     return out
 
 
-def surface_findings(project: "Project", plan: "Plan", roll: dict | None) -> list[Finding]:
+def surface_findings(project: Project, plan: Plan, roll: dict | None) -> list[Finding]:
     """Stale numbers and period words in notes, chart text and picture descriptions: found now, and carried forward until the text changes."""
     import json
 

@@ -79,7 +79,7 @@ def test_the_chat_card_describes_a_create_release_as_a_new_file_with_its_figures
     svc, pid, root = _svc(tmp_path)
     staged_ = svc.create_from_spec(pid, SPEC)
     out, asked = run(svc, APPROVE, [], platform="local", args=f"{pid} {staged_['release_id']}")
-    assert "will create reports/q2.pptx" in asked[0] and "tied to its source" in asked[0] and "number(s) will change" not in asked[0]
+    assert "will create reports/q2.pptx" in asked[0] and "linked to its source" in asked[0] and "number(s) will change" not in asked[0]
     assert "$175" in asked[0] and "results.xlsx!Results!C2" in asked[0]
     assert "Created reports/q2.pptx" in out and (root / "reports/q2.pptx").exists()
 

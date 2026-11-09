@@ -27,7 +27,7 @@ const Banner = ({ kind, children }) =>
   }, children)
 
 function Changes({ changes }) {
-  if (!changes.length) return h('div', { style: css.muted }, 'No tied number has changed since the last release.')
+  if (!changes.length) return h('div', { style: css.muted }, 'No linked number has changed since the last release.')
   return h('table', { style: { width: '100%', borderCollapse: 'collapse' } },
     h('thead', null, h('tr', null, ['Document', 'Where', 'Was', 'Becomes', 'Because'].map(t => h('th', { key: t, style: { textAlign: 'left', padding: '4px 8px', ...css.muted, fontWeight: 500 } }, t)))),
     h('tbody', null, changes.map((c, i) => h('tr', { key: i, style: { borderTop: '1px solid var(--ui-stroke-tertiary, #8883)' } },
@@ -102,7 +102,7 @@ function ChangeMap({ map, folder, ctx }) {
     return () => cancelAnimationFrame(id)
   }, [map, calm])
   useEffect(() => { setSel(null) }, [map])
-  if (!map.sources.length) return h('div', { style: css.muted }, 'No tied number has changed since the last release.')
+  if (!map.sources.length) return h('div', { style: css.muted }, 'No linked number has changed since the last release.')
   const t = map.totals
   const goneCount = map.sources.filter(s => s.missing).length
   const changedCount = map.sources.length - goneCount
@@ -122,7 +122,7 @@ function ChangeMap({ map, folder, ctx }) {
   const box = (id, x, y, w, hgt, color, dashed) => h('rect', {
     x, y, width: w, height: hgt, rx: 9, style: { fill: 'var(--ui-bg-elevated, #fff)', stroke: sel === id || focus === id ? 'var(--ui-accent, #2f6feb)' : dashed ? color : 'var(--ui-stroke-secondary, #d6d6da)', strokeWidth: sel === id || focus === id ? 2.4 : 1.2, strokeDasharray: dashed ? '5 4' : undefined }
   })
-  const node = (id, label, shape) => h('g', { key: id, role: 'button', tabIndex: 0, 'aria-pressed': sel === id, 'aria-label': label, onClick: () => pick(id), onKeyDown: keys(id), onFocus: () => setFocus(id), onBlur: () => setFocus(null), style: { cursor: 'pointer', outline: 'none', opacity: dim(id), transition: 'opacity 160ms' } }, shape)
+  const node = (id, label, shape) => h('g', { key: id, role: 'button', tabIndex: 0, 'aria-pressed': sel === id, 'aria-label': label, onClick: () => pick(id), onKeyDown: keys(id), onFocus: () => setFocus(id), onBlur: () => setFocus(null), style: { cursor: 'pointer', outline: 'none', opacity: dim(id), transition: 'opacity 160ms' } }, ...shape)
   const sources = Object.values(lay.srcs).map(({ s, x, y, w, h: hh }) => {
     const miss = s.missing
     const lines = miss ? ['Source cell is gone', clip(`${s.file} · ${s.sheet}!${s.ref}`, 40), s.old != null ? `was ${num(s.old)}` : ''] :
@@ -369,7 +369,7 @@ function Links({ ties, onConfirm, onSkip, onWhy, why, busy }) {
     why ? h(Why, { info: why.info, onClose: why.close }) : null)
 }
 
-const SEVERITY = { high: 'Check', medium: 'Look', info: 'Note' }
+const SEVERITY = { high: 'Read first', medium: 'Look', info: 'Note' }
 
 // Sentences an update has made false, and what could not be checked. Dismiss means: this is not a problem here, do not raise it again.
 function Flags({ flags, coverage, onDismiss, busy, compact }) {
@@ -385,7 +385,7 @@ function Flags({ flags, coverage, onDismiss, busy, compact }) {
       compact || !f.suggestion ? null : h('div', { style: { ...css.muted, fontSize: 12, marginTop: 2 } }, f.suggestion),
       h('div', { style: { ...css.row, marginTop: 6, justifyContent: 'space-between' } },
         h('span', { style: { ...css.muted, fontSize: 12 } }, f.where || ''),
-        onDismiss ? btn('This is not a problem here', () => onDismiss(f.id), { disabled: busy }) : null))),
+        onDismiss ? btn('Dismiss', () => onDismiss(f.id), { disabled: busy, name: 'Dismiss: this is not a problem here' }) : null))),
     noted.length ? h('details', { style: { marginTop: 4 } }, h('summary', { style: css.muted }, `${noted.length} more note${noted.length === 1 ? '' : 's'}`),
       noted.map(f => h('div', { key: f.id, style: { ...css.muted, fontSize: 12, padding: '2px 0' } }, `${f.summary}. ${f.sentence_after}`))) : null,
     cov.sentences_checked !== undefined ? h('details', { style: { marginTop: 6 } },
@@ -394,7 +394,7 @@ function Flags({ flags, coverage, onDismiss, busy, compact }) {
       (cov.not_checked || []).map((n, i) => h('div', { key: i, style: { ...css.muted, fontSize: 12 } }, n))) : null)
 }
 
-// Numbers in the documents that a calculation over tied cells reproduces. Accepting one makes it follow its sources like any other tie.
+// Numbers in the documents that a calculation over linked cells reproduces. Accepting one makes it follow its sources like any other tie.
 function Calculations({ api, pid, busy, run }) {
   const [info, setInfo] = useState(null)
   const find = () => run(async () => { const r = await api('/calculations', { project: pid }); setInfo(r); return r })
@@ -465,8 +465,8 @@ function ReleaseCard({ ctx, attrs }) {
       view.edited_page ? h('p', { style: { margin: '6px 0' } }, view.state === 'published' ? `Edits to ${view.changes[0].deck} were written.` : `Your edits to ${view.changes[0].deck} would be written. Nothing has changed yet.`)
       : view.created ? h('div', null,
         h('p', { style: { margin: '6px 0' } }, view.state === 'published'
-          ? `Created ${view.changes[0].deck}. Every figure in it is tied to its source.`
-          : `Workroom would create ${view.changes[0].deck}, with ${view.figures.length} figures each tied to its source cell. Nothing has been written yet.`),
+          ? `Created ${view.changes[0].deck}. Every figure in it is linked to its source.`
+          : `Workroom would create ${view.changes[0].deck}, with ${view.figures.length} figures each linked to its source cell. Nothing has been written yet.`),
         h('ul', { style: { margin: '4px 0', paddingLeft: 18 } }, groupFigures(view.figures).slice(0, 8).map((f, i) => h('li', { key: i },
           h('strong', null, f.text), h('span', { style: css.muted }, ` ${f.concept || ''} ${f.period || ''} · ${f.source}${f.count > 1 ? ` · in ${f.count} places` : ''}`)))),
         view.figures.length > 8 ? h('div', { style: css.muted }, `and ${view.figures.length - 8} more figures`) : null)
@@ -501,6 +501,7 @@ function WorkroomPage({ ctx }) {
   const [found, setFound] = useState(null)
   const [plan, setPlan] = useState(null)
   const [inbox, setInbox] = useState(null)
+  const changesRef = useRef(null)
   const [release, setRelease] = useState(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState(null)
@@ -590,6 +591,8 @@ function WorkroomPage({ ctx }) {
     const p = await api('/plan', { project: pid })
     setPlan(p)
     setInbox(await api('/changes', { project: pid }))
+    const calm = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    setTimeout(() => { if (changesRef.current && changesRef.current.scrollIntoView) changesRef.current.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' }) }, 120)
     return p
   })
 
@@ -616,16 +619,13 @@ function WorkroomPage({ ctx }) {
   const current = projects.find(p => p.project === pid)
 
   return h('div', { style: css.page, 'aria-busy': busy },
-    h('div', null, h('h1', { style: css.title }, 'Workroom'), h('p', { style: css.sub }, 'Keeps your decks in step with their source numbers. It only changes what must change, and only after you approve.')),
+    h('div', null, h('h1', { style: css.title }, 'Workroom'), h('p', { style: css.sub }, 'Keeps your reports and decks in step with the numbers behind them. It changes only what must change, and only after you approve.')),
     h('section', { style: css.card, 'aria-label': 'Project' },
       h('h2', { style: css.h2 }, 'Project'),
       projects.length ? h('div', { style: { ...css.row, marginBottom: 8 } },
         h('label', { htmlFor: 'wr-project', style: css.muted }, 'Folder'),
         h('select', { id: 'wr-project', value: pid || '', onChange: e => { setPid(e.target.value); setFound(null); setPlan(null); setRelease(null) }, style: css.input },
           projects.map(p => h('option', { key: p.project, value: p.project }, p.folder)))) : null,
-      pid ? h('label', { style: { ...css.row, margin: '0 0 8px', fontSize: 13 } },
-        h('input', { type: 'checkbox', checked: tracked, disabled: busy, onChange: e => toggleTracked(e.target.checked), 'aria-label': 'Release Word changes as tracked changes' }),
-        h('span', null, 'Release Word changes as tracked changes (the old number is struck through and the new one inserted, so a reviewer can accept or reject it)')) : null,
       h('div', { style: css.row },
         h('input', { style: css.input, placeholder: 'Folder with your workbook and deck, for example C:\\Reports\\Monthly', value: folder, onChange: e => setFolder(e.target.value), 'aria-label': 'Folder path' }),
         btn('Add project', addProject, { disabled: busy || !folder.trim() }))),
@@ -641,7 +641,7 @@ function WorkroomPage({ ctx }) {
     message ? h(Banner, { kind: message.kind }, message.text) : null,
     pid ? h('section', { style: css.card, 'aria-label': 'Links' },
       h('h2', { style: css.h2 }, '1. Find the links'),
-      h('p', { style: { ...css.muted, margin: '0 0 8px' } }, 'Workroom reads your documents and links each number to the cell it came from. It writes nothing to your files.'),
+      h('p', { style: { ...css.muted, margin: '0 0 8px' } }, 'Workroom reads your documents and links each number to the cell it came from. Nothing is written to your files.'),
       btn('Find links', discover, { disabled: busy, primary: !found }),
       found ? h('div', { style: { marginTop: 10 } },
         h('div', { style: css.row },
@@ -654,17 +654,25 @@ function WorkroomPage({ ctx }) {
         found.missing && found.missing.length ? h('p', { role: 'alert', style: { ...css.muted, margin: '6px 0 0', fontSize: 12, color: 'var(--ui-amber, #d97706)' } }, `${found.missing.length === 1 ? 'A document is' : found.missing.length + ' documents are'} missing from the folder: ${found.missing.slice(0, 3).join(', ')}. Its links and your decisions about them are kept and resume when it is back.`) : null,
         h(Links, { ties, onConfirm: confirmTie, onSkip: skipTie, onWhy: why, why: whyInfo ? { info: whyInfo, close: () => setWhyInfo(null) } : null, busy }),
         h(Calculations, { api, pid, busy, run })) : null) : null,
-    pid && found ? h('section', { style: css.card, 'aria-label': 'Changes' },
+    pid && found ? h('section', { ref: changesRef, style: css.card, 'aria-label': 'Changes' },
       h('h2', { style: css.h2 }, '2. See what would change'),
       btn('Check the sources', preview, { disabled: busy }),
       plan ? h('div', { style: { marginTop: 10 } },
         h(ChangeViews, { inbox, folder: current && current.folder, ctx: pluginCtx }),
-        inbox && inbox.changes.length ? h(Flags, { flags: inbox.flags, coverage: inbox.coverage, onDismiss: dismissFinding, busy, compact: true }) : null,
+        inbox && inbox.changes.length && !release ? h(Flags, { flags: inbox.flags, coverage: inbox.coverage, onDismiss: dismissFinding, busy, compact: true }) : null,
         inbox && inbox.changes.length ? null : h(Changes, { changes: plan.changes }),
         plan.held.length ? h('div', { style: { marginTop: 10 } },
           h('div', { style: { fontWeight: 600 } }, 'Held for you'),
           h('ul', { style: { margin: '4px 0 0', paddingLeft: 18 } }, plan.held.map((t, i) => h('li', { key: i }, t)))) : null,
-        plan.changes.length ? h('div', { style: { marginTop: 10 } }, btn('Prepare release', stage, { disabled: busy, primary: true })) : null) : null) : null,
+        plan.changes.length ? h('div', { style: { marginTop: 10 } },
+          h('label', { style: { ...css.row, margin: '0 0 8px', fontSize: 13 } },
+            h('input', { type: 'checkbox', checked: tracked, disabled: busy, onChange: e => toggleTracked(e.target.checked), 'aria-label': 'Release Word changes as tracked changes' }),
+            h('span', null, 'Release Word changes as tracked changes, so a reviewer can accept or reject each one')),
+          btn('Prepare release', stage, { disabled: busy, primary: true })) : null,
+        h('details', { style: { marginTop: 12 } },
+          h('summary', { style: { ...css.muted, cursor: 'pointer' } }, 'Moving to the next period?'),
+          h('p', { style: { ...css.muted, margin: '6px 0 8px' } }, 'When the workbook has the next period, Workroom can move every linked number to it and advance the period words beside them (Q3 2026 becomes Q4 2026). You approve it once, and Restore undoes the whole move. It refuses, naming each number, if any has no value for the next period.'),
+          btn('Roll forward one period', rollForward, { disabled: busy }))) : null) : null,
     release ? h('section', { style: { ...css.card, borderColor: 'var(--ui-accent, #3b82f6)' }, 'aria-label': 'Release' },
       h('h2', { style: css.h2 }, '3. Approve the release'),
       release.state === 'blocked'
@@ -672,7 +680,7 @@ function WorkroomPage({ ctx }) {
         : h('div', null,
             release.edited_page ? h('p', { style: { margin: '0 0 8px' } }, `Your edits to ${release.changes[0].deck} will be written (${release.changes[0].new_text}). Tied numbers keep their links to their sources.`)
             : release.created ? h('div', null,
-              h('p', { style: { margin: '0 0 6px' } }, `Workroom will create ${release.changes[0].deck}. Every figure in it is tied to its source cell. Nothing else in your folder is touched.`),
+              h('p', { style: { margin: '0 0 6px' } }, `Workroom will create ${release.changes[0].deck}. Every figure in it is linked to its source cell. Nothing else in your folder is touched.`),
               h('ul', { style: { margin: '0 0 8px', paddingLeft: 18 } }, groupFigures(release.figures).slice(0, 12).map((f, i) => h('li', { key: i },
                 h('strong', null, f.text), h('span', { style: css.muted }, ` ${f.concept || ''} ${f.period || ''} · ${f.source}${f.count > 1 ? ` · in ${f.count} places` : ''}`)))))
             : release.rolled ? h('p', { style: { margin: '0 0 8px' } }, `Workroom will roll your documents forward: ${release.rolled.figures} figures move to the next period and ${release.rolled.period_words} period words advance (${release.rolled.example}). Restore undoes the whole roll.`)
@@ -687,10 +695,6 @@ function WorkroomPage({ ctx }) {
             h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, `Release fingerprint ${release.digest.slice(0, 12)}. Your approval applies to exactly this release and nothing else.`),
             release.created || release.edited_page ? null : h(Proof, { api, pid, releaseId: release.release_id }),
             btn('Approve and publish', approve, { disabled: busy || (release.needs_acknowledgement && release.needs_acknowledgement.length > 0 && !ack), primary: true }))) : null,
-    pid && found ? h('section', { style: css.card, 'aria-label': 'Next period' },
-      h('h2', { style: css.h2 }, 'Next period'),
-      h('p', { style: { ...css.muted, margin: '0 0 8px' } }, 'When the workbook has the next period, Workroom can move every tied figure to it and advance the period words beside them (Q3 2026 becomes Q4 2026). It is one release you approve, and Restore undoes the whole roll. It refuses, naming each figure, if any figure has no value for the next period.'),
-      btn('Roll forward one period', rollForward, { disabled: busy })) : null,
     !projects.length ? h('section', { style: { ...css.card, borderColor: 'var(--ui-accent, #3b82f6)' }, 'aria-label': 'Try the sample' },
       h('h2', { style: css.h2 }, 'New here? Try the sample'),
       h('p', { style: { margin: '0 0 8px' } }, 'Workroom makes a small sample project in its own storage (a results workbook and a board deck whose every figure is tied to a cell). Your own files are not touched. You approve the deck, then pretend a new quarter arrived and watch only the changed numbers update.'),

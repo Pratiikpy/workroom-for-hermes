@@ -1,6 +1,7 @@
 import json
 from functools import lru_cache
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from ..workroom_core import selftest
 from ..workroom_core.service import Service, ServiceError
@@ -28,7 +29,7 @@ DISCOVER_SCHEMA = {
 
 PLAN_SCHEMA = {
     "name": "workroom_plan",
-    "description": "Preview which tied numbers changed in the sources and what each document would say afterwards. Changes nothing.",
+    "description": "Preview which linked numbers changed in the sources and what each document would say afterwards. Changes nothing.",
     "parameters": PROJECT_ONLY,
 }
 
@@ -53,15 +54,15 @@ STAGE_SCHEMA = {
 
 ROLL_SCHEMA = {
     "name": "workroom_roll_forward",
-    "description": ("Prepare one release that rolls the project's documents forward to the next reporting period: every tied figure moves to the same row's next period column, "
-                    "and the period words beside them (Q3 2026 becomes Q4 2026) advance. It is refused, naming each figure, when a tied figure has no next-period value. "
+    "description": ("Prepare one release that rolls the project's documents forward to the next reporting period: every linked figure moves to the same row's next period column, "
+                    "and the period words beside them (Q3 2026 becomes Q4 2026) advance. It is refused, naming each figure, when a linked figure has no next-period value. "
                     "This does not change any document; only the owner can approve it, and the owner can restore the whole roll."),
     "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "periods": {"type": "integer", "description": "How many periods to roll forward (1 to 4, default 1)"}}, "required": ["project"]},
 }
 
 CALCULATIONS_SCHEMA = {
     "name": "workroom_find_calculations",
-    "description": "List numbers in the project's documents that a calculation over tied cells reproduces (a percent change, a margin, a difference, a total), with the formula. Writes nothing; the owner accepts or dismisses each one.",
+    "description": "List numbers in the project's documents that a calculation over linked cells reproduces (a percent change, a margin, a difference, a total), with the formula. Writes nothing; the owner accepts or dismisses each one.",
     "parameters": PROJECT_ONLY,
 }
 
@@ -74,7 +75,7 @@ SOURCES_SCHEMA = {
 CREATE_SCHEMA = {
     "name": "workroom_create",
     "description": (
-        "Create a new PowerPoint deck or Word report whose every figure is tied to a source cell. You never write the file: you write a spec "
+        "Create a new PowerPoint deck or Word report whose every figure is linked to a source cell. You never write the file: you write a spec "
         "and Workroom builds it, checks it and stages it for the owner to approve. Nothing is written until the owner approves.\n"
         "Spec: {version:1, kind:'pptx'|'docx', path:'reports/q2.pptx', facts:{id:{ref:'results.xlsx!Results!C2', concept:'Revenue', period:'Q2', "
         "unit:'currency'|'percent'|'count'|'ratio'}}, slides:[{title, blocks:[...]}] (pptx) or blocks:[...] (docx)}. "
@@ -84,7 +85,7 @@ CREATE_SCHEMA = {
         "Formats: #,##0  #,##0.00  $#,##0  $#,##0.0M  #,##0K  0.0%. A percent fact holds a fraction (0.25 shows 25.0%). "
         "Find cells with workroom_list_sources. Never type a number that is not a slot. Facts need ref, concept, period and unit. "
         "Visual page: kind 'scene', path 'pages/name.scene.json', and scene:{canvas:{w,h}, nodes:[{id,type:'rect'|'ellipse'|'line'|'text',x,y,w,h,fill,stroke,stroke_w,radius,rotate,opacity; text nodes also text (with {fact:format} slots), size,color,bold,align}]} (colours are six hex digits, nodes draw in list order). "
-        "Workbook: kind 'xlsx', path 'name.xlsx', sheets:[{name, rows:[[cell,...],...]}] where a cell is text, a number, {fact:'id', format:'$#,##0'} (a tied number; formats without K, M or B) {formula:'=B2*2'} (kept as a formula) or {input: 0.05} (a number you are told to type, such as an assumption; plain numbers are refused); the first row is the header. Put figures in their own cells, not inside text. "
+        "Workbook: kind 'xlsx', path 'name.xlsx', sheets:[{name, rows:[[cell,...],...]}] where a cell is text, a number, {fact:'id', format:'$#,##0'} (a linked number; formats without K, M or B) {formula:'=B2*2'} (kept as a formula) or {input: 0.05} (a number you are told to type, such as an assumption; plain numbers are refused); the first row is the header. Put figures in their own cells, not inside text. "
         "If the spec is refused, the reply lists each error; fix those and call again."
     ),
     "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "spec": {"type": "object"}}, "required": ["project", "spec"]},
@@ -121,7 +122,7 @@ EDIT_PAGE_SCHEMA = {
     "description": (
         "Edit a visual page as a draft with small operations. Nothing in the project changes: the owner sees your edits in the page editor and saves them as a release for approval. "
         "ops: add{node, index?}, update{id, set:{...}, unset?:[keys]}, delete{id}, reorder{id, index}. Give rev from workroom_read_page. "
-        "A tied text node's text is rewritten from its source on refresh; editing its text by hand makes Workroom hold it, so change its template wording with the owner instead."
+        "A linked text node's text is rewritten from its source on refresh; editing its text by hand makes Workroom hold it, so change its template wording with the owner instead."
     ),
     "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "path": {"type": "string"}, "rev": {"type": "integer"}, "ops": {"type": "array", "items": {"type": "object"}}}, "required": ["project", "path", "rev", "ops"]},
 }

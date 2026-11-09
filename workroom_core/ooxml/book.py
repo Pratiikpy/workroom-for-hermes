@@ -7,7 +7,7 @@ next opened, so every dependent formula shows a fresh value instead of a stale c
 
 from __future__ import annotations
 
-from typing import Iterator
+from collections.abc import Iterator
 
 from lxml import etree
 
@@ -15,7 +15,7 @@ from ..match.numbers import NumberMention
 from .package import Package, open_package, rewrite
 from .pptx import DocMention, EditReport
 from .runs import EditError, Replacement
-from .xlsx import S_NS, index_workbook, parse_xml, serialize_xml, sheets, split_cell, _col_to_int
+from .xlsx import S_NS, index_workbook, parse_xml, serialize_xml, sheets
 
 WORKBOOK = "xl/workbook.xml"
 

@@ -1,0 +1,11 @@
+[tool.ruff]
+line-length = 200
+target-version = "py311"
+extend-exclude = ["bench/verify/oxml_validate"]
+
+[tool.ruff.lint]
+select = ["E9", "F", "B", "UP"]
+ignore = ["B905", "B023", "UP031"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

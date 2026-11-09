@@ -242,7 +242,7 @@ def _structure(v: Validated, spec: Any) -> bool:
                         elif len(c) > 2000:
                             _err(v, "too_large", cat, "text longer than 2000 characters")
                     elif isinstance(c, (int, float)):
-                        _err(v, "untied_figure", cat, f"the number {c} is typed by hand; tie it with {{fact, format}}, or declare it a hand-entered input with {{input: {c}}} so the owner can see it")
+                        _err(v, "untied_figure", cat, f"the number {c} is typed by hand; link it with {{fact, format}}, or declare it a hand-entered input with {{input: {c}}} so the owner can see it")
                     elif isinstance(c, dict) and set(c) == {"input"} and isinstance(c["input"], (int, float)) and not isinstance(c["input"], bool) and abs(c["input"]) < 1e15:
                         v.typed_inputs.append({"where": cat, "value": c["input"]})
                     elif isinstance(c, dict) and set(c) <= {"fact", "format"} and isinstance(c.get("fact"), str) and isinstance(c.get("format"), str):

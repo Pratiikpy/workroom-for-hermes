@@ -8,7 +8,7 @@ reported, never resolved silently.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterator
+from collections.abc import Iterator
 
 from lxml import etree
 
@@ -35,12 +35,12 @@ class Flavor:
     opaque_containers: frozenset[str]
 
     @classmethod
-    def drawing(cls) -> "Flavor":
+    def drawing(cls) -> Flavor:
         q = lambda t: "{%s}%s" % (A_NS, t)
         return cls(A_NS, q("p"), q("r"), q("t"), q("rPr"), frozenset(), frozenset())
 
     @classmethod
-    def word(cls) -> "Flavor":
+    def word(cls) -> Flavor:
         q = lambda t: "{%s}%s" % (W_NS, t)
         return cls(
             W_NS, q("p"), q("r"), q("t"), q("rPr"),

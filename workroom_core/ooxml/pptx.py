@@ -6,9 +6,8 @@ updated in the series cache and the embedded workbook together, or not at all.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
-from typing import Iterator
+from collections.abc import Iterator
 
 from lxml import etree
 
