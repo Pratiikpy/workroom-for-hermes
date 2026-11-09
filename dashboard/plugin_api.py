@@ -169,6 +169,24 @@ async def instruction_apply(body: InstructionBody) -> dict:
     return _guard(lambda: _service().apply_instruction_proposal(body.project, body.proposal))
 
 
+class ColumnBody(BaseModel):
+    project: str
+    signature: str = ""
+    file: str = ""
+    sheet: str = ""
+    column: int = 0
+
+
+@router.post("/column-questions")
+async def column_questions(body: ColumnBody) -> list:
+    return _guard(lambda: _service().column_questions(body.project))
+
+
+@router.post("/column-choose")
+async def column_choose(body: ColumnBody) -> dict:
+    return _guard(lambda: _service().choose_column(body.project, body.signature, body.file, body.sheet, body.column))
+
+
 class RecipeBody(BaseModel):
     project: str
     deck: str = ""

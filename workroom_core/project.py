@@ -156,6 +156,8 @@ class Project:
             " linked_value REAL, label_score REAL, context TEXT)"
         )
         self.db.execute("CREATE TABLE IF NOT EXISTS snapshot2 (file TEXT, sheet TEXT, key TEXT, value REAL, PRIMARY KEY (file, sheet, key))")
+        self.db.execute("CREATE TABLE IF NOT EXISTS column_maps (sig TEXT PRIMARY KEY, deck TEXT, src_file TEXT, sheet TEXT, col INT, decided REAL, by TEXT)")
+        self.db.execute("CREATE TABLE IF NOT EXISTS column_questions (sig TEXT PRIMARY KEY, deck TEXT, section TEXT, col_head TEXT, rows INT, alternatives TEXT)")
         for column in ("context TEXT", "slide_uid TEXT", "fp_near TEXT", "anchor TEXT", "prior_state TEXT", "held_note TEXT", "basis TEXT", "receipt TEXT", "kind TEXT", "chart TEXT", "formula TEXT", "src_labels TEXT"):
             try:
                 self.db.execute(f"ALTER TABLE ties ADD COLUMN {column}")
@@ -558,7 +560,9 @@ class Project:
                 continue
             self._discover_charts(rel, deck, index, chart_ties, kept_ids)
             results = match_mentions([Mention(str(i), dm.number, dm.context, (dm.para_offset, dm.para_offset + len(dm.number.raw)) if dm.para_offset is not None else None, dm.section, dm.row_head) for i, dm in enumerate(dms)], index)
-            results = align_tables(dms, results, index)
+            asked_columns: list[dict] = []
+            results = align_tables(dms, results, index, self.column_choices(), asked_columns)
+            self._store_column_questions(rel, dms, asked_columns, index)
             found += len(dms)
             by_pos = {self._tkey(t): t for t in deck_ties}
             matched: dict[int, DocMention] = {}
@@ -718,6 +722,18 @@ class Project:
                             row.get("context") or "", row.get("slide_uid") or "", row.get("fp_near") or "", row.get("anchor") or "exact",
                             row.get("prior_state") or "", row.get("held_note") or "", row.get("basis") or "matched", row.get("receipt") or "", row.get("kind") or "text", row.get("chart") or "", row.get("formula") or "", row.get("src_labels") or ""))
         return [t for t in ties if states is None or t.state in states]
+
+    def confirm_many(self, tie_ids: list[int]) -> int:
+        """Confirm several waiting links with one pass over the project; returns how many were waiting."""
+        wanted = set(tie_ids)
+        done = 0
+        with self._transaction():
+            for t in self.ties(("confirm",)):
+                if t.id in wanted and t.kind != "derived":
+                    self.db.execute("UPDATE ties SET state='confirmed', src_labels=NULL, held_note='' WHERE id=?", (t.id,))
+                    done += 1
+            self.relocate_sources()
+        return done
 
     def confirm(self, tie_id: int) -> None:
         """The owner says the source cell is the right one: it becomes the reference for its headings from now on."""
@@ -1003,6 +1019,44 @@ class Project:
                 data, _report = deck.serialize()
                 plan.files[deck_rel] = data
         return plan
+
+    def column_choices(self) -> dict[str, tuple[str, str, int]]:
+        """The owner's answers to "which column of the workbook is this column of the report?", by column signature."""
+        return {sig: (f, sh, col) for sig, f, sh, col in self.db.execute("SELECT sig, src_file, sheet, col FROM column_maps")}
+
+    def _store_column_questions(self, rel: str, dms: list[DocMention], asked: list[dict], index) -> None:
+        """Remember, for one document, the report columns that fit two or more workbook columns about equally."""
+        self.db.execute("DELETE FROM column_questions WHERE deck=?", (rel,))
+        for q in asked:
+            first = dms[q["figures"][0]]
+            alts = []
+            for a in q["alternatives"]:
+                sample = next((c for c in index.cells if c.file == a["file"] and c.sheet == a["sheet"] and c.col == a["column"]), None)
+                alts.append({**a, "labels": list(sample.col_labels) if sample is not None else [], "example": f"{sample.sheet}!{sample.ref}" if sample is not None else ""})
+            self.db.execute("INSERT OR REPLACE INTO column_questions (sig, deck, section, col_head, rows, alternatives) VALUES (?,?,?,?,?,?)",
+                            (q["signature"], rel, first.section[:120], first.col_head[:120], q["rows"], json.dumps(alts, ensure_ascii=False)))
+
+    def column_questions(self) -> list[dict]:
+        done = set(self.column_choices())
+        out = []
+        for sig, deck, section, head, rows, alts in self.db.execute("SELECT sig, deck, section, col_head, rows, alternatives FROM column_questions ORDER BY rows DESC"):
+            if sig not in done:
+                out.append({"signature": sig, "deck": deck, "section": section, "report_column": head, "rows": rows, "alternatives": json.loads(alts)})
+        return out
+
+    def choose_column(self, sig: str, src_file: str, sheet: str, col: int, by: str) -> None:
+        """Owner route: this column of the report is that column of the workbook. Only one of the alternatives that were offered can be chosen."""
+        row = self.db.execute("SELECT alternatives, deck FROM column_questions WHERE sig=?", (sig,)).fetchone()
+        if row is None:
+            raise ValueError("that question is not waiting any more")
+        if not any(a["file"] == src_file and a["sheet"] == sheet and a["column"] == col for a in json.loads(row[0])):
+            raise ValueError("that column was not one of the choices offered")
+        self.db.execute("INSERT OR REPLACE INTO column_maps (sig, deck, src_file, sheet, col, decided, by) VALUES (?,?,?,?,?,?,?)", (sig, row[1], src_file, sheet, col, __import__("time").time(), by))
+        # figures that were only waiting (nobody has decided them) are matched again with the answer; decided ones and ones with a reason are left alone
+        self.db.execute("DELETE FROM ties WHERE deck=? AND state='confirm' AND COALESCE(kind,'text')='text' AND COALESCE(held_note,'')=''", (row[1],))
+
+    def forget_column_choice(self, sig: str) -> None:
+        self.db.execute("DELETE FROM column_maps WHERE sig=?", (sig,))
 
     @staticmethod
     def _table_id(dm: DocMention) -> tuple:

@@ -13,13 +13,16 @@ Cells whose own value does not agree stay as they were, so an exception in a ver
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
+from typing import Any
 
 from ..ooxml.pptx import DocMention
 from .engine import MatchResult, Scored, SourceIndex, tokens
 from .numbers import consistent_with_source
 
 MIN_ROWS = 3
+MIN_OPEN_ROWS = 2  # a column question is worth asking when at least this many of its figures are still waiting
 MIN_SHARE = 0.75
 ROW_OVERLAP = 0.6
 RUNNER_RATIO = 0.5
@@ -75,8 +78,29 @@ def _rows_of(index: SourceIndex) -> _Rows:
     return cached
 
 
-def align_tables(mentions: list[DocMention], results: list[MatchResult], index: SourceIndex) -> list[MatchResult]:
-    """Results with every verified table cell accepted. Mentions and results are parallel lists; the lists passed in are not changed."""
+def _norm(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
+
+
+def column_signature(mentions: list[DocMention], members: list[int], column: int) -> str:
+    """A name for one column of one report table that survives the document being copied or its other tables being edited: the section the table
+    sits under, which of that section's tables it is, and the column's position and heading."""
+    first = mentions[members[0]]
+    if first.shape_id:  # PowerPoint: the slide's own id and the shape
+        base = f"{first.slide_uid or first.slide}/{first.shape_id}"
+    else:
+        same = sorted({mentions[i].table for i in range(len(mentions)) if mentions[i].section == first.section and mentions[i].cell is not None})
+        base = f"{_norm(first.section)}#{same.index(first.table) if first.table in same else 0}"
+    head = next((mentions[i].col_head for i in members if mentions[i].cell and mentions[i].cell[1] == column and mentions[i].col_head), "")
+    return f"{base}|{column}|{_norm(head)}"
+
+
+def align_tables(mentions: list[DocMention], results: list[MatchResult], index: SourceIndex, chosen: dict[str, tuple[str, str, int]] | None = None,
+                 questions: list[dict[str, Any]] | None = None) -> list[MatchResult]:
+    """Results with every verified table cell accepted. Mentions and results are parallel lists; the lists passed in are not changed.
+
+    ``chosen`` maps a column signature to the source column the owner picked for it; ``questions`` collects the columns that fit two or more source
+    columns about equally, each with its alternatives, so the owner is asked once for the column and not once for every figure."""
     groups: dict[tuple, list[int]] = defaultdict(list)
     for i, m in enumerate(mentions):
         if m.cell is not None and m.row_head:
@@ -97,14 +121,16 @@ def align_tables(mentions: list[DocMention], results: list[MatchResult], index: 
         for (r, c), i in singles.items():
             if candidates.get(r):
                 columns[c].append((r, i))
-        for items in columns.values():
+        for column, items in columns.items():
             if len(items) < MIN_ROWS:
                 continue
-            _verify_column(items, mentions, candidates, rows, out)
+            sig = column_signature(mentions, members, column)
+            _verify_column(items, mentions, candidates, rows, out, chosen.get(sig) if chosen else None, questions, sig)
     return out
 
 
-def _verify_column(items: list[tuple[int, int]], mentions: list[DocMention], candidates: dict[int, list], rows: _Rows, out: list[MatchResult]) -> None:
+def _verify_column(items: list[tuple[int, int]], mentions: list[DocMention], candidates: dict[int, list], rows: _Rows, out: list[MatchResult],
+                   picked: tuple[str, str, int] | None = None, questions: list[dict[str, Any]] | None = None, sig: str = "") -> None:
     votes: dict[tuple[tuple[str, str], int], dict[int, tuple[int, object, str, float]]] = defaultdict(dict)
     with_rows: dict[tuple[str, str], int] = defaultdict(int)
     for r, i in items:
@@ -122,16 +148,29 @@ def _verify_column(items: list[tuple[int, int]], mentions: list[DocMention], can
                     if ok and transform in TRANSFORMS:
                         hits[col].append((cell, transform, overlap))
             for col, found in hits.items():
+                if picked is not None and (sheet[0], sheet[1], col) == picked and len(found) > 1:
+                    found = sorted(found, key=lambda f: -f[2])
+                    found = found[:1] if found[0][2] > found[1][2] else []  # the owner chose the column; the row heading settles the row, or the row stays a question
                 if len(found) == 1:  # two candidate rows agreeing at one column is an ambiguous row, not a vote
                     votes[(sheet, col)][i] = (i, found[0][0], found[0][1], found[0][2])
     ranked = sorted(votes.items(), key=lambda kv: -len(kv[1]))
     if not ranked:
         return
+    if picked is not None:  # the owner said which source column this report column is: every row that agrees with it is accepted
+        mine = next(((k, v) for k, v in ranked if (k[0][0], k[0][1], k[1]) == picked), None)
+        if mine is None:
+            return
+        ranked = [mine] + [r for r in ranked if r is not mine]
     (sheet, col), best = ranked[0]
     n = len(best)
-    if n < MIN_ROWS or n / max(with_rows[sheet], 1) < MIN_SHARE:
+    if n < MIN_ROWS or n / max(with_rows[sheet], 1) < (MIN_SHARE if picked is None else 0.5):
         return
-    if len(ranked) > 1 and len(ranked[1][1]) > n * RUNNER_RATIO:
+    if picked is None and len(ranked) > 1 and len(ranked[1][1]) > n * RUNNER_RATIO:
+        if questions is not None:
+            alternatives = [{"file": k[0][0], "sheet": k[0][1], "column": k[1], "agree": len(v)} for k, v in ranked[:4] if len(v) >= MIN_ROWS and len(v) >= n * RUNNER_RATIO]
+            open_rows = [i for _, i in items if out[i].decision != "accept"]
+            if len(alternatives) > 1 and len(open_rows) >= MIN_OPEN_ROWS:  # a column whose rows were all linked one by one needs no answer
+                questions.append({"signature": sig, "rows": len(open_rows), "alternatives": alternatives, "figures": open_rows})
         return
     if len({v[2] for v in best.values()}) != 1:
         return

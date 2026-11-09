@@ -872,6 +872,26 @@ class Service:
         pfile.unlink()
         return self.authorise_instruction(pid, doc["name"], hashlib.sha256(doc["text"].encode("utf-8")).hexdigest())
 
+    @_closing
+    def column_questions(self, pid: str) -> list[dict[str, Any]]:
+        """Report table columns that fit two or more workbook columns about equally: one question per column instead of one per figure."""
+        proj, _ = self._open(pid)
+        return proj.column_questions()
+
+    @_closing
+    def choose_column(self, pid: str, signature: str, src_file: str, sheet: str, column: int, principal: str = DESKTOP_PRINCIPAL) -> dict[str, Any]:
+        """Owner route (never an agent tool): this column of the report is that column of the workbook. Every row of the column that agrees with the
+        chosen column is then linked; a row that does not agree stays a question. The choice is remembered for copies of the report."""
+        proj, _ = self._open(pid)
+        before = sum(1 for t in proj.ties() if t.state in ("accepted", "confirmed"))
+        try:
+            proj.choose_column(signature, src_file, sheet, int(column), principal)
+        except ValueError as exc:
+            raise ServiceError(str(exc)) from exc
+        proj.discover()
+        after = sum(1 for t in proj.ties() if t.state in ("accepted", "confirmed"))
+        return {"linked_more": after - before, "still_open": len(proj.column_questions())}
+
     # ---- the reporting recipe: a model report whose links a copy inherits ----
     def _recipe_dir(self, pid: str) -> Path:
         return self.data_dir / "projects" / pid / "recipes"
