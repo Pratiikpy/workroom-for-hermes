@@ -53,9 +53,13 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
     ties = [t for t in project.ties() if t.state in ("accepted", "confirmed", "held") and t.kind in ("text", "derived", "chart")]
     ties = [t for t in ties if (project.root / t.deck).is_file()]  # a document that is put away keeps its links but is not part of the roll, and cannot block it
 
+    def heading_key(labels) -> tuple:
+        """Headings compared without footnote marks, case or spacing: "Agriculture(i)" this year is "Agriculture" next year."""
+        return tuple(re.sub(r"\s+", " ", re.sub(r"\s*\((?:[ivxlc]+|[a-z]|\d{1,2})\)\s*$", "", x.strip().lower())) for x in labels)
+
     by_labels: dict[tuple, list] = {}
     for c in index.cells:
-        by_labels.setdefault((c.file, c.sheet, tuple(c.row_labels), tuple(c.col_labels)), []).append(c)
+        by_labels.setdefault((c.file, c.sheet, heading_key(c.row_labels), heading_key(c.col_labels)), []).append(c)
 
     def intent(t):
         """(period, labels moved by ``steps``, the cell that now carries them) for a figure inherited from a model report, else None."""
@@ -74,7 +78,7 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
             groups[axis][i] = period_label(p.shifted(steps), groups[axis][i])
         except ValueError:
             return None
-        hits = by_labels.get((t.src_file, t.sheet, tuple(groups[0]), tuple(groups[1])), [])
+        hits = by_labels.get((t.src_file, t.sheet, heading_key(groups[0]), heading_key(groups[1])), [])
         return p, groups, (hits[0] if len(hits) == 1 else None)
 
     def placed_of(t):

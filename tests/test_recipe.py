@@ -297,3 +297,49 @@ def test_a_window_refresh_leaves_a_figure_alone_when_the_workbook_no_longer_hold
     staged = svc.stage_rollforward(pid, 1, window=True)
     assert staged["figures"] == 3  # last year's column can move to 2024, which the workbook holds; this year's has no 2025 yet
     assert len([h for h in staged["held"] if "no FY2025 value" in h or "2025" in h]) == 3 and all("keeps the figure as written" in h for h in staged["held"])
+
+
+def test_a_window_refresh_finds_a_row_whose_footnote_mark_changed_between_the_years(tmp_path: Path) -> None:
+    import io
+
+    import openpyxl
+    from docx import Document
+
+    def book(names, years, rows):
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Results"
+        ws.append(["Line", *years])
+        for n, vals in zip(names, rows):
+            ws.append([n, *vals])
+        buf = io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
+    root = tmp_path / "proj"
+    root.mkdir()
+    (root / "data.xlsx").write_bytes(book(["Revenue(i)", "Costs"], ["2024", "2023"], [[500, 410], [300, 250]]))
+    d = Document()
+    d.add_paragraph("Results")
+    t = d.add_table(rows=3, cols=3)
+    for c, v in enumerate(["Line", "2024", "2023"]):
+        t.cell(0, c).text = v
+    for r, (n, a, b) in enumerate((("Revenue", 500, 410), ("Costs", 300, 250)), 1):
+        t.cell(r, 0).text, t.cell(r, 1).text, t.cell(r, 2).text = n, str(a), str(b)
+    buf = io.BytesIO()
+    d.save(buf)
+    (root / "report_2024.docx").write_bytes(buf.getvalue())
+    svc = Service(tmp_path / "data")
+    pid = svc.add_project(str(root))["project"]
+    svc.discover(pid)
+    approved(svc, pid, "report_2024.docx")
+    (root / "report_2025.docx").write_bytes((root / "report_2024.docx").read_bytes())
+    away = tmp_path / "away"
+    away.mkdir()
+    (root / "report_2024.docx").replace(away / "report_2024.docx")
+    (root / "data.xlsx").write_bytes(book(["Revenue", "Costs"], ["2025", "2024"], [[620, 500], [350, 300]]))  # the footnote mark on Revenue is gone
+    svc.discover(pid)
+    staged = svc.stage_rollforward(pid, 1, window=True)
+    assert staged["figures"] == 4
+    svc.approve_and_publish(pid, staged["release_id"], staged["digest"])
+    assert texts((root / "report_2025.docx").read_bytes())[1:][3:] == ["Revenue", "620", "500", "Costs", "350", "300"]
