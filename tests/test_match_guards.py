@@ -60,3 +60,23 @@ def test_numbers_alone_in_a_label_do_not_make_a_link() -> None:
     mention = Mention("m", parse_numbers("Between 17 offices and 2,017 staff")[1], ("Between 17 offices and 2,017 staff",))
     res = match_mentions([mention], index)[0]
     assert res.decision != "accept"
+
+
+def test_a_figure_a_thousand_times_smaller_than_its_cell_is_not_linked_unless_the_unit_is_named() -> None:
+    plain = decide("Q2 revenue was 4,100", "4,100", [cell("B2", 4_100_000.0, "Revenue")])
+    assert plain.decision == "confirm"
+    assert "1,000 times" in plain.reason
+    assert decide("Q2 revenue was 4,100", "4,100", [cell("B2", 4_100_000.0, "Revenue")], heads=("(in thousands)",)).decision == "accept"
+    assert decide("Q2 revenue was 4,100", "4,100", [cell("B2", 4_100_000.0, "Revenue ($000)")]).decision == "accept"
+
+
+def test_a_named_unit_must_be_the_unit_that_explains_the_difference() -> None:
+    wrong_unit = decide("Q2 revenue was 4,100", "4,100", [cell("B2", 4_100_000.0, "Revenue")], heads=("(in millions)",))
+    assert wrong_unit.decision == "confirm"
+    assert decide("Q2 revenue was 4.12", "4.12", [cell("B2", 4_120_000.0, "Revenue ($M)")]).decision == "accept"
+    assert decide("Q2 revenue was 4.12", "4.12", [cell("B2", 4_120_000.0, "Revenue")]).decision == "confirm"
+
+
+def test_a_digit_run_inside_a_longer_number_is_not_the_thousands_marker() -> None:
+    r = decide("Q2 revenue was 4,100", "4,100", [cell("B2", 4_100_000.0, "Revenue 2,000")])
+    assert r.decision == "confirm"

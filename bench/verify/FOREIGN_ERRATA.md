@@ -65,3 +65,13 @@ Word does not display. It is recorded as a malformed-input case, not fixed. Of t
 see no longer offers an edit (its only number was a page-number field result), the deck whose ".5" became "0.6" now passes, and the chart whose data lives
 outside the file is no longer linked. These reruns are not blind (E-007). The agent runs with the local model were repeated with the project id in the
 prompt after the first set of runs overwrote an earlier report that had shown the roll-forward tool being called; only the later reports are kept.
+
+## E-009 (2026-11-09): the values-only link result was stale, and the workbook that did not match was an oracle limit
+
+Two corrections after GPT review 10. (1) The readiness report and the README quoted "values only: 3 linked, 2 wrong" from `ties_own_bare3.json`, a run made
+before the commit that refuses a link made from digits alone. The same 1,069 figures rerun with the current code (`ties_own_bare5.json`) give 0 linked automatically,
+0 wrong. The earlier numbers are superseded, not deleted. (2) Errata E-007 left one public workbook unexplained (Workroom 505 numeric cells, Excel 305). The cause was
+the comparison harness, not Workroom: the sheets are protected, `SpecialCells` raises on a protected sheet, and the harness counted zero. With a fallback to the used
+range, Excel reports 505, equal to Workroom and to openpyxl. Both public workbook sets were rerun with the fixed harness (ledger row of the same date); two
+one-cell differences in the sealed set remain and have not been investigated one by one. These reruns are not blind: the harness was changed after the sealed
+workbooks had been compared.

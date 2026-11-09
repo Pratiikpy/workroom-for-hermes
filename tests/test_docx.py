@@ -134,3 +134,42 @@ def test_a_word_report_follows_a_workbook_through_the_service(tmp_path: Path) ->
     assert "Revenue in Q2 was 150 and margin was 30%." in t
     assert "Headcount reached 120 people." in t
     assert svc.plan(pid)["changes"] == []
+
+
+def _with_second_body(data: bytes) -> bytes:
+    import zipfile
+
+    out = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(data)) as src, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+        for info in src.infolist():
+            blob = src.read(info.filename)
+            if info.filename == "word/document.xml":
+                extra = b'<w:body><w:p><w:r><w:t>Revenue in Q2 was 999</w:t></w:r></w:p></w:body>'
+                blob = blob.replace(b"</w:document>", extra + b"</w:document>")
+            dst.writestr(info, blob)
+    return out.getvalue()
+
+
+def test_a_document_with_a_second_body_element_is_refused_because_word_would_not_show_edits_to_it() -> None:
+    from docx import Document
+
+    broken = _with_second_body(make_docx())
+    assert Document(io.BytesIO(broken)).paragraphs  # python-docx still opens it, which is why it is not enough to rely on it
+    with pytest.raises(EditError, match="2 body elements"):
+        Doc(broken)
+
+
+def test_a_document_without_a_body_is_refused_too() -> None:
+    import zipfile
+
+    out = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(make_docx())) as src, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+        for info in src.infolist():
+            blob = src.read(info.filename)
+            if info.filename == "word/document.xml":
+                import re
+
+                blob = re.sub(rb"<w:body>.*</w:body>", b"", blob, flags=re.S)
+            dst.writestr(info, blob)
+    with pytest.raises(EditError, match="0 body elements"):
+        Doc(out.getvalue())

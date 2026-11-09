@@ -41,6 +41,8 @@ def numeric_ranges(ws):
             continue
         for area in rng.Areas:
             cells.append(area)
+    if not cells and ws.ProtectContents:
+        cells.append(ws.UsedRange)  # SpecialCells raises on a protected sheet; the cells are still readable, and the caller keeps only numeric values
     return cells
 
 

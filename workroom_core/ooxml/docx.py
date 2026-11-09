@@ -41,6 +41,9 @@ class Doc:
         self.tracked = False  # edit as tracked changes (struck old number, inserted new one) instead of directly
         self._rev = None
         self._merged = False
+        bodies = len(self._root(MAIN).findall(_w("body")))
+        if bodies != 1:
+            raise EditError(f"the document holds {bodies} body elements; Word shows only the first, so an edit to another would not appear and the document is not edited")
 
     # ---- interface shared with Deck ----
     def slide_parts(self) -> list[str]:

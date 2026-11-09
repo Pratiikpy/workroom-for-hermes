@@ -198,6 +198,21 @@ UNIQUE_DIGITS = 5  # a number this long that fits exactly one source cell is a f
 UNIQUE_LABEL = 0.15  # ...provided the text names at least part of that cell
 NEAR_CHARS = 160  # in a long paragraph only the words around the number describe it
 _IMPLICIT_SCALES = ("thousands", "millions", "billions")
+_SCALE_NAMED = {
+    "thousands": re.compile(r"\bthousands?\b|(?<![\d,.])000s?(?![\d,])|\$\s?k\b|\busd\s?k\b|\bin k\b|\bkusd\b"),
+    "millions": re.compile(r"\bmillions?\b|\bmm\b|\bmn\b|\$\s?m\b|\busd\s?m\b|\bin m\b|\(m\)|\bmusd\b"),
+    "billions": re.compile(r"\bbillions?\b|\bbn\b|\$\s?b\b|\busd\s?b\b|\(bn\)|\(b\)"),
+}
+
+
+def _scale_is_named(transform: str, context_text: str, cell: SourceCell) -> bool:
+    """A document figure that differs from its cell by 1,000, 1,000,000 or 1,000,000,000 is the same figure only when something names that unit:
+    the text around it ("in thousands", "$M") or the cell's own headings. Without that, equal digits at another scale are a coincidence."""
+    pattern = _SCALE_NAMED.get(transform)
+    if pattern is None:
+        return True
+    haystack = (context_text + " " + " ".join(cell.row_labels + cell.col_labels + (cell.sheet,))).lower()
+    return bool(pattern.search(haystack))
 
 
 def _significant_digits(raw: str) -> int:
@@ -251,6 +266,9 @@ def match_mentions(mentions: list[Mention], index: SourceIndex, top: int = 5) ->
         no_word = len(index.cells) >= 20 and not any(t[0].isalpha() and index.idf.get(t, 1.0) > 1.2 for t in shared)  # in a workbook of any size, a heading nearly every cell shares ("Value", "Amount") names nothing
         if best.transform in _IMPLICIT_SCALES and short:
             decision, reason = "confirm", "a short number fits many cells once scaled, so it needs a person"
+        elif best.transform in _IMPLICIT_SCALES and not _scale_is_named(best.transform, ctx_text, best.cell):
+            factor = {"thousands": "1,000", "millions": "1,000,000", "billions": "1,000,000,000"}[best.transform]
+            decision, reason = "confirm", f"the source cell is {factor} times this figure and nothing in the text or the cell's headings names that unit"
         elif best.period_conflict:
             decision, reason = "confirm", "the period in the text does not match the period of the closest cell"
         elif no_word and best.label_score >= UNIQUE_LABEL:

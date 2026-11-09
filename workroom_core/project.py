@@ -793,10 +793,11 @@ class Project:
         """What the planned update means for the sentences around the numbers: claims it makes false, and what could not be checked."""
         from .meaning.claimscan import claim_findings
         from .meaning.findings import sort_findings
+        from .meaning.sourcehealth import source_findings
         from .meaning.surfaces import clipped_charts, surface_findings
 
         found, cov = claim_findings(self, plan, roll)
-        merged = {f.id: f for f in found + surface_findings(self, plan, roll) + clipped_charts(self, plan)}
+        merged = {f.id: f for f in found + surface_findings(self, plan, roll) + clipped_charts(self, plan) + source_findings(self, plan)}
         return sort_findings(list(merged.values())), cov
 
     def _hand_rolled(self, t: Tie, dm: DocMention, index, values: dict[tuple[str, str, str], float]) -> dict | None:
