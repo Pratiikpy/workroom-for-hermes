@@ -71,10 +71,34 @@ def _registered(prog_id: str) -> bool:
         return False
 
 
-def office_available(suffix: str) -> bool:
+def _soffice() -> str | None:
+    """LibreOffice, when installed: the way to draw a document on a machine without Microsoft Office."""
+    found = shutil.which("soffice") or shutil.which("libreoffice")
+    if found:
+        return found
+    for candidate in (r"C:\Program Files\LibreOffice\program\soffice.exe", r"C:\Program Files (x86)\LibreOffice\program\soffice.exe", "/Applications/LibreOffice.app/Contents/MacOS/soffice"):
+        if Path(candidate).is_file():
+            return candidate
+    return None
+
+
+def _ms_office_available(suffix: str) -> bool:
     if _powershell() is None:
         return False
     return _registered("Word.Application") if suffix.lower() == ".docx" else _registered("PowerPoint.Application") if suffix.lower() == ".pptx" else False
+
+
+def engine(suffix: str) -> str | None:
+    """Who would draw a document of this kind here: "Microsoft Office", "LibreOffice" or None. Microsoft Office is preferred where both exist."""
+    if suffix.lower() not in (".docx", ".pptx"):
+        return None
+    if _ms_office_available(suffix):
+        return "Microsoft Office"
+    return "LibreOffice" if _soffice() else None
+
+
+def office_available(suffix: str) -> bool:
+    return engine(suffix) is not None
 
 
 def pdfium_available() -> bool:
@@ -90,18 +114,24 @@ def available(suffix: str) -> bool:
 
 
 def office_to_pdf(path: Path) -> bytes | None:
-    """The PDF Word or PowerPoint makes of a private copy of ``path``, or None."""
+    """The PDF that Microsoft Office (or, without it, LibreOffice) makes of a private copy of ``path``, or None."""
     suffix = path.suffix.lower()
-    if not office_available(suffix):
+    who = engine(suffix)
+    if who is None:
         return None
     work = Path(tempfile.mkdtemp(prefix="workroom-render-"))
     try:
         copy = work / ("copy" + suffix)
         shutil.copyfile(path, copy)
         out = work / "copy.pdf"
-        env = child_env("office", WORKROOM_RENDER_SRC=str(copy), WORKROOM_RENDER_OUT=str(out))
-        done = subprocess.run([str(_powershell()), "-NoProfile", "-NonInteractive", "-Command", _WORD if suffix == ".docx" else _POWERPOINT],
-                              text=True, capture_output=True, timeout=TIMEOUT_SECONDS, env=env)
+        if who == "LibreOffice":
+            profile = work / "profile"
+            done = subprocess.run([str(_soffice()), f"-env:UserInstallation={profile.as_uri()}", "--headless", "--convert-to", "pdf", "--outdir", str(work), str(copy)],
+                                  text=True, capture_output=True, timeout=TIMEOUT_SECONDS, env=child_env("office"))
+        else:
+            env = child_env("office", WORKROOM_RENDER_SRC=str(copy), WORKROOM_RENDER_OUT=str(out))
+            done = subprocess.run([str(_powershell()), "-NoProfile", "-NonInteractive", "-Command", _WORD if suffix == ".docx" else _POWERPOINT],
+                                  text=True, capture_output=True, timeout=TIMEOUT_SECONDS, env=env)
         if done.returncode != 0 or not out.is_file():
             return None
         return out.read_bytes()

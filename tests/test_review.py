@@ -81,3 +81,21 @@ def test_pages_with_changes_are_listed(tmp_path: Path) -> None:
     change_source(root, "C2", 150)
     listing = svc.review_pages(pid, "report.docx")
     assert listing["drawn"] and listing["pages"][0]["marks"]["changes"] == 2
+
+
+def test_libreoffice_is_used_when_microsoft_office_is_not_there(tmp_path: Path, monkeypatch) -> None:
+    """The invocation is tested with a stand-in program; it has not been run against a real LibreOffice on this machine."""
+    import stat
+    import sys
+
+    stub = tmp_path / "soffice.py"
+    stub.write_text("import sys, pathlib\nargs = sys.argv[1:]\nout = pathlib.Path(args[args.index('--outdir') + 1])\nsrc = pathlib.Path(args[-1])\n(out / (src.stem + '.pdf')).write_bytes(b'%PDF-1.4 stand-in')\n", encoding="utf-8")
+    launcher = tmp_path / ("soffice.bat" if sys.platform == "win32" else "soffice")
+    launcher.write_text(f'@"{sys.executable}" "{stub}" %*\n' if sys.platform == "win32" else f'#!/bin/sh\nexec "{sys.executable}" "{stub}" "$@"\n', encoding="utf-8")
+    launcher.chmod(launcher.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setattr(render, "_ms_office_available", lambda suffix: False)
+    monkeypatch.setattr(render, "_soffice", lambda: str(launcher))
+    assert render.engine(".docx") == "LibreOffice" and render.engine(".xlsx") is None
+    src = tmp_path / "r.docx"
+    src.write_bytes(make_docx())
+    assert render.office_to_pdf(src) == b"%PDF-1.4 stand-in"

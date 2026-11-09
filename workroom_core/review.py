@@ -173,7 +173,7 @@ class Reviewer:
         png, w, h = render.page_png(pdf, page)
         marks = [m for m in self._marks(deck_rel, data, pdf, plan, side == "after") if m.page == page]
         return {"drawn": True, "side": side, "page": page, "pages": total, "width": w, "height": h, "png": base64.b64encode(png).decode("ascii"), "marks": [asdict(m) for m in marks],
-                "drawn_by": "Microsoft Office on this machine"}
+                "drawn_by": f"{render.engine(path.suffix)} on this machine"}
 
     def pages_with_marks(self, deck_rel: str, plan: Plan | None = None) -> dict[str, Any]:
         """Which pages of the document hold changes, and how many marks of each kind are on every page that holds any."""
