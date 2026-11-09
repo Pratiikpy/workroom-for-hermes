@@ -13,13 +13,13 @@ import sys
 from pathlib import Path
 
 
-def main(folder: str, out: str, commit: str = "") -> None:
+def main(folder: str, out: str, commit: str = "", source: str = "apache/poi test-data/{document,spreadsheet,slideshow}") -> None:
     rows = []
     for f in sorted(Path(folder).rglob("*")):
         if f.suffix.lower() in (".docx", ".pptx", ".xlsx", ".xlsm") and f.is_file() and f.stat().st_size:
             h = hashlib.sha1(f.read_bytes()).hexdigest()
             rows.append({"file": f.relative_to(folder).as_posix(), "sha1": h, "set": "sealed" if int(h[-1], 16) >= 8 else "dev"})
-    body = {"rule": "last hex digit of the SHA-1 is 8 to f -> sealed, otherwise dev", "source": "apache/poi test-data/{document,spreadsheet,slideshow} at commit " + commit + " (cloned 2026-11-09)", "files": rows}
+    body = {"rule": "last hex digit of the SHA-1 is 8 to f -> sealed, otherwise dev", "source": source + " at commit " + commit + " (cloned 2026-11-09)", "files": rows}
     blob = json.dumps(body, sort_keys=True).encode()
     body["seal_sha256"] = hashlib.sha256(blob).hexdigest()
     Path(out).write_text(json.dumps(body, indent=1), encoding="utf-8")
@@ -27,4 +27,4 @@ def main(folder: str, out: str, commit: str = "") -> None:
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:4])
+    main(*sys.argv[1:5])

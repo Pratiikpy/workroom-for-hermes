@@ -1,6 +1,6 @@
 {
  "rule": "last hex digit of the SHA-1 is 8 to f -> sealed, otherwise dev",
- "source": "the corpus folder given at commit 47afde1 (cloned 2026-11-09)",
+ "source": "LibreOffice/core chart2/qa/extras/data/pptx, oox/qa/unit/data, sd/qa/unit/data/pptx at commit 47afde1 (cloned 2026-11-09)",
  "files": [
   {
    "file": "chart2/qa/extras/data/pptx/1904NullDate.pptx",
@@ -2948,5 +2948,5 @@
    "set": "sealed"
   }
  ],
- "seal_sha256": "4a84db4d443be0679c80b8efa013f349e30281009329eb38af4b4682b3d1276e"
+ "seal_sha256": "ac2bba5458828e9051c2f1d3908e08c1515197f6c5687c6c2d132e86e5675b70"
 }

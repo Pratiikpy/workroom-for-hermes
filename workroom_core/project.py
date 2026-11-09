@@ -20,7 +20,7 @@ from pathlib import Path
 from .build.formats import plain
 from .controller.release import Controller
 from .match.engine import Mention, MatchResult, SourceIndex, match_mentions
-from .match.numbers import consistent_with_source, format_like
+from .match.numbers import _TRANSFORMS, consistent_with_source, format_like, parse_numbers
 from .ooxml.package import PackageError, open_package
 from .ooxml.runs import EditError
 from .ooxml.book import Book
@@ -434,6 +434,57 @@ class Project:
         return (t.slide_uid or f"#{t.slide}", t.shape_id, t.para, t.seg, t.offset, t.cell_rc)
 
     # ---- discover ----
+    def _discover_charts(self, rel: str, deck, index: SourceIndex, chart_ties: list[Tie], kept_ids: set[int]) -> None:
+        """Link the points of charts that were already in the deck to the cells they came from.
+
+        The chart's own words are the evidence: the series name and the category label, matched against the workbook's row and column
+        headings exactly as for a figure in a sentence. A point nothing names is left unlinked (a value alone is a coincidence). Links made
+        earlier are kept while their chart point is still there; ones whose chart was removed are dropped."""
+        if not hasattr(deck, "chart_shapes"):
+            return
+        live = {(t.slide_uid or f"#{t.slide}", t.shape_id, t.para, t.seg): t for t in chart_ties}
+        try:
+            shapes = deck.chart_shapes()
+        except (EditError, KeyError, ValueError):
+            kept_ids.update(t.id for t in chart_ties)
+            return
+        for slide_no, uid, shape_id, _name in shapes:
+            try:
+                series = deck.chart_series(slide_no, shape_id)
+            except (EditError, KeyError, ValueError):
+                kept_ids.update(t.id for t in chart_ties if t.shape_id == shape_id and (t.slide_uid or f"#{t.slide}") == (uid or f"#{slide_no}"))
+                continue
+            for si, ser in enumerate(series):
+                for pi, value in enumerate(ser.values):
+                    if value is None:
+                        continue
+                    key = (uid or f"#{slide_no}", shape_id, si, pi)
+                    old = live.get(key)
+                    if old is not None:
+                        kept_ids.add(old.id)
+                        if old.slide != slide_no:
+                            self.db.execute("UPDATE ties SET slide=? WHERE id=?", (slide_no, old.id))
+                        continue
+                    category = ser.categories[pi] if pi < len(ser.categories) else ""
+                    if not category or list(ser.categories).count(category) != 1:
+                        continue  # a point is rewritten by its category, which must name it exactly once
+                    mentions = parse_numbers(repr(float(value)))
+                    if not mentions:
+                        continue
+                    res = match_mentions([Mention(f"chart:{key}", mentions[0], (str(ser.name or ""), str(category)))], index)[0]
+                    if res.best is None or res.best.label_score < 0.15 or res.best.period_conflict:
+                        continue
+                    ok, transform = consistent_with_source(mentions[0], res.best.cell.value)
+                    if not ok:
+                        continue
+                    self.db.execute(
+                        "INSERT INTO ties (deck, slide, shape_id, para, seg, offset, cell_rc, raw, state, src_file, sheet, ref, transform, linked_value, label_score, context, slide_uid, fp_near, anchor, basis, receipt, kind, chart)"
+                        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (rel, slide_no, shape_id, si, pi, 0, json.dumps(None), plain(value), "accepted" if res.decision == "accept" else "confirm", res.best.cell.file,
+                         res.best.cell.sheet, res.best.cell.ref, transform, res.best.cell.value, res.best.label_score, f"chart point {category}", uid, "", "exact", "matched", "", "chart",
+                         json.dumps({"series": si, "category": category})),
+                    )
+
     @contextlib.contextmanager
     def _transaction(self):
         """One transaction around a group of writes. Nested uses join the outermost one. Each statement on its own is a synced write, which
@@ -476,14 +527,17 @@ class Project:
         for p in self._files(DECK_EXT):
             rel = self._rel(p)
             deck_ties = [t for t in existing if t.deck == rel and t.kind in ("text", "derived")]
-            kept_ids.update(t.id for t in existing if t.deck == rel and t.kind == "chart")
+            chart_ties = [t for t in existing if t.deck == rel and t.kind == "chart"]
+            kept_ids.update(t.id for t in chart_ties if t.basis != "matched")  # points of charts Workroom built stay as they are
             try:
                 deck = open_document(p.read_bytes(), p.name)
                 dms = list(deck.mentions())
             except (PackageError, EditError, KeyError, ValueError):
                 unreadable.append(rel)
                 kept_ids.update(t.id for t in deck_ties)  # its links are not lost because the file cannot be read now
+                kept_ids.update(t.id for t in chart_ties)
                 continue
+            self._discover_charts(rel, deck, index, chart_ties, kept_ids)
             results = match_mentions([Mention(str(i), dm.number, dm.context, (dm.para_offset, dm.para_offset + len(dm.number.raw)) if dm.para_offset is not None else None) for i, dm in enumerate(dms)], index)
             found += len(dms)
             by_pos = {self._tkey(t): t for t in deck_ties}
@@ -885,6 +939,14 @@ class Project:
                     category = json.loads(t.chart)["category"]
                     uids = deck.slide_uids()
                     slide_no = uids.index(t.slide_uid) + 1 if t.slide_uid in uids else t.slide
+                    shape = _TRANSFORMS.get(t.transform, _TRANSFORMS["exact"])
+                    new = shape(new, 1.0)
+                    expected_now = shape(t.linked_value, 1.0)
+                    sers = deck.chart_series(slide_no, t.shape_id)
+                    holds = sers[t.para].values[t.seg] if t.para < len(sers) and t.seg < len(sers[t.para].values) else None
+                    if holds is None or abs(holds - expected_now) > 1e-9 * max(1.0, abs(expected_now)):
+                        plan.skipped.append(f"{deck_rel} slide {slide_no}: chart point '{category}' holds {holds} where Workroom last left {expected_now}; it was changed by hand, so it is held for you, not updated")
+                        continue
                     deck.set_chart_value(slide_no, t.shape_id, t.para, category, new)
                 except (EditError, ValueError, KeyError) as exc:
                     plan.skipped.append(f"{deck_rel} slide {t.slide}: chart point '{category or t.raw}' could not be updated ({exc}); held")
@@ -993,7 +1055,8 @@ class Project:
             for t in self.ties():
                 if t.deck == deck_rel and t.kind == "chart":
                     new = self._tie_value(t, values, t.linked_value)
-                    self.db.execute("UPDATE ties SET linked_value=?, raw=? WHERE id=?", (new, plain(new), t.id))
+                    shown = _TRANSFORMS.get(t.transform, _TRANSFORMS["exact"])(new, 1.0)
+                    self.db.execute("UPDATE ties SET linked_value=?, raw=? WHERE id=?", (new, plain(shown), t.id))
                 elif t.deck == deck_rel:
                     groups.setdefault((t.slide_uid or f"#{t.slide}", t.shape_id, t.para, t.cell_rc), []).append(t)
             for key, ts in groups.items():
