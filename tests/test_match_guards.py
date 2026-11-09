@@ -15,7 +15,7 @@ def decide(text: str, shown: str, cells: list[SourceCell], heads: tuple[str, ...
 
 def test_a_bare_short_number_is_never_accepted_by_scaling_a_big_cell() -> None:
     r = decide("Other income was 3 in the quarter", "3", [cell("B2", 3280.0, "Other income")])
-    assert r.decision == "confirm"
+    assert r.decision == "none"  # not even offered: 3 against 3,280 only by scaling, and nothing names a unit
 
 
 def test_a_percentage_never_matches_a_scaled_money_cell() -> None:

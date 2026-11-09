@@ -199,3 +199,12 @@ def test_a_number_that_names_a_place_in_the_document_is_a_reference_not_a_quanti
     assert [m.raw for m in parse_numbers("Note 4.1 shows revenue of 20,388,510 in the year")] == ["20,388,510"]
     assert [m.raw for m in parse_numbers("Revenue grew 4.1% in the notes to 12 offices")] == ["4.1%", "12"]
     assert [m.raw for m in parse_numbers("Items sold: 17")] == ["17"]
+
+
+def test_the_thousands_mark_of_a_dollar_thousand_heading_is_not_a_quantity() -> None:
+    from workroom.workroom_core.match.numbers import parse_numbers
+
+    assert parse_numbers("Energy$'000") == []
+    assert [m.raw for m in parse_numbers("Maturity dates 1-3 months$'000")] == ["1", "3"]
+    assert [m.raw for m in parse_numbers("Appropriations $'000 1,250 and 000")] == ["1,250"]
+    assert [m.raw for m in parse_numbers("0 incidents and 0.0 growth and 100")] == ["0", "0.0", "100"]

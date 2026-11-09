@@ -231,3 +231,42 @@ def test_a_column_of_dotted_note_numbers_is_not_figures_even_without_a_notes_hea
     buf2 = io.BytesIO()
     two.save(buf2)
     assert [m.number.raw for m in Doc(buf2.getvalue()).mentions()] == ["5.2", "6.1"], "two cells are not a column of references"
+
+
+def _with_page_break_marker(data: bytes) -> bytes:
+    """Word writes <w:lastRenderedPageBreak/> into the first run of a paragraph that opens a page: a cache of its layout, not content."""
+    import zipfile
+
+    src = zipfile.ZipFile(io.BytesIO(data))
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        for item in src.infolist():
+            raw = src.read(item.filename)
+            if item.filename == "word/document.xml":
+                text = raw.decode("utf-8")
+                assert "<w:t>Headcount reached 120 people.</w:t>" in text
+                text = text.replace("<w:t>Headcount reached 120 people.</w:t>", "<w:lastRenderedPageBreak/><w:t>Headcount reached 120 people.</w:t>")
+                raw = text.encode("utf-8")
+            z.writestr(item, raw)
+    return out.getvalue()
+
+
+def test_a_paragraph_that_opens_a_page_is_read_and_edited_like_any_other() -> None:
+    data = _with_page_break_marker(make_docx())
+    doc = Doc(data)
+    mention = next(m for m in doc.mentions() if "Headcount" in m.context[0])
+    assert mention.number.raw == "120"
+    doc.edit_mention(mention, "130")
+    assert "Headcount reached 130 people." in texts(doc.serialize()[0])
+
+
+def test_a_numbered_paragraph_that_reads_as_a_heading_is_the_section_whatever_its_style() -> None:
+    from docx import Document
+
+    d = Document()
+    d.add_paragraph("5.1.1Reconciliation of movements in carrying values")
+    d.add_paragraph("Total was 4,601,670 at year end.")
+    buf = io.BytesIO()
+    d.save(buf)
+    mention = next(iter(Doc(buf.getvalue()).mentions()))
+    assert mention.section.startswith("5.1.1Reconciliation") and mention.number.raw == "4,601,670"

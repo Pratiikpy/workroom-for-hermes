@@ -233,6 +233,38 @@ def is_label_text(text: str) -> bool:
     return any(ch.isalnum() for ch in text)
 
 
+def _merged_ranges(root) -> list[tuple[int, int, int, int]]:
+    """Merged areas of a sheet as (first row, first column, last row, last column)."""
+    out = []
+    for m in root.iter("{%s}mergeCell" % S_NS):
+        ref = m.get("ref") or ""
+        try:
+            a, b = ref.split(":")
+            (ca, ra), (cb, rb) = split_cell(a), split_cell(b)
+            out.append((ra, _col_to_int(ca), rb, _col_to_int(cb)))
+        except (ValueError, EditError):
+            continue
+    return out
+
+
+_FOOTNOTED_NUMBER = re.compile(r"^(?P<open>\()?(?P<sign>[-–])?\$?(?P<num>\d[\d,]*(?:\.\d+)?)(?P<close>\))?(?:\s?\(\s?(?:[ivxlcdm]{1,5}|[a-z])\s?\))+$", re.IGNORECASE)
+
+
+def footnoted_number(text: str) -> float | None:
+    """The value of a cell that holds a figure typed as text with a footnote mark after it ("14,263(i)", "(2,345)(ii)"), else None.
+
+    Statements often carry the mark inside the cell, so the cell reads as text and would otherwise be taken for a heading. A bare year with a
+    mark ("2025(a)") stays a heading."""
+    m = _FOOTNOTED_NUMBER.match(text.strip())
+    if m is None:
+        return None
+    digits = m.group("num")
+    if re.fullmatch(r"(?:19|20)\d\d", digits):
+        return None
+    value = float(digits.replace(",", ""))
+    return -value if (m.group("sign") or (m.group("open") and m.group("close"))) else value
+
+
 def index_workbook(pkg: Package, max_cells: int = 500_000, file: str = "", stats: dict | None = None) -> list[SourceCell]:
     """Every numeric cell with the text labels on its row and column. Dates are flagged; cells in hidden rows, hidden columns and hidden
     sheets are flagged hidden. Rows and cells that omit their position (legal in the format) are placed in reading order. When ``stats`` is
@@ -280,9 +312,20 @@ def index_workbook(pkg: Package, max_cells: int = 500_000, file: str = "", stats
                         continue
                     style = int(c.get("s") or 0)
                     numbers.append((cell_row, col_n, ref, val, f is not None, style in date_styles, hidden or sheet_hidden or col_n in hidden_cols))
+        for lo_r, lo_c, hi_r, hi_c in _merged_ranges(root):
+            text = strings.get((lo_r, lo_c))
+            if text is None or (hi_r - lo_r + 1) * (hi_c - lo_c + 1) > 4096:
+                continue
+            for rr in range(lo_r, hi_r + 1):
+                for cc in range(lo_c, hi_c + 1):
+                    strings.setdefault((rr, cc), text)  # a merged heading heads every column (or row) it spans, not only the corner that holds its text
         rows_by: dict[int, list[tuple[int, str]]] = {}
         cols_by: dict[int, list[tuple[int, str]]] = {}
         for (r, c), s in strings.items():
+            typed = footnoted_number(s)
+            if typed is not None:
+                numbers.append((r, c, f"{_col_letters(c)}{r}", typed, False, False, sheet_hidden or c in hidden_cols))
+                continue
             if is_label_text(s):  # a dash, a dollar sign or a bracket in a cell is a placeholder, not a heading
                 rows_by.setdefault(r, []).append((c, s))
                 cols_by.setdefault(c, []).append((r, s))

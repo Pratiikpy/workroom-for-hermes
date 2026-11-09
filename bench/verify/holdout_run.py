@@ -38,7 +38,8 @@ def view(i, dm, r) -> dict:
     b, u = r.best, r.runner_up
     return {
         "i": i, "figure": dm.number.raw, "context": list(dm.context), "table": dm.table, "row_head": dm.row_head, "col_head": dm.col_head,
-        "decision": decide(r), "reason": r.reason,
+        "decision": decide(r), "reason": r.reason, "section": dm.section,
+        "candidates": [{"cell": f"{c.cell.sheet}!{c.cell.ref}", "v": c.cell.value, "ls": round(c.label_score, 2), "sec": c.in_section, "score": round(c.score, 2)} for c in r.candidates[:5]],
         "best": None if b is None else {"cell": f"{b.cell.file} {b.cell.sheet}!{b.cell.ref}", "value": b.cell.value, "row": list(b.cell.row_labels), "col": list(b.cell.col_labels),
                                         "label_score": round(b.label_score, 3), "transform": b.transform},
         "runner_up": None if u is None else {"cell": f"{u.cell.file} {u.cell.sheet}!{u.cell.ref}", "value": u.cell.value, "row": list(u.cell.row_labels), "col": list(u.cell.col_labels)},
@@ -59,7 +60,7 @@ def main() -> None:
     index = proj.source_index()
     deck = open_document((root / report.name).read_bytes(), report.name)
     dms = list(deck.mentions())
-    results = match_mentions([Mention(str(i), dm.number, dm.context, (dm.para_offset, dm.para_offset + len(dm.number.raw)) if dm.para_offset is not None else None) for i, dm in enumerate(dms)], index)
+    results = match_mentions([Mention(str(i), dm.number, dm.context, (dm.para_offset, dm.para_offset + len(dm.number.raw)) if dm.para_offset is not None else None, dm.section, dm.row_head) for i, dm in enumerate(dms)], index)
     results = align_tables(dms, results, index)
     rows = [view(i, dm, r) for i, (dm, r) in enumerate(zip(dms, results))]
     counts: dict[str, int] = {}

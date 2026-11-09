@@ -94,6 +94,8 @@ def parse_numbers(text: str) -> list[NumberMention]:
             continue
         if _REFERENCE_WORD.search(text[: m.start()]):
             continue
+        if raw_num.strip("0") == "" and len(raw_num) >= 2 and "." not in raw_num and "," not in raw_num:
+            continue  # a run of zeros is the thousands mark of $'000 (and a column of leading zeros), never a quantity
         if _part_of_longer_token(text, m.start("num"), m.end("num")):
             continue
         decimals = len(raw_num.split(".")[1]) if "." in raw_num else 0

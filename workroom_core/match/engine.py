@@ -101,6 +101,8 @@ class Mention:
     number: NumberMention
     context: tuple[str, ...]  # strings that describe it: paragraph, row/column headers, series, category, title
     span: tuple[int, int] | None = None  # where the number sits inside context[0], so only that occurrence is masked
+    section: str = ""  # the heading it sits under, when the document has one
+    row_head: str = ""  # for a figure in a table: the text that heads its row
 
 
 @dataclass(frozen=True)
@@ -110,6 +112,7 @@ class Scored:
     label_score: float
     period_conflict: bool
     score: float
+    in_section: bool = False  # the source sheet is the one the document's own heading names
 
 
 @dataclass(frozen=True)
@@ -194,7 +197,47 @@ class SourceIndex:
         return hit / total if total else 0.0
 
 
+SECTION_BONUS = 0.25  # added to a candidate whose sheet is named by the heading the figure sits under: it breaks ties, it never lifts a weak match
+_DOTTED_ID = re.compile(r"(?<![\d.])\d+(?:\.\d+)+(?![\d.])")
+
+
+def section_agrees(sheet: str, section: str) -> bool:
+    """Does the heading a figure sits under name the sheet a candidate cell is on? Statements number their notes and the data sets number their
+    sheets the same way ("4.1.2 Departmental Outputs" over sheet "4.1.2"), or the sheet takes the heading's words ("Balance sheet")."""
+    if not section or not sheet:
+        return False
+    ids = set(_DOTTED_ID.findall(sheet))
+    if ids:
+        return bool(ids & set(_DOTTED_ID.findall(section)))
+    words = {t for t in tokens(sheet) if t[0].isalpha()}
+    return bool(words) and words <= set(tokens(section))
+
+
+_MOVEMENT = re.compile(r"\b(?:increas|decreas|chang|grow|grew|declin|ris(?:e|en|ing)\b|rose\b|fall|fell\b|reduc|variance|movement|up by|down by|higher than|lower than)", re.IGNORECASE)
+_MOVEMENT_WINDOW = 70  # characters before the figure in which "decreased by" or "up" describes it
+
+
+def _describes_a_change(window: str) -> bool:
+    return bool(_MOVEMENT.search(window))
+
+
+ROW_WEIGHT = 0.3  # how much a candidate whose row headings cover the document table's own row heading gains
+ROW_FIT_MIN = 0.34  # below this share of the document row heading found in the cell's row headings, the row is not the same row
+
+
+def row_fit(doc_row: set[str], cell_labels: tuple[str, ...], idf: dict[str, float]) -> float:
+    """Share (weighted by how telling each word is) of the document table's row heading found among the cell's headings. Tables are often turned
+    on their side between the report and the workbook, so the row heading may sit on the cell's column."""
+    if not doc_row:
+        return 1.0
+    have = set(tokens(" ".join(cell_labels)))
+    total = sum(idf.get(t, 1.0) for t in doc_row)
+    return sum(idf.get(t, 1.0) for t in doc_row if t in have) / total if total else 1.0
+
+
 UNIQUE_DIGITS = 5  # a number this long that fits exactly one source cell is a fingerprint, not a coincidence
+UNNAMED_SCALE_LABEL = 0.5  # a figure that differs from its cell by 1,000 and names no unit is only offered when the text also names at least half of the cell's headings
+CHANCE_LABEL = 0.3  # ...and the text names less than this share of the cell's headings (measured on two Victorian department reports: every real short link named more)
 CHANCE_DIGITS = 3  # with no label evidence at all, a number with fewer significant digits than this is a coincidence, not a candidate
 UNIQUE_LABEL = 0.15  # ...provided the text names at least part of that cell
 NEAR_CHARS = 160  # in a long paragraph only the words around the number describe it
@@ -206,14 +249,14 @@ _SCALE_NAMED = {
 }
 
 
-def _scale_is_named(transform: str, context_text: str, cell: SourceCell) -> bool:
+def _scale_is_named(transform: str, context_text: str, cell: SourceCell | None) -> bool:
     """A document figure that differs from its cell by 1,000, 1,000,000 or 1,000,000,000 is the same figure only when something names that unit:
     the text around it ("in thousands", "$M") or the cell's own headings. Without that, equal digits at another scale are a coincidence."""
     pattern = _SCALE_NAMED.get(transform)
     if pattern is None:
         return True
-    haystack = (context_text + " " + " ".join(cell.row_labels + cell.col_labels + (cell.sheet,))).lower()
-    return bool(pattern.search(haystack))
+    haystack = context_text if cell is None else context_text + " " + " ".join(cell.row_labels + cell.col_labels + (cell.sheet,))
+    return bool(pattern.search(haystack.lower()))
 
 
 def _significant_digits(raw: str) -> int:
@@ -240,9 +283,9 @@ def _opposite_words(context: set[str], cell: set[str]) -> tuple[str, str] | None
 
 
 def is_coincidence(label_score: float, raw: str) -> bool:
-    """A candidate that rests on nothing but an equal value: the text names no part of the cell and the number is short enough to equal some cell by chance
+    """A candidate that rests on almost nothing but an equal value: the text names little of the cell and the number is short enough to equal some cell by chance
     (or by a power of a thousand). Such a candidate stays on offer, but it is not a question the owner needs to answer."""
-    return label_score == 0.0 and _significant_digits(raw) < CHANCE_DIGITS
+    return label_score < CHANCE_LABEL and _significant_digits(raw) < CHANCE_DIGITS
 
 
 def _near(text: str, span: tuple[int, int] | None) -> tuple[str, tuple[int, int] | None]:
@@ -264,6 +307,8 @@ def match_mentions(mentions: list[Mention], index: SourceIndex, top: int = 5) ->
             ctx[0] = ctx[0][: span[0]] + " " + ctx[0][span[1] :]
         short = _significant_digits(m.number.raw) < 3
         ctx_text = " ".join(ctx)
+        doc_row = {t for t in tokens(m.row_head) if t[0].isalpha()}
+        change_text = ctx[0][max(0, span[0] - _MOVEMENT_WINDOW) : span[0]] if (ctx and span) else ""
         ctx_tokens = set(tokens(ctx_text))
         ctx_periods = periods(ctx_text)
         scored: list[Scored] = []
@@ -275,10 +320,16 @@ def match_mentions(mentions: list[Mention], index: SourceIndex, top: int = 5) ->
             if transform in _IMPLICIT_SCALES and m.number.unit in ("percent", "pp"):
                 continue  # a percentage is never a scaled money figure
             ls = index.label_score(i, ctx_tokens)
+            if transform in _IMPLICIT_SCALES and (
+                (short and not _scale_is_named(transform, ctx_text, None))  # a short number says its unit itself or it is a count: the workbook's "$000" is not the document's
+                or (not _scale_is_named(transform, ctx_text, cell) and ls < UNNAMED_SCALE_LABEL)
+            ):
+                continue  # the same digits at a 1,000-fold scale that nothing names, with no words behind them, are a coincidence, not a candidate
             cp = index.cell_periods(i)
             conflict = bool(ctx_periods and cp and not (ctx_periods & cp))
-            score = ls - (1.0 if conflict else 0.0) + (0.02 if transform == "exact" else 0.0)
-            scored.append(Scored(cell, transform, ls, conflict, score))
+            in_section = section_agrees(cell.sheet, m.section)
+            score = ls - (1.0 if conflict else 0.0) + (0.02 if transform == "exact" else 0.0) + (SECTION_BONUS if in_section else 0.0) + ROW_WEIGHT * row_fit(doc_row, cell.row_labels + cell.col_labels, index.idf)
+            scored.append(Scored(cell, transform, ls, conflict, score, in_section))
         scored.sort(key=lambda s: -s.score)
         if not scored:
             results.append(MatchResult(m, "none", None, None, "no source cell is consistent with this number"))
@@ -290,7 +341,10 @@ def match_mentions(mentions: list[Mention], index: SourceIndex, top: int = 5) ->
         shared = set(tokens(" ".join(best.cell.row_labels + best.cell.col_labels + (best.cell.sheet,)))) & ctx_tokens
         no_word = len(index.cells) >= 20 and not any(t[0].isalpha() and index.idf.get(t, 1.0) > 1.2 for t in shared)  # in a workbook of any size, a heading nearly every cell shares ("Value", "Amount") names nothing
         opposite = _opposite_words(ctx_tokens, set(tokens(" ".join(best.cell.row_labels + best.cell.col_labels))))
-        if opposite:
+        a_balance = _describes_a_change(change_text) and not _describes_a_change(" ".join(best.cell.row_labels + best.cell.col_labels))
+        if a_balance and m.number.unit != "percent":
+            decision, reason = "confirm", "the text describes a change (an increase, a decrease) and the cell is a balance, not a movement"
+        elif opposite:
             decision, reason = "confirm", f"the text says \"{opposite[0]}\" and the cell is labelled \"{opposite[1]}\": the same value, opposite words"
         elif best.transform in _IMPLICIT_SCALES and short:
             decision, reason = "confirm", "a short number fits many cells once scaled, so it needs a person"
@@ -311,5 +365,9 @@ def match_mentions(mentions: list[Mention], index: SourceIndex, top: int = 5) ->
             decision, reason = "confirm", "one cell has this value but nothing in the text names it"
         else:
             decision, reason = "confirm", "this value appears in several cells and the text does not tell them apart"
+        if decision == "accept" and doc_row and row_fit(doc_row, best.cell.row_labels + best.cell.col_labels, index.idf) < ROW_FIT_MIN:
+            decision, reason = "confirm", "the row heading in the document does not match the row of the closest cell"
+        elif decision == "accept" and m.section and not best.in_section and any(c.in_section for c in scored[1:]):
+            decision, reason = "confirm", "the closest cell is not on the sheet the section names, and a cell on that sheet fits too"
         results.append(MatchResult(m, decision, best, runner, reason, tuple(scored[:top])))
     return results

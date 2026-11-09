@@ -59,6 +59,9 @@ class Replacement:
     formats_merged: bool
 
 
+_RENDER_HINT = "{%s}lastRenderedPageBreak" % W_NS  # where Word last broke a page: a cache of its layout, not content, so a run that carries it is still plain text
+
+
 def _text_runs(p: etree._Element, fl: Flavor) -> list[list[etree._Element]]:
     """Group a paragraph's text runs into segments that a match may span."""
     segments: list[list[etree._Element]] = [[]]
@@ -74,7 +77,7 @@ def _text_runs(p: etree._Element, fl: Flavor) -> list[list[etree._Element]]:
             for m in marks:
                 in_field = in_field + 1 if m == "begin" else max(0, in_field - 1) if m == "end" else in_field
             ts = [c for c in child if c.tag == fl.text]
-            other = [c for c in child if c.tag not in (fl.text, fl.run_props)]
+            other = [c for c in child if c.tag not in (fl.text, fl.run_props, _RENDER_HINT)]
             if len(ts) == 1 and not other:
                 segments[-1].append(child)
                 continue

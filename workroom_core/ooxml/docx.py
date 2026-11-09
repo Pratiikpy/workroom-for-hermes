@@ -28,6 +28,7 @@ _EXTRA = re.compile(r"word/(header\d*|footer\d*|footnotes|endnotes)\.xml")
 
 _NUMBERED_HEADING = re.compile(r"\d{1,2}(?:\.\d{1,2})+\s+(?!(?i:million|billion|thousand|trillion|percent|per)\b)[A-Z]")
 _REFERENCE_NUMBER = re.compile(r"\d+(?:\.\d+)*")
+_SECTION_HEADING = re.compile(r"\s*\d{1,2}(?:\.\d{1,2})+\s*(?!(?i:million|billion|thousand|trillion|percent|per)\b)[A-Za-z]")
 
 
 def _cell_text(tr: etree._Element, index: int) -> str:
@@ -104,9 +105,9 @@ class Doc:
         for pi, p in enumerate(paras):
             style = self._style(p).lower()
             plain = self._plain(p)
-            if style.startswith("heading") or style == "title":
-                heading = plain
             tc = next((a for a in p.iterancestors() if a.tag == _w("tc")), None)
+            if style.startswith("heading") or style == "title" or (tc is None and len(plain) <= 120 and _SECTION_HEADING.match(plain)):
+                heading = plain  # also a paragraph that only reads as a heading ("5.1.1Reconciliation of movements"), whatever its style is called
             if tc is not None:
                 tr = next(a for a in tc.iterancestors() if a.tag == _w("tr"))
                 tbl = next(a for a in tr.iterancestors() if a.tag == _w("tbl"))
@@ -143,7 +144,7 @@ class Doc:
                     ctx = (plain,) + tuple(x for x in (heading, row_head, col_head) if x)
                     po = seg_start + nm.start
                     po = po if plain[po : po + len(nm.raw)] == nm.raw else None
-                    yield DocMention(part_no, 0, pi, seg_i, nm.start, nm, ctx, cell_rc, po, part, table_no, row_head, col_head)
+                    yield DocMention(part_no, 0, pi, seg_i, nm.start, nm, ctx, cell_rc, po, part, table_no, row_head, col_head, heading)
 
     def _next_revision_id(self) -> int:
         if self._rev is None:

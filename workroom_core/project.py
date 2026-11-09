@@ -553,7 +553,7 @@ class Project:
                 kept_ids.update(t.id for t in chart_ties)
                 continue
             self._discover_charts(rel, deck, index, chart_ties, kept_ids)
-            results = match_mentions([Mention(str(i), dm.number, dm.context, (dm.para_offset, dm.para_offset + len(dm.number.raw)) if dm.para_offset is not None else None) for i, dm in enumerate(dms)], index)
+            results = match_mentions([Mention(str(i), dm.number, dm.context, (dm.para_offset, dm.para_offset + len(dm.number.raw)) if dm.para_offset is not None else None, dm.section, dm.row_head) for i, dm in enumerate(dms)], index)
             results = align_tables(dms, results, index)
             found += len(dms)
             by_pos = {self._tkey(t): t for t in deck_ties}

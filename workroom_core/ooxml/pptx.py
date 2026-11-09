@@ -44,6 +44,7 @@ class DocMention:
     table: int = -1  # which table of a Word document the number sits in (PowerPoint tables are told apart by shape_id)
     row_head: str = ""  # the text of the first cell of the row, for a number in a table cell
     col_head: str = ""  # the text of the first row's cell above, for a number in a table cell
+    section: str = ""  # the heading the number sits under (Word); a source sheet named after it is the likelier source
 
 
 @dataclass(frozen=True)
