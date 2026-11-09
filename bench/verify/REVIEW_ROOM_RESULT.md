@@ -14,7 +14,7 @@ How: Word or PowerPoint (or, where Microsoft Office is missing, LibreOffice) sav
 
 ## Not verified, said plainly
 
-- LibreOffice: the invocation is tested with a stand-in program only; it has not been run against a real LibreOffice, and the macOS and Linux Desktop were not run.
+- LibreOffice: the invocation is tested with a stand-in program only; it has not been run against a real LibreOffice, and the macOS and Linux Desktop were not run. Tried on 10 Nov: installing LibreOffice and running the suite inside WSL Ubuntu (the apt update hung and then the Windows system volume filled to a few megabytes, so the run was abandoned and about 1 GB of caches was cleared); Docker and winget were not tried for the same reason (1.7 GB free before the attempt). Needs disk space, not a code change.
 - Dark mode: checked once with Chromium's dark colour scheme switched on (`desktop_review_05_dark.png`: the Desktop followed it, the page stays white as a document page does, marks and card stay readable); the Desktop's own theme picker was not driven. Narrow windows and screen-reader use were not checked; the marks are keyboard buttons with spoken labels and the figures are also listed under the page.
 - Speed on first use: a large report takes about 30 s to draw once, then it is cached.
 - A document edited in Word while the room is open is redrawn only when the files change (the cache is keyed by their bytes and times).
