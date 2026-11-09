@@ -37,6 +37,7 @@ A changed number is not the whole change. After an update Workroom reads what th
 - **Calculated numbers.** A percent change, margin, difference or total that the sources reproduce is found by arithmetic, shown with its formula, and follows its sources once you accept it. It never changes sign silently: an "up 8%" that would become a fall is held. When several calculations fit, none is chosen for you.
 - **Places the editor does not rewrite.** A number in speaker notes, chart text or a picture description that still shows an old value, a chart whose axis is fixed below a new value, and a figure in a changed sentence that nothing updates are reported, and stay reported until you change them or dismiss them.
 - **A workbook that moves.** Each link remembers the headings of its source cell. If rows or columns are inserted or a window of periods slides along, the link follows its cell; when it cannot tell, it asks you and says why.
+- **Charts already in a deck.** Each point is linked to its cell by the chart's series name and category, written to the chart and its embedded workbook together, and held when a person changed it or when the embedded cell is a formula.
 - **Approval.** Findings marked "Check" must be acknowledged before the release can be approved, in the Desktop screen and in chat. A decision to dismiss a finding is remembered, so the same question is not asked every cycle.
 
 ## Roll forward
@@ -69,7 +70,7 @@ The agent gets tools to register a folder, find links, preview a refresh, prepar
 
 - Discovery writes nothing to your documents.
 - A release changes only the numbers it lists. Untouched parts of a document keep byte-identical compressed content (tested on 144 PowerPoint and 106 Word packages from public test corpora).
-- A stale file, a replayed or expired approval, an approval for a different set of changes, or an altered saved history stops the release.
+- A stale file, a replayed or expired approval, an approval for a different set of changes, or an altered saved history stops the release. Approving or restoring takes a per-project lock, so two approvals of one release arriving together publish it once.
 - It cannot stop another program from changing a file while Workroom is not running. It detects that by hash.
 - It does not recalculate Excel formulas itself. Edited workbooks are flagged to recalculate when opened.
 
@@ -79,7 +80,7 @@ The agent gets tools to register a folder, find links, preview a refresh, prepar
 |---|---|---|
 | Untouched parts identical after an edit | 144 of 144 PowerPoint packages, 106 of 106 Word packages | public test corpora, not messy business files |
 | One number edited in a real file, nothing else moved | 77 decks, 39 Word documents, 161 embedded workbooks, 0 failures | text and numeric constants; small files |
-| Links accepted automatically were correct | 951 of 951 on real chart decks (95% interval 0.996 to 1.0) | favourable corpus: labels come from the same workbook |
+| Links accepted automatically were correct | 951 of 951 chart points in the matcher benchmark on real decks (95% interval 0.996 to 1.0) | the matcher alone, on a favourable corpus (labels come from the same workbook); charts already in a deck are linked by the product only since 9 Nov, measured in the table below |
 | Same-valued decoy sentences linked | 0 of 988 synthetic decoys | synthetic and optimistic |
 | Release recovers after a crash | 16 of 16 injected crash points | simulated process death on Windows; not a power-off test |
 | Head to head, one figure changes in a deck | complete and 0 collateral parts changed; office-desk 6/6 text but no chart; Hermes' bundled skill missed a target and touched the decoy | one synthetic scenario; PowerPoint only; see `bench/HEAD_TO_HEAD.md` |
@@ -91,16 +92,38 @@ The agent gets tools to register a folder, find links, preview a refresh, prepar
 | A calculated number is not accepted by coincidence | random percentages written into sentences: 0 of 120 accepted as certain (5% of one-decimal and 55% of whole-number ones fit some calculation and were left to the owner); the 3 true ones were certain | one deck layout |
 | Approval from a real Telegram chat | release card with buttons shown, Approve published it, Cancel changed nothing, a sender not in `approvers` was refused | one throwaway bot, one owner account; Discord and Slack not run |
 
+### Files other people made (9 Nov 2026)
+
+Until 8 Nov the evidence used documents, workbooks and an owner that I generated. This table is the first run against files made by other people and read back with the real Word, Excel and PowerPoint. Public corpora (Apache POI and LibreOffice test data) were split by file hash into a development half and a sealed half before any result was read; the sealed half was run once, before the last fixes. Details, caveats and errata: `bench/EVIDENCE.md` (rows dated 9 Nov) and `bench/verify/FOREIGN_ERRATA.md`.
+
+| Question | Result | Caveat |
+|---|---|---|
+| Edit three numbers in a file I did not make; is anything else touched, and does the real app agree? | the user's own Word and PowerPoint files: 41 of 41 edited files ok; public development halves: 38 ok, 1 failed; SEALED (run once): 30 ok, 3 failed | most public test files hold no numbers; the failures were found, explained and fixed afterwards (errata E-007) |
+| Links on those documents | 695 of 1069 figures linked automatically with row labels, 0 wrong; values only: 3 linked, 2 wrong (it asks); SEALED: 101 links, 0 wrong | the workbook behind each document is built by me from the document's own figures |
+| Update the sources, release, read the document back from the real app | 165 figures in 42 documents updated correctly, 0 wrong; SEALED: 43 figures, 0 wrong | Windows; Word and PowerPoint |
+| Three cycles with a person editing in the real Word between them | 14 documents passed, 0 failed; a retyped figure stayed as typed | few documents had enough numbers to run it |
+| Charts already in a deck | 26 decks, 170 chart points linked (112 automatically, 0 wrong), 76 changed points read back from the real PowerPoint, 0 wrong; SEALED: 248 linked, 0 wrong in the real PowerPoint | small public decks; points are written only where a sheet is embedded behind the chart; the sealed run reported 4 wrong links that were a harness mapping error and one chart whose data lives outside the file (errata E-007) |
+| The source workbook restructured by the real Excel | 12 of 12 operations followed correctly or asked, none silently wrong | one project layout |
+| Workbook reader against the real Excel | 328 public workbooks compared; 0 value mismatches; cells Excel has and Workroom lacks: 0 development, 4 sealed workbooks (a pivot table the file does not store, formulas with no saved value, an ISO-typed date) | Excel's typing of dates is not a reliable oracle |
+| How long it takes | reading a project of 4 documents against a 105,000-cell workbook went from 207 s to 11 s | one layout; some workbooks whose rows differ only by a number now ask instead of linking |
+| The 22 update cycles on real data, rerun after a defect these files exposed | 119 owner actions (was 135), 0 silent errors | templates and owner are mine |
+
 ## Known limits and what is not tested
 
-- Run end to end in the real Hermes Desktop (v0.23.0, Windows) on small synthetic projects only (light and dark, wide and narrow); not yet on a user's own documents.
+- Run end to end in the real Hermes Desktop (v0.23.0, Windows) on small synthetic projects (light and dark, wide and narrow). The files other people made were driven through the service, the real Office apps, Telegram and Hermes' dispatcher, not through the Desktop page.
+- Nothing from professional finance work was available to test on: the foreign files are the user's own documents and public test suites, which hold few numbers.
+- A hosted model could not be used for the agent runs (the key on the test machine was rejected). A 3B local model drove the real Hermes agent; it rarely used the tools well, so those runs show the boundaries holding, not how a capable model behaves.
+- Numbers are read in English and US or Indian digit grouping. A decimal comma (189,45) and a European 1.234,56 are skipped, never edited; claims are English only.
+- A workbook whose rows are told apart only by a number ("Store 101") makes the owner confirm the links instead of linking them automatically; a plain number can still be linked to a cell holding that number times a thousand or a million when the labels agree.
+- Charts are linked only when a sheet is embedded behind them; a chart whose data is typed into it, or lives in an external file, is left alone.
+- A file written by a program that never calculated its formulas holds no values for them; Workroom says how many and asks you to open and save the file in Excel.
 - Claims are read in English from a closed set of wordings. Anything else is listed as not checked, never guessed. Company earnings releases mostly state amounts ("grew 31%") without naming the baseline, so there Workroom checks a claim only when the percentage is a calculated figure it manages.
 - A sentence is judged false only on its own figures or on the workbook's series; a claim that depends on outside knowledge is out of reach.
 - Rolling forward needs the next period to be in the workbook and the periods to be readable headings (quarters, halves, fiscal years, months). Chart periods are not rolled.
 - The update-cycle trials above use documents and an owner I simulated, on real public data, in one language.
 - Measured on real earnings releases (see the table) but not on other kinds of messy business documents or other languages. On hand-written paraphrase tests the matcher never linked wrongly and, with a small built-in finance synonym list, resolved 94% by itself (that number is contaminated: the list was written after seeing the test wording; real gain unmeasured).
 - The suite passes on Windows, macOS and Linux with Python 3.11 and 3.14 in GitHub Actions; the Hermes Desktop run itself was only done on Windows.
-- Word comments are never edited (human review text). Complex Excel models are untested.
+- Word comments are never edited (human review text). Complex Excel models are tested by real Excel restructuring and by reading public workbooks, not on a large finance model.
 - Messaging approval was run through a real Telegram bot (see the table); Discord and Slack, and a refusal using a second real person's account, were not run.
 - A consistent rollback of every copy of Workroom's state to an older valid point is not detected (a signature proves authenticity, not freshness).
 - The agent's file-write tools are blocked on Office files inside registered projects; a shell command that looks like it writes one is sent to your approval prompt (a heuristic that a determined script can evade).

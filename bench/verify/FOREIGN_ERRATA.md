@@ -43,3 +43,25 @@ After 8 Nov the update-cycle trials were reported with 135 owner actions over 22
 ledger) was demoting links to "confirm" in any paragraph holding an unlinked number; on the monthly report that was inflating the owner's work. The same
 trials rerun after the fix: 119 owner actions over the same 22 cycles, 0 silent errors, 0 false alarms in both. The 8 Nov figure is superseded, not
 deleted.
+
+## E-007 (2026-11-09): the sealed halves were run once, on commit f6e1746; what they showed, and what was fixed afterwards
+
+The sealed halves of both public corpora were run once on commit `f6e17461dbff9ae610b68dfe9ff6807d25b81120` (frozen: no change to `workroom_core` between the
+last development rerun and the start of that run). Their results are reported exactly as they came out. They exposed problems that the development half
+had not: numbers inside Word field results (page numbers, tables of contents) were treated as editable text; a figure written without its leading zero
+(".5") was rewritten with one; chart points were linked in charts whose data lives outside the file; formulas with no saved value were dropped
+without a word. Each was fixed afterwards (commit `c9fdd5b`) with a test. Those fixes were made after seeing the sealed failures, so rerunning the same
+files proves only that the fix works, not that the product is right on unseen files; the post-fix reruns are labelled that way in the ledger.
+Three sealed items were not product defects: one chart "wrong link" was the harness mapping a chart's third series to the wrong workbook column; one
+edit "failure" was two single-digit shapes whose texts collide in a text-multiset comparison; the workbook cells Excel reported that the file does not
+contain come from a pivot table that Excel regenerates when it opens the file. One item stays unexplained and open: a workbook (`CVLKRA-KYC_Download_File_Structure_V3.1.xlsx`) where Workroom indexes
+200 more numeric cells than Excel reports, all plain numbers, with no value mismatch.
+
+## E-008 (2026-11-09): reruns after the post-seal fixes (commit c9fdd5b)
+
+On the development data again: the user's files 41 ok and 0 failed in the real-app edit check; the POI development half 19 ok and 1 failed. The one failure
+is `MultipleBodyBug.docx`, a deliberately malformed file with three `<w:body>` elements of which Word shows only the first; Workroom edits the second, which
+Word does not display. It is recorded as a malformed-input case, not fixed. Of the sealed files that failed, the Word document whose edit Word could not
+see no longer offers an edit (its only number was a page-number field result), the deck whose ".5" became "0.6" now passes, and the chart whose data lives
+outside the file is no longer linked. These reruns are not blind (E-007). The agent runs with the local model were repeated with the project id in the
+prompt after the first set of runs overwrote an earlier report that had shown the roll-forward tool being called; only the later reports are kept.
