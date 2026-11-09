@@ -10,6 +10,7 @@ same place (same section, same row heading, same column position). The year-2 re
 
 import collections
 import json
+import os
 import re
 import shutil
 import sys
@@ -151,7 +152,10 @@ def main() -> None:
     result["grouped_wrong_examples"] = grouped_wrong[:60]
     out.write_text(json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
     print(json.dumps({k: result[k] for k in ("cycle1", "recipe", "cycle2", "score", "score_by_group_heading")}, indent=1, ensure_ascii=False))
-    shutil.rmtree(tmp, ignore_errors=True)
+    if os.environ.get("KEEP_PROJECT"):
+        print("kept project at", tmp, file=sys.stderr)
+    else:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 if __name__ == "__main__":
