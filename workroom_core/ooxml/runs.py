@@ -62,8 +62,17 @@ class Replacement:
 def _text_runs(p: etree._Element, fl: Flavor) -> list[list[etree._Element]]:
     """Group a paragraph's text runs into segments that a match may span."""
     segments: list[list[etree._Element]] = [[]]
+    in_field = 0  # Word: runs between a field's begin and end are its instruction and its result, which Word regenerates (page numbers, tables of contents)
+    fld = "{%s}fldChar" % W_NS
+    kind = "{%s}fldCharType" % W_NS
     for child in p:
         if child.tag == fl.run:
+            marks = [c.get(kind) for c in child.iter(fld)] if fl is WORD else []
+            if in_field and not marks:
+                segments.append([])
+                continue
+            for m in marks:
+                in_field = in_field + 1 if m == "begin" else max(0, in_field - 1) if m == "end" else in_field
             ts = [c for c in child if c.tag == fl.text]
             other = [c for c in child if c.tag not in (fl.text, fl.run_props)]
             if len(ts) == 1 and not other:

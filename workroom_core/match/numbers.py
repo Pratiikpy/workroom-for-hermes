@@ -206,6 +206,8 @@ def format_like(old: NumberMention, new_source_value: float, transform: str) -> 
         whole, _, frac = f"{rounded:.{old.decimals}f}".partition(".")
         body = _indian(whole) + ("." + frac if frac else "")
     m = _NUM_IN_RAW.search(old.raw)
+    if m.group(0).startswith(".") and body.startswith("0."):
+        body = body[1:]  # a figure written without its leading zero (.5) keeps that style
     prefix = old.raw[: m.start()].replace("(", "").replace("-", "").replace("−", "").replace("–", "").replace("+", "")
     suffix = old.raw[m.end():].replace(")", "")
     explicit = old.raw.lstrip()[:1] in ("+", "-", "−", "–")  # a column of changes written with its sign keeps its sign style

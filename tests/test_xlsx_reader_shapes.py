@@ -84,3 +84,32 @@ def test_figures_in_hidden_columns_and_hidden_sheets_are_flagged() -> None:
     assert not cells[("Visible", "B1")].hidden
     assert cells[("Visible", "C1")].hidden
     assert cells[("Scratch", "B1")].hidden
+
+
+def test_formulas_with_no_saved_value_are_counted_not_silently_dropped() -> None:
+    from workroom.workroom_core.ooxml.xlsx import index_workbook
+
+    def build(wb) -> None:
+        ws = wb.add_worksheet("Model")
+        ws.write(0, 0, "Revenue")
+        ws.write(0, 1, 10)
+        ws.write_formula(1, 1, "=B1*2", None, "")  # a formula written without its result, as some libraries do
+        ws.write_formula(2, 1, "=B1*3", None, 30)
+
+    stats: dict = {}
+    cells = index_workbook(open_package(_book(build)), stats=stats)
+    assert stats["uncalculated"] == 1
+    assert sorted(c.ref for c in cells) == ["B1", "B3"]
+
+
+def test_the_project_reports_a_workbook_with_uncalculated_formulas(tmp_path) -> None:
+    from workroom.workroom_core.project import Project
+
+    root = tmp_path / "p"
+    root.mkdir()
+    with Workbook(str(root / "m.xlsx")) as wb:
+        ws = wb.add_worksheet("Model")
+        ws.write_row(0, 0, ["Revenue", 10])
+        ws.write_formula(1, 1, "=B1*2", None, "")
+    found = Project(root, tmp_path / "state").discover()
+    assert found.uncalculated == (("m.xlsx", 1),)

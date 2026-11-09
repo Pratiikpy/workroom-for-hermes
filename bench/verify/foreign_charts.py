@@ -42,12 +42,14 @@ def charts_of(path: Path) -> list[dict]:
             if getattr(sh, "has_chart", False) and sh.has_chart:
                 ch = sh.chart
                 series = []
+                original = 0  # position of the series in the chart, counting those left out of the workbook
                 for plot in ch.plots:
                     cats = [str(c) for c in plot.categories]
                     for s in plot.series:
                         vals = list(s.values)
                         if len(cats) == len(vals) and all(v is not None for v in vals) and len(set(cats)) == len(cats):
-                            series.append({"name": s.name, "cats": cats, "vals": [float(v) for v in vals]})
+                            series.append({"name": s.name, "cats": cats, "vals": [float(v) for v in vals], "orig": original})
+                        original += 1
                 out.append({"slide": si, "shape": sh.shape_id, "name": sh.name, "series": series})
 
     for si, slide in enumerate(prs.slides, 1):
@@ -123,8 +125,9 @@ def run_deck(path: Path, app) -> dict:
                     ch_i = n - 1
             if want_sheet is None:
                 continue
-            cats = charts[ch_i]["series"][info["series"]]["cats"] if info["series"] < len(charts[ch_i]["series"]) else []
-            ok = t.sheet == want_sheet and info["category"] in cats and t.ref == f"{chr(66 + info['series'])}{cats.index(info['category']) + 2}"
+            where = next((k for k, sr in enumerate(charts[ch_i]["series"]) if sr["orig"] == info["series"]), None)
+            cats = charts[ch_i]["series"][where]["cats"] if where is not None else []
+            ok = t.sheet == want_sheet and info["category"] in cats and t.ref == f"{chr(66 + (where or 0))}{cats.index(info['category']) + 2}" if where is not None else False
             if t.state == "accepted":
                 right += ok
                 wrong += (not ok)
@@ -166,7 +169,8 @@ def run_deck(path: Path, app) -> dict:
         after_vals = ppt_chart_values(app, str(root / path.name))
         moved = right_new = bad = 0
         for ci, ch in enumerate(charts):
-            for si, s in enumerate(ch["series"]):
+            for s in ch["series"]:
+                si = s["orig"]
                 for pi, cat in enumerate(s["cats"]):
                     try:
                         old, new = before_vals[ci][si][pi], after_vals[ci][si][pi]

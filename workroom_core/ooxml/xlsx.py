@@ -227,9 +227,11 @@ def _col_letters(n: int) -> str:
     return out
 
 
-def index_workbook(pkg: Package, max_cells: int = 500_000, file: str = "") -> list[SourceCell]:
+def index_workbook(pkg: Package, max_cells: int = 500_000, file: str = "", stats: dict | None = None) -> list[SourceCell]:
     """Every numeric cell with the text labels on its row and column. Dates are flagged; cells in hidden rows, hidden columns and hidden
-    sheets are flagged hidden. Rows and cells that omit their position (legal in the format) are placed in reading order."""
+    sheets are flagged hidden. Rows and cells that omit their position (legal in the format) are placed in reading order. When ``stats`` is
+    given, ``stats["uncalculated"]`` counts formula cells that carry no saved value (a file written by a program that does not calculate): they
+    cannot be read until Excel opens and saves the file."""
     sst = shared_strings(pkg)
     date_styles = _date_style_ids(pkg)
     out: list[SourceCell] = []
@@ -257,6 +259,8 @@ def index_workbook(pkg: Package, max_cells: int = 500_000, file: str = "") -> li
                 kind = c.get("t")
                 v = c.find("{%s}v" % S_NS)
                 f = c.find("{%s}f" % S_NS)
+                if stats is not None and f is not None and (v is None or v.text in (None, "")) and kind != "inlineStr":
+                    stats["uncalculated"] = stats.get("uncalculated", 0) + 1
                 if kind == "s" and v is not None and v.text is not None:
                     strings[(cell_row, col_n)] = sst[int(v.text)].strip()
                 elif kind == "inlineStr":

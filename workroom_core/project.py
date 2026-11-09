@@ -132,11 +132,12 @@ class Discovery:
     kept: int
     unreadable: tuple[str, ...] = ()
     missing: tuple[str, ...] = ()
+    uncalculated: tuple[tuple[str, int], ...] = ()
     reanchored: int = 0
     held: int = 0
 
 
-_INDEX_CACHE: "OrderedDict[tuple, tuple[SourceIndex, list[str]]]" = OrderedDict()  # the two most recently read source sets, shared by every Project in this process
+_INDEX_CACHE: "OrderedDict[tuple, tuple[SourceIndex, list[str], dict[str, int]]]" = OrderedDict()  # the two most recently read source sets, shared by every Project in this process
 _INDEX_LOCK = threading.Lock()
 
 
@@ -217,17 +218,22 @@ class Project:
                 _INDEX_CACHE.move_to_end(key)
         if cached is not None:
             self.unreadable_sources = list(cached[1])
+            self.uncalculated_sources = dict(cached[2])
             return cached[0]
         cells: list[SourceCell] = []
         self.unreadable_sources = []
+        self.uncalculated_sources = {}
         for p, data in files:
+            stats: dict = {}
             try:
-                cells.extend(index_workbook(open_package(data), file=self._rel(p)))
+                cells.extend(index_workbook(open_package(data), file=self._rel(p), stats=stats))
             except (PackageError, EditError, KeyError, ValueError):
                 self.unreadable_sources.append(self._rel(p))
+            if stats.get("uncalculated"):
+                self.uncalculated_sources[self._rel(p)] = stats["uncalculated"]
         index = SourceIndex(cells)
         with _INDEX_LOCK:
-            _INDEX_CACHE[key] = (index, list(self.unreadable_sources))
+            _INDEX_CACHE[key] = (index, list(self.unreadable_sources), dict(self.uncalculated_sources))
             while len(_INDEX_CACHE) > 2:
                 _INDEX_CACHE.popitem(last=False)
         return index
@@ -449,6 +455,9 @@ class Project:
             kept_ids.update(t.id for t in chart_ties)
             return
         for slide_no, uid, shape_id, _name in shapes:
+            if not deck.chart_writable(slide_no, shape_id):
+                kept_ids.update(t.id for t in chart_ties if t.shape_id == shape_id and (t.slide_uid or f"#{t.slide}") == (uid or f"#{slide_no}"))
+                continue  # nothing could be written back to this chart, so none of its points is linked
             try:
                 series = deck.chart_series(slide_no, shape_id)
             except (EditError, KeyError, ValueError):
@@ -690,7 +699,7 @@ class Project:
                 self.db.execute("DELETE FROM ties WHERE id=?", (tie.id,))
         self.relocate_sources()  # remembers the headings of the ties just made
         held = self.db.execute("SELECT COUNT(*) FROM ties WHERE state='held'").fetchone()[0]
-        return Discovery(found=found, no_source=no_source, kept=kept, unreadable=tuple(unreadable) + tuple(getattr(self, "unreadable_sources", [])), missing=tuple(missing), reanchored=reanchored, held=held)
+        return Discovery(found=found, no_source=no_source, kept=kept, unreadable=tuple(unreadable) + tuple(getattr(self, "unreadable_sources", [])), missing=tuple(missing), uncalculated=tuple(sorted(getattr(self, "uncalculated_sources", {}).items())), reanchored=reanchored, held=held)
 
     def ties(self, states: tuple[str, ...] | None = None) -> list[Tie]:
         cur = self.db.execute("SELECT * FROM ties ORDER BY id")

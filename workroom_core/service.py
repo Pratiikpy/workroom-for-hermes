@@ -254,6 +254,7 @@ class Service:
             "kept": found.kept,
             "unreadable": list(found.unreadable),
             "missing": list(found.missing),
+            "uncalculated": [{"file": f, "formulas": n} for f, n in found.uncalculated],
         }
 
     @staticmethod

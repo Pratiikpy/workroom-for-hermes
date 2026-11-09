@@ -299,6 +299,14 @@ class Deck:
                 out.append((si, uids[si - 1] if si - 1 < len(uids) else "", int(nv.get("id")), nv.get("name") or ""))
         return out
 
+    def chart_writable(self, slide: int, shape_id: int) -> bool:
+        """Can this chart's values be written back? Only when exactly one workbook is embedded in it; a chart whose data lives in an external file, or only in the chart itself, is not."""
+        try:
+            cpart, _ = self._chart_part(slide, shape_id)
+        except EditError:
+            return False
+        return len([v for v in rels_for(self.pkg, cpart).values() if v[0] == "package"]) == 1
+
     def chart_series(self, slide: int, shape_id: int) -> list[ChartSeries]:
         _, croot = self._chart_part(slide, shape_id)
         out = []
