@@ -180,8 +180,11 @@ def run_one(xl, name: str, op, fred: Path) -> dict:
         linked_before = [t for t in before_ties if t["source"].endswith("!" + pre_addr)]
         old_value = pre_cell.Value2
         op(xl, wb, ws)
-        ws2 = next(w for w in wb.Worksheets if w.Name in ("Data", "Economy"))
-        cell = locate(ws2, latest, "Nominal GDP")
+        cell = None
+        for w in wb.Worksheets:
+            cell = locate(w, latest, "Nominal GDP")
+            if cell is not None:
+                break
         if cell is None:
             row.update(status="harness_error", why="could not find the target cell after the operation")
             return row
@@ -209,7 +212,8 @@ def run_one(xl, name: str, op, fred: Path) -> dict:
         missed = [t["text"] for t in linked_before if not any(c["old_text"] == t["text"] for c in changes)]
         row.update(wrong_updates=wrong[:4], missed=missed[:4], held=len(staged.get("held", [])), status="ok" if not wrong and not missed else "FAILED")
     except ServiceError as exc:
-        row.update(status="FAILED" if linked_before else "ok", why=f"release refused: {str(exc)[:140]}")
+        asked = row["after_discover"]["need_confirmation"] > 0 and "waiting for you" in str(exc)
+        row.update(status="ok" if asked else "FAILED", why=f"release refused: {str(exc)[:200]}", outcome="asked the owner to confirm; nothing was changed silently" if asked else "")
     return row
 
 

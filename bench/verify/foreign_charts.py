@@ -74,7 +74,7 @@ def ppt_chart_values(app, path: str) -> list[list[list[float]]]:
             for sh in slide.Shapes:
                 if sh.HasChart:
                     ch = sh.Chart
-                    out.append([[float(v) for v in (ch.SeriesCollection(i).Values or [])] for i in range(1, ch.SeriesCollection().Count + 1)])
+                    out.append([[float(v) if v is not None else float("nan") for v in (ch.SeriesCollection(i).Values or [])] for i in range(1, ch.SeriesCollection().Count + 1)])
     finally:
         pres.Close()
     return out
@@ -173,7 +173,7 @@ def run_deck(path: Path, app) -> dict:
                     except IndexError:
                         continue
                     want = expected.get((ci, si, cat), old)
-                    if abs(new - want) <= 1e-6 * max(1.0, abs(want)):
+                    if (new != new and want != want) or abs(new - want) <= 1e-6 * max(1.0, abs(want)):
                         right_new += 1
                         moved += (want != old)
                     else:

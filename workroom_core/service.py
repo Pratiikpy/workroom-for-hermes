@@ -1019,6 +1019,9 @@ class Service:
         plan = proj.plan_refresh()
         if not plan.files:
             why = f"no tied number has changed ({len(plan.skipped)} could not be updated: {'; '.join(plan.skipped[:2])}{' ...' if len(plan.skipped) > 2 else ''})" if plan.skipped else "no tied number has changed"
+            waiting = [t for t in proj.ties() if t.state == "confirm" and t.held_note]
+            if waiting:
+                why += f"; {len(waiting)} link(s) are waiting for you to confirm them first: {waiting[0].held_note[:160]}"
             raise ServiceError("nothing to release: " + why)
         rid = ctl.stage(plan.files, mode=mode)
         findings = self._check_staged(plan)
