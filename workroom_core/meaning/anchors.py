@@ -27,6 +27,13 @@ def labels_of(cell) -> list[list[str]]:
     return [list(cell.row_labels), list(cell.col_labels)]
 
 
+def clean_stored(stored):
+    """Headings stored before placeholder cells (a dash, a dollar sign) stopped counting as headings: compare them as the reader now reads the same cell."""
+    from ..ooxml.xlsx import is_label_text
+
+    return None if stored is None else [[x for x in part if is_label_text(x)] for part in stored]
+
+
 def label_key(cell) -> str:
     return json.dumps(labels_of(cell), ensure_ascii=False)
 
@@ -84,7 +91,7 @@ def relocate_sources(project: "Project") -> list[str]:
         return "needs_you", cell, why
 
     ties = project.ties()
-    stored_here = {(t.src_file, t.sheet, tuple(json.loads(t.src_labels)[0]), tuple(json.loads(t.src_labels)[1])) for t in ties if t.src_labels and t.kind in ("text", "chart")}
+    stored_here = {(t.src_file, t.sheet, tuple(clean_stored(json.loads(t.src_labels))[0]), tuple(clean_stored(json.loads(t.src_labels))[1])) for t in ties if t.src_labels and t.kind in ("text", "chart")}
     for t in ties:
         if t.kind == "scene":
             continue
@@ -120,7 +127,7 @@ def relocate_sources(project: "Project") -> list[str]:
                 f2 = {**f, "terms": new_terms, "labels": new_labels}
                 project.db.execute("UPDATE ties SET formula=?, src_file=?, sheet=?, ref=? WHERE id=?", (json.dumps(f2), new_terms[0][0], new_terms[0][1], new_terms[0][2], t.id))
             continue
-        stored = json.loads(t.src_labels) if t.src_labels else None
+        stored = clean_stored(json.loads(t.src_labels)) if t.src_labels else None
         outcome, cell, note = resolve(t.src_file, t.sheet, t.ref, stored)
         if outcome == "learn":
             project.db.execute("UPDATE ties SET src_labels=? WHERE id=?", (json.dumps(labels_of(cell), ensure_ascii=False), t.id))

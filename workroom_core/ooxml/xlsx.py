@@ -227,6 +227,12 @@ def _col_letters(n: int) -> str:
     return out
 
 
+def is_label_text(text: str) -> bool:
+    """Whether a text cell can serve as a heading: it holds at least one letter or digit. The dashes that financial statements print for nil, and unit marks such as $,
+    stood between a figure and its row heading and used to be read as the heading."""
+    return any(ch.isalnum() for ch in text)
+
+
 def index_workbook(pkg: Package, max_cells: int = 500_000, file: str = "", stats: dict | None = None) -> list[SourceCell]:
     """Every numeric cell with the text labels on its row and column. Dates are flagged; cells in hidden rows, hidden columns and hidden
     sheets are flagged hidden. Rows and cells that omit their position (legal in the format) are placed in reading order. When ``stats`` is
@@ -277,7 +283,7 @@ def index_workbook(pkg: Package, max_cells: int = 500_000, file: str = "", stats
         rows_by: dict[int, list[tuple[int, str]]] = {}
         cols_by: dict[int, list[tuple[int, str]]] = {}
         for (r, c), s in strings.items():
-            if s:
+            if is_label_text(s):  # a dash, a dollar sign or a bracket in a cell is a placeholder, not a heading
                 rows_by.setdefault(r, []).append((c, s))
                 cols_by.setdefault(c, []).append((r, s))
         share: dict[tuple[str, ...], tuple[str, ...]] = {}  # cells of one row or column hold the same label tuples; keep one copy of each

@@ -113,3 +113,21 @@ def test_the_project_reports_a_workbook_with_uncalculated_formulas(tmp_path) -> 
         ws.write_formula(1, 1, "=B1*2", None, "")
     found = Project(root, tmp_path / "state").discover()
     assert found.uncalculated == (("m.xlsx", 1),)
+
+
+def test_dashes_and_unit_marks_between_a_figure_and_its_row_heading_are_not_headings(tmp_path) -> None:
+    """Financial statements print a dash for nil; the heading is the text further left, not the dash."""
+    from xlsxwriter import Workbook
+
+    from workroom.workroom_core.ooxml.package import open_package
+    from workroom.workroom_core.ooxml.xlsx import index_workbook
+
+    path = tmp_path / "w.xlsx"
+    with Workbook(str(path)) as wb:
+        ws = wb.add_worksheet("Note")
+        ws.write_row(0, 0, ["", "Leasehold", "Office"])
+        ws.write_row(1, 0, ["", "$", "$"])
+        ws.write_row(2, 0, ["Transfer", "-", "-", 35980, "-", -35980])
+    cells = {c.ref: c for c in index_workbook(open_package(path.read_bytes()), file="w.xlsx")}
+    assert cells["D3"].row_labels == ("Transfer",) and cells["F3"].row_labels == ("Transfer",)
+    assert "$" not in cells["D3"].col_labels and "-" not in cells["F3"].row_labels
