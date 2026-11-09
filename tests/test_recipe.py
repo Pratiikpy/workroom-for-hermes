@@ -158,3 +158,54 @@ def _blank_docx() -> bytes:
     buf = io.BytesIO()
     d.save(buf)
     return buf.getvalue()
+
+
+def test_a_table_that_lost_a_source_is_not_half_updated_and_an_acknowledgement_cannot_release_it(tmp_path: Path) -> None:
+    from docx import Document
+    import io
+
+    from workroom.tests.test_flagship_headless import make_workbook
+
+    d = Document()
+    d.add_paragraph("Results")
+    t = d.add_table(rows=3, cols=3)
+    for c, v in enumerate(["Metric", "Q1", "Q2"]):
+        t.cell(0, c).text = v
+    for c, v in enumerate(["Revenue", "100", "120"]):
+        t.cell(1, c).text = v
+    for c, v in enumerate(["Costs", "60", "90"]):
+        t.cell(2, c).text = v
+    d.add_paragraph("Revenue in Q2 was 120 for the year.")
+    buf = io.BytesIO()
+    d.save(buf)
+    root = tmp_path / "proj"
+    root.mkdir()
+    (root / "results.xlsx").write_bytes(make_workbook())
+    (root / "report.docx").write_bytes(buf.getvalue())
+    svc = Service(tmp_path / "data")
+    pid = svc.add_project(str(root))["project"]
+    svc.discover(pid)
+    # Revenue Q2 changes; Costs Q2 loses its number (the row was cleared in the new workbook)
+    import zipfile
+
+    src = zipfile.ZipFile(io.BytesIO((root / "results.xlsx").read_bytes()))
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        for item in src.infolist():
+            raw = src.read(item.filename)
+            if item.filename == "xl/worksheets/sheet1.xml":
+                text = raw.decode("utf-8")
+                assert 'r="C2"' in text and 'r="C3"' in text
+                import re
+
+                text = re.sub(r'<c r="C2"[^>]*><v>120</v></c>', '<c r="C2"><v>150</v></c>', text)
+                text = re.sub(r'<c r="C3"[^>]*><v>90</v></c>', '<c r="C3"/>', text)
+                raw = text.encode("utf-8")
+            z.writestr(item, raw)
+    (root / "results.xlsx").write_bytes(out.getvalue())
+    staged = svc.stage(pid)
+    assert staged["blocked"] and "mix old and new" in staged["blocked"][0]
+    svc.approve_and_publish(pid, staged["release_id"], staged["digest"], acknowledge=True)
+    after = texts((root / "report.docx").read_bytes())
+    assert "120" in after and "150" not in after[2:5] + after[5:8]  # the table kept every old figure
+    assert "Revenue in Q2 was 150 for the year." in after  # the sentence is not in the broken table and follows the workbook

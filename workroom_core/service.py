@@ -1175,6 +1175,8 @@ class Service:
         proj, ctl = self._open(pid)
         self._integrity(pid, proj, ctl)
         plan = proj.plan_refresh()
+        if not plan.files and plan.blocked:
+            raise ServiceError(f"nothing could be released: {len(plan.blocked)} figure(s) were held back because their table would mix old and new numbers (for example: {plan.blocked[0]}). Restore the missing source, or skip the figures that lost it, then try again")
         if not plan.files:
             why = f"no tied number has changed ({len(plan.skipped)} could not be updated: {'; '.join(plan.skipped[:2])}{' ...' if len(plan.skipped) > 2 else ''})" if plan.skipped else "no tied number has changed"
             waiting = [t for t in proj.ties() if t.state == "confirm" and t.held_note]
@@ -1187,13 +1189,13 @@ class Service:
         meta_dir.mkdir(parents=True, exist_ok=True)
         flags, coverage = self._flags(proj, plan)
         (meta_dir / f"{rid}.json").write_text(
-            json.dumps({"changes": self._changes(proj, plan), "held": plan.skipped, "flags": flags, "coverage": coverage, "notes": plan.notes}), encoding="utf-8")
+            json.dumps({"changes": self._changes(proj, plan), "held": plan.skipped, "blocked": plan.blocked, "flags": flags, "coverage": coverage, "notes": plan.notes}), encoding="utf-8")
         try:
             ctl.mark_verified(rid, findings)
         except NotReady:
             return {"release_id": rid, "state": "blocked", "findings": findings}
         return {"release_id": rid, "state": "awaiting_approval", "digest": ctl.digest(rid),
-                "changes": self._changes(proj, plan), "held": plan.skipped, "flags": flags, "coverage": coverage}
+                "changes": self._changes(proj, plan), "held": plan.skipped, "blocked": plan.blocked, "flags": flags, "coverage": coverage}
 
     @_closing
     def stage_rollforward(self, pid: str, steps: int = 1) -> dict[str, Any]:

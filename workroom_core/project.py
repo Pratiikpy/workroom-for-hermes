@@ -94,6 +94,7 @@ class Plan:
     files: dict[str, bytes] = field(default_factory=dict)
     skipped: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)  # sources that moved and were followed, headings that changed
+    blocked: list[str] = field(default_factory=list)  # figures that were not rewritten because their table would have mixed old and new numbers; an acknowledgement cannot release them
 
 
 @dataclass(frozen=True)
@@ -927,12 +928,14 @@ class Project:
         plan.notes = self.relocate_sources()
         values = self._current_values()
         by_deck: dict[str, list[tuple[Tie, float]]] = {}
+        lost: dict[str, list[Tie]] = {}  # figures whose source cell has no number now, by document
         for t in self.ties(("held",)):
             plan.skipped.append(f"{t.deck} slide {t.slide}: '{t.raw}' was changed by hand ({t.held_note}); held for you, not updated")
         for t in self.ties(("accepted", "confirmed")):
             new = self._tie_value(t, values)
             if new is None:
                 plan.skipped.append(f"{t.deck} slide {t.slide}: source {t.src_file}!{t.sheet}!{t.ref} is missing{' or the calculation cannot be made' if t.kind == 'derived' else ''}; not changed")
+                lost.setdefault(t.deck, []).append(t)
                 continue
             if not self._sign_fits(t, new):
                 plan.skipped.append(f"{t.deck} slide {t.slide}: '{t.raw}' is a calculated change and its direction has turned over, so the words next to it no longer fit; held for you, not updated")
@@ -954,6 +957,7 @@ class Project:
                 dms[self._mkey(d)] = d
                 dms.setdefault(self._mkey(d, f"#{d.slide}"), d)
             applied = 0
+            broken = self._tables_with_a_lost_source(deck, dms, lost.get(deck_rel, []))
             for t, new in [x for x in items if x[0].kind == "chart"]:
                 category = ""
                 try:
@@ -979,6 +983,11 @@ class Project:
                 if dm is None or dm.number.raw != t.raw:
                     plan.skipped.append(f"{deck_rel} slide {t.slide}: '{t.raw}' is no longer where it was linked (edited by hand?); held")
                     continue
+                if dm.cell is not None and self._table_id(dm) in broken:
+                    why = f"{deck_rel} slide {t.slide}: '{t.raw}' was not rewritten because {broken[self._table_id(dm)]} of its table's figures lost their source, and the table would mix old and new numbers"
+                    plan.blocked.append(why)
+                    plan.skipped.append(why)
+                    continue
                 shown = self._display_value(t, new)
                 new_text = format_like(dm.number, shown, t.transform)
                 ok, _ = consistent_with_source(_reparse(new_text), shown)
@@ -994,6 +1003,19 @@ class Project:
                 data, _report = deck.serialize()
                 plan.files[deck_rel] = data
         return plan
+
+    @staticmethod
+    def _table_id(dm: DocMention) -> tuple:
+        return (dm.slide_uid or f"#{dm.slide}", dm.shape_id, dm.table)
+
+    def _tables_with_a_lost_source(self, deck, dms: dict[tuple, DocMention], lost: list[Tie]) -> dict[tuple, int]:
+        """Tables of one document in which at least one figure has lost its source cell, with how many."""
+        out: dict[tuple, int] = {}
+        for t in lost:
+            dm = dms.get(self._tkey(t))
+            if dm is not None and dm.cell is not None:
+                out[self._table_id(dm)] = out.get(self._table_id(dm), 0) + 1
+        return out
 
     def impact(self) -> Inbox:
         """What the latest source changes touch, grouped by source cell and sorted by consequence (largest relative change first).
