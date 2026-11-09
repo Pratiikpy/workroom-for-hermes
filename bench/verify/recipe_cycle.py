@@ -27,7 +27,8 @@ DOTTED = re.compile(r"(?<![\d.])\d+(?:\.\d+)+(?![\d.])")
 
 
 def norm(text: str) -> str:
-    return re.sub(r"[^a-z]+", " ", re.sub(r"\(.*?\)", "", text.lower())).strip()
+    """A heading as a key: footnote marks and punctuation dropped, digits kept, so "Balance at 30 June 2025" and "... 2024" stay different rows."""
+    return re.sub(r"[^a-z0-9]+", " ", re.sub(r"\(.*?\)", "", text.lower())).strip()
 
 
 def figures(docx: Path) -> dict[tuple, str]:

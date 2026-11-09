@@ -111,6 +111,9 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
             plan.not_rolled.append(f"{where}: the chart point '{t.raw}' belongs to a chart with a fixed set of periods; change the chart's periods in PowerPoint")
             unrolled_paras.add((t.deck, t.slide, t.shape_id, t.para, t.cell_rc))
             continue
+        if t.kind == "text" and window and t.intent_labels and intent(t) is None:
+            plan.kept.append(f"{where}: '{t.raw}' has no single period in the headings it was linked under (or none), so a window refresh cannot move it and leaves it as written")
+            continue
         if t.kind == "text" and window and not t.intent_labels:
             plan.kept.append(f"{where}: '{t.raw}' was linked here by its value, not inherited from the model report, so a window refresh leaves it as written")
             continue
