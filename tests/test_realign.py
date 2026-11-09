@@ -41,3 +41,17 @@ def test_a_figure_a_person_retyped_stays_held_and_the_others_still_follow(tmp_pa
     assert _release(proj, 14_000_000, 16_000_000) == [("$15.1 million", "$16.0 million")]
     assert next(t for t in proj.ties() if t.id == held.id).state == "held"
     assert next(t for t in proj.ties() if t.raw == "$16.0 million").state == "accepted"
+
+
+def test_a_change_written_with_an_explicit_plus_keeps_its_link(tmp_path: Path) -> None:
+    from workroom.tests.test_calculations import SENTENCE
+
+    proj = _project(tmp_path, [SENTENCE])
+    proj.accept_calculation(proj.calculations().candidates[0].id)
+    derived = next(t for t in proj.ties() if t.kind == "derived")
+    _sources(proj.root, 14_000_000, 15_500_000, q1=13_000_000)
+    plan = proj.plan_refresh()
+    for name, data in plan.files.items():
+        (proj.root / name).write_bytes(data)
+    proj.commit_snapshot(plan)
+    assert next(t for t in proj.ties() if t.id == derived.id).state == "accepted"

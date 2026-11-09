@@ -1051,6 +1051,7 @@ class Project:
                     raws.add(format_like(probe[0], self._display_value(t, new), t.transform))
                 except (ValueError, KeyError):
                     pass
+            raws |= {r.lstrip("+") for r in raws}  # a plus written outside the number is not part of the mention
             expected = t.offset + shift.get(t.seg, 0)
             choices = [(abs(d.offset - expected) if d.seg == t.seg else 10**6 + abs(d.seg - t.seg), i) for i, d in enumerate(mentions) if i not in taken and d.number.raw in raws]
             if not choices:
