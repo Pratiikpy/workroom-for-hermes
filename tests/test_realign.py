@@ -55,3 +55,32 @@ def test_a_change_written_with_an_explicit_plus_keeps_its_link(tmp_path: Path) -
         (proj.root / name).write_bytes(data)
     proj.commit_snapshot(plan)
     assert next(t for t in proj.ties() if t.id == derived.id).state == "accepted"
+
+
+def test_four_approvals_of_one_release_at_once_publish_it_exactly_once(tmp_path: Path) -> None:
+    import threading
+
+    from workroom.workroom_core.service import Service, ServiceError
+
+    (tmp_path / "p").mkdir()
+    proj = _project(tmp_path / "p", ["Net revenue reached $15.1 million in Q3 2026 with 7 offices open."])
+    state = tmp_path / "state"
+    svc = Service(state)
+    pid = svc.add_project(str(proj.root))["project"]
+    svc.discover(pid)
+    _sources(proj.root, 14_000_000, 16_000_000)
+    staged = svc.stage(pid)
+    outcome: list[str] = []
+
+    def approve() -> None:
+        try:
+            Service(state).approve_and_publish(pid, staged["release_id"], staged["digest"])
+            outcome.append("published")
+        except (ServiceError, Exception) as exc:  # noqa: BLE001
+            outcome.append(type(exc).__name__)
+
+    threads = [threading.Thread(target=approve) for _ in range(4)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert outcome.count("published") == 1
+    assert all(o in ("published", "ServiceError", "ReleaseError") for o in outcome), outcome

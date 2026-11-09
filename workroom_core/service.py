@@ -1138,7 +1138,10 @@ class Service:
             ctl.record_approval(release_id, ap)
         except ApprovalError as exc:
             raise ServiceError(f"approval refused: {exc}") from exc
-        staged = {c.rel_path: (ctl._staging(release_id) / c.rel_path).read_bytes() for c in ctl._changes(release_id)}
+        try:
+            staged = {c.rel_path: (ctl._staging(release_id) / c.rel_path).read_bytes() for c in ctl._changes(release_id)}
+        except FileNotFoundError as exc:  # another approval of this same release got there first and cleared its staging
+            raise ServiceError("this release is already published or is being published by another approval; check Past releases") from exc
         try:
             ctl.publish(release_id)
         except PermissionError as exc:
