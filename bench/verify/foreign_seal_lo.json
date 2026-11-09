@@ -1,0 +1,2952 @@
+{
+ "rule": "last hex digit of the SHA-1 is 8 to f -> sealed, otherwise dev",
+ "source": "the corpus folder given at commit 47afde1 (cloned 2026-11-09)",
+ "files": [
+  {
+   "file": "chart2/qa/extras/data/pptx/1904NullDate.pptx",
+   "sha1": "ca145b596934aa4c157a0b6172aa657ca11c6924",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/bnc864396.pptx",
+   "sha1": "5bb4502437e3d4531751b0611bcd8ecf953670b6",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/bnc882383.pptx",
+   "sha1": "a49c16e8ec63f825ca0845df7d5e6e651ff45f66",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/bnc889755.pptx",
+   "sha1": "bb3c8aa7df0426226a92e062062097a4aee43275",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/chart.pptx",
+   "sha1": "a2328a464b7c012a03d476c04b4fa7bb0271f4c7",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/CustomDataLabel_tdf115107.pptx",
+   "sha1": "28bac84e90be48fc1ffbbb0da76161a9792ed740",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/embedded-chart-data-bins.pptx",
+   "sha1": "1c9e93a631d6d2ee58e55f7b4a3ef2dcacdc6758",
+   "set": "sealed"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/embedded-chart-data.pptx",
+   "sha1": "cc02f56af1cbea9ba32456771a99ae0adc801bcb",
+   "set": "sealed"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/funnel-pp1.pptx",
+   "sha1": "a1bec7157423cd0ebbbf75fcf8e8af5fedd2fbba",
+   "set": "sealed"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/percentage-number-formats.pptx",
+   "sha1": "343b7b289a76be6046ce644c5046b1ca145f6520",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/PieChartWithAutomaticLayout_SizeAndPosition.pptx",
+   "sha1": "04737822f5f473e081bab2ae9b334badfeffc266",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/sparse-chart.pptx",
+   "sha1": "5d35e7e6881fdf5ade885fba55f015b1902d08b9",
+   "set": "sealed"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/stacked-bar-chart-hidden-series.pptx",
+   "sha1": "13d7035ac7ab16325bfb473581c640a9faaccfd9",
+   "set": "sealed"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/stacked-non-stacked-mix-y-axis.pptx",
+   "sha1": "4fa066d6e7b6f3fdabd0df8f841e8dc9b3fcf229",
+   "set": "sealed"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf105517.pptx",
+   "sha1": "f77b81f28d605155404fa96f06e81e1e0891d205",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf106217.pptx",
+   "sha1": "45cfad770c897c8e73a240e9701b05f979ee5d81",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf115107-2.pptx",
+   "sha1": "4431257b246083f94b2f6cbdc8a6a5605ab2c291",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf115859.pptx",
+   "sha1": "2e341038756c9f9fa4e12f91851ac85bedcb5657",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf116163.pptx",
+   "sha1": "9cc273b912295843de5ef3c2a4ca1229af261343",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf121205.pptx",
+   "sha1": "a2924b7af29b1f4950e8d62d1e900d2d8d5104e1",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf122765.pptx",
+   "sha1": "87f60c055a884b3f7c47a5a2f1dbedc486c9b22b",
+   "set": "sealed"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf125444.pptx",
+   "sha1": "b3ade549184be7ff8feac2506e2cae2efbabe916",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf127393.pptx",
+   "sha1": "66a6dfa466a824601472b5352194793260fadff7",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf127720.pptx",
+   "sha1": "fd20dd69669394c7a0a8c5cab506b06630ae5bae",
+   "set": "sealed"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf127811.pptx",
+   "sha1": "4c52197f28213bf811d8d2043ae59b19aff80381",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf128345_ChartArea_CG_TS.pptx",
+   "sha1": "e22848acde9df68790aa1852d7842f3a158a922b",
+   "set": "sealed"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf128345_ChartWall_CS_TG.pptx",
+   "sha1": "5c0d428d13ac2d9c9a41a2317419bc2b3bc55441",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf128345_Legend_CS_TG_axial.pptx",
+   "sha1": "aa04059634cb1affaa7525a26342f598fde38505",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf135366_CustomLabelText.pptx",
+   "sha1": "9701d8da9cc51d10f4a1856506c70590c2096be3",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf136754.pptx",
+   "sha1": "3d5033322ffb019d653ec123aa614fc96c3e9779",
+   "set": "sealed"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf137691_dataTable.pptx",
+   "sha1": "76af81c55c6004b3b2959434ec38c5ce7069919c",
+   "set": "sealed"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf146487.pptx",
+   "sha1": "2cb44991069132d6ddad4a6afee6065d274fe853",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf146756_bestFit.pptx",
+   "sha1": "72ceae157519e05d7677519a6cfd98614a466158",
+   "set": "sealed"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf148117.pptx",
+   "sha1": "e91ed07b4fb72263343a9a45aa7f3f89d825ed6e",
+   "set": "sealed"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf150176.pptx",
+   "sha1": "4491fe6ffad624a76a711d8f1fc6aa24a1cda683",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf48041.pptx",
+   "sha1": "274d796e1f53f59115488265da3a7091ca82c063",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/tdf60316.pptx",
+   "sha1": "8f2771518a31a15ed4e3c0b4fd2120bcb87df819",
+   "set": "sealed"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/testChartTitlePropertiesBitmapFill.pptx",
+   "sha1": "f2ddbfbf7cb48f00f3de7ee465090cb820c3b5c9",
+   "set": "sealed"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/testChartTitlePropertiesColorFill.pptx",
+   "sha1": "5c0d70d8cfcd99fda29bb18a98da153370cf9e07",
+   "set": "dev"
+  },
+  {
+   "file": "chart2/qa/extras/data/pptx/testChartTitlePropertiesGradientFill.pptx",
+   "sha1": "c194e8f1afbf64da8d62a0091086ebc4aae95d1c",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/camera-rotation-revolution-nonwps.pptx",
+   "sha1": "cc958ff85e7530f604abbc6444ae28027de969a5",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/camera-rotation-revolution.docx",
+   "sha1": "cfe62417c339e3234d7c32bf0ce5a8326bc807b5",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/chart-data-label-char-color.docx",
+   "sha1": "a4796c1b58b8d439cb8a0932f57dc450c98a4818",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/chart-theme-override.pptx",
+   "sha1": "d0e83cea64d69fdb8a983b510fe40218517432aa",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/connectorConnection.pptx",
+   "sha1": "11be17624ba81290b6ed4ec90728b885dcb76fce",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/cool15967_BasicProcess_ConnectorText.pptx",
+   "sha1": "ca140b01fd9e07edda67d0b0a27780c6b1e4d71d",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/cool16121_VerticalProcess.pptx",
+   "sha1": "624cd05de434cdf23726213f3c26cea8fe0588d1",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/curvedConnectors.pptx",
+   "sha1": "834adfeba8d24abcf38d0c4e79867b9e2afc382c",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/customshape-position.docx",
+   "sha1": "44cd048fb31436d69fac750654d1494860c980b6",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/dml-groupshape-polygon.docx",
+   "sha1": "329a8714466b6498f7b8f13b2139e32ba8f651e4",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/elbowConnectors.pptx",
+   "sha1": "a5c5b70d605a7e223252aded986062efee56710e",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/endParaRPr-newline-textsize.pptx",
+   "sha1": "ff1024a39fa10c2a7fc9f59326e23b2af5ba7c5e",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/gradient-multistep-transparency.pptx",
+   "sha1": "a97ba185beebbb0686b87a7acbd0a3ede59490a0",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/graphic-stroke.pptx",
+   "sha1": "477eadc7c56f21d9280055d6b8c714d434e8b6d4",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/group-spt202.docx",
+   "sha1": "a37af325851f416cee94ba1199afac75a089ea3a",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/import-characters.pptx",
+   "sha1": "f5e7659269f7e8af767aeb2db9a63c15eaed051c",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/import-mce.pptx",
+   "sha1": "e96ed6498a56f410097657b512fcc303ce2433aa",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/line-vertical-rotation.docx",
+   "sha1": "4fead76cdc04e6f103aa231bdff3bb7e9aaf91e8",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/multiple-group-shapes.docx",
+   "sha1": "8bb60d6f1edff4ec4f9b0cbed831562f89c491c5",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/outliner-list-style.pptx",
+   "sha1": "603b0f39885cf90bef5ec2b8bbb4de2a23a6c75f",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/preset-adjust-value.pptx",
+   "sha1": "c7775990a96ee9386c5ecd86406e7f1bb27e0e37",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/refer-to-theme.pptx",
+   "sha1": "8cd895c02e4e74d44f5f944d5153de419d0a0376",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/reflection.pptx",
+   "sha1": "780ef3e1c5534a05418c60bd316c96e5e1a88113",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/Scene3d_cropped_image.pptx",
+   "sha1": "c389af9237057ffe80d1017f5978da68bb8425a2",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/Scene3d_isometricRightUp.pptx",
+   "sha1": "8a3b411c786b6729dc93dcaf0a5f0bf7e0c88bd6",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/Scene3d_legacyObliqueBottomRight.pptx",
+   "sha1": "4d1624676e6bcc14e58c34b06bc5fbc9377111e2",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/Scene3d_legacyPerspectiveTopRight.pptx",
+   "sha1": "c3f450b271e2d529437400d94996acd204abd44b",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/Scene3d_lightRig_default.pptx",
+   "sha1": "77482853030c7a5738577b2e32e4754b0e5c5d5e",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/Scene3d_lightRig_dir_rotation.pptx",
+   "sha1": "b2556620572be4f152232c473c52903fd4000c65",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/Scene3d_lightRig_legacyCamera.pptx",
+   "sha1": "0feaee3a876bae38ba0a1b55780f1baed93c8298",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/Scene3d_lightRig_modernCamera.pptx",
+   "sha1": "0451df200c8ce68e5312593b6c12e3ddbe7c0427",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/Scene3d_lightRig_rot_rotation.pptx",
+   "sha1": "1099d1a6dcfad2e682411dfa1558105558588300",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/Scene3d_material_highlight.pptx",
+   "sha1": "adc953380fa2983725f74bcfacd793f0c56bca52",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/Scene3d_material_wireframe.pptx",
+   "sha1": "96911953ca4e239be724000709eb797de15f95f6",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/Scene3d_obliqueTopRight.pptx",
+   "sha1": "96566992e8ad212a41bca1b5a757387d5dc46c93",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/Scene3d_orthographicFront.pptx",
+   "sha1": "786100a924d45ef1d90e100dd6ce5bb470d1a07f",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/Scene3d_perspectiveContrastingLeft.pptx",
+   "sha1": "3466eef1488d9a1075ba7db2c80dad0d7c287d3f",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/Scene3d_pureImage.pptx",
+   "sha1": "554297de7836e0757b56459a44b7c7ad4cbc02a2",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/Scene3d_shape_rotation.pptx",
+   "sha1": "0243ae28df197cf2905cea48377668bf2e5c4675",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/shape-non-autosize-with-text.docx",
+   "sha1": "4af72c2f54182e60521e985e9176bf885febfcd2",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/shape-text-adjust-left.pptx",
+   "sha1": "c3422830a788afd796c566698d5c5e8ceca1d473",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/shape-text-alignment.pptx",
+   "sha1": "792221bf2cacc569a86b27c240213ca6a0f5bf24",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/smartart-groupshape.pptx",
+   "sha1": "da0c4e2809dcc8bb8719e4d83233570ed8eb8f55",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/table-shadow.pptx",
+   "sha1": "f7ec5012be1429f30652ff60b00f26b9cf11f726",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf112450_vml_polyline.docx",
+   "sha1": "088cd950e1d39f9b263d666b4ed32128cba2fadb",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf113187_arcTo_withoutReferences.pptx",
+   "sha1": "977f28fd72b9bc85c843d83969a0d89a82edf2e6",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf125085_WordArtFontText.pptx",
+   "sha1": "8f037ae96495d7d839d5c5b500eec55df6d7b35d",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf125085_WordArtFontTheme.pptx",
+   "sha1": "1d77b5b10053d96d1f20716ce62ad9e3f03d3ab1",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf125582_TextOnCircle.pptx",
+   "sha1": "453d78b97dfe2e5d26ac537e9c9c4ad6d08dec2a",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf125885_WordArt.docx",
+   "sha1": "79fc542bcfb5464cb5cd1c89b2666009f5a090e7",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf125885_WordArt2.docx",
+   "sha1": "03e350bc2c788e898b37c7f6a8b04acbbc59527b",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf125885_WordArt3.docx",
+   "sha1": "6b9d2b7636119464c592b0cf6607a8c4275287bb",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf131082.pptx",
+   "sha1": "44d329e8bf2d4bcdd602a2e0cead363304913464",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf137314_vml_rotation_unit_fd.docx",
+   "sha1": "6e333da8e4cbdbe9c5d47b6eeb5502c8be3999b6",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf139425_pathWithoutGuideReferences.pptx",
+   "sha1": "f0d6958e4fcbc6572fd87fc7850fe499ea20ce9c",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf139618_ImportWordArtGradient.pptx",
+   "sha1": "60a70ca89476cc9358f001f7ca0f15351d8ac0e3",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf139618_ThemeColorTransparency.pptx",
+   "sha1": "f019f5a1e54b2f9dc8ffc2a3ad89329f37f73677",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf139618_WordArtBitmapFill.pptx",
+   "sha1": "988de6f245a20933a838ba07df25c9d974be1180",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf141463_GroupTransform.pptx",
+   "sha1": "b44e126d418234a865de412b7ba269b0691a3578",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf144742_funnel.pptx",
+   "sha1": "2653826859b8c8c29ddcdfd85e2ac47fa6948d47",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf144742_mathEqual_mathNotEqual.pptx",
+   "sha1": "4c5739545f0a3ec241baf800f20a9dcbcff55587",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf147978_enhancedPath_subpath.pptx",
+   "sha1": "97ec0f9dbcfdf7e049557611294d439d0b377b87",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf149538_upright.pptx",
+   "sha1": "2458bc9a6e735c0238c16b533fc42cef1a13b62e",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf149551_TextRot.pptx",
+   "sha1": "a57671d326f3ca3078445dea3d72fc3dc30dfcc0",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf149551_vert270AndTextRot.pptx",
+   "sha1": "ae446285ab6a8459ef0568a1aaac47908a0d83b7",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf149551_vert_and_padding.pptx",
+   "sha1": "0d6b32842c39ced37dc1dd75e083cfd1a6cb8e7d",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf149918_pie_textarea.pptx",
+   "sha1": "350a9aa636b4e4f939d7bf3198b6beebcd693085",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf151008_eaVertAnchor.pptx",
+   "sha1": "d78fe6a9778efcdbc6c01957559479d2ffddc6d2",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf151518_SmartArtTextLocation.docx",
+   "sha1": "0e39c429e23398d0569d368b13fcf0a937b5ccc7",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf152840_theme_color_non_accent.docx",
+   "sha1": "e4c74ba37e0d7bf72087de4f26918e41023a7c0c",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf152840_WordArt_non_accent_color.docx",
+   "sha1": "7d88250e714c42df0667222bffbc184d62707482",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf152896_WordArt_color_darken.docx",
+   "sha1": "f65a6db7092a91de8ce0b24b6804975d1c8ce0a1",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf153258_VML_import_WordArt_detection.docx",
+   "sha1": "bfb64a055cef376d6fc6d20c5eaed19269e684a8",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf154074_freeConnector.pptx",
+   "sha1": "e349cca98c1772d556fe40f88ebea114762699fd",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf155327_WordArtDefaultColor.pptx",
+   "sha1": "c44335f024e0102376afc9286524d41928fa4ca6",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf155412_typeface.pptx",
+   "sha1": "68a6df22753684d4fbc95ff68f7454e80f44f15c",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf156902_GlowOnGroup.docx",
+   "sha1": "2b653dd66e9e7ce1ad66f13ece9af2d60826e6c2",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf163803_image_with_fill.pptx",
+   "sha1": "b4d42ef05aa58dc9b46e22b54a78ff15273c375e",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf164623.pptx",
+   "sha1": "e4d4ab88402e4d3c7a9b0789485b55c01cd5d4dc",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf170095.pptx",
+   "sha1": "bffb07a782999864451c6c8035ffdd6afc70f0ed",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tdf54095_SmartArtThemeTextColor.docx",
+   "sha1": "7b4e160e4b083f23baaff548a142b4a85e778a65",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/testTdf132557_footerCustomShapes.pptx",
+   "sha1": "543644206d03485a3231b16232e902b8311662bf",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/testTdf157019_objPlaceholderCustomShape.pptx",
+   "sha1": "4d3876e11d0f2b6e8443fbb1644b424110a42c5e",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/theme-tint.pptx",
+   "sha1": "c81ebef4ccc3d04261479311091077c7f2984da1",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/theme.pptx",
+   "sha1": "a42dbf59b6a343ab36c8e84a14b14e3246658300",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/ThemeShapesReference.pptx",
+   "sha1": "d5b24628d54cb63090481738d7017bdd73811d9d",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/tif-crop.docx",
+   "sha1": "1a6718ac5d0e202e38e16dd04376f2cac936858a",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/toplevel-line-hori-offset.docx",
+   "sha1": "754d717fabd890c1715707abe807e5cd62f61f2d",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/transparent-text.pptx",
+   "sha1": "1ac62a2b90693c2628d83b655ebad92a6bc055a6",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/underline-fill-colors.pptx",
+   "sha1": "cf9a77dfd880303b30ed2ec4eb5ed8d3bf5aa02d",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/underline-inherited-follow-text.pptx",
+   "sha1": "a4d68dccf8bbd7da3684da0000d12716972d03c7",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/watermark.docx",
+   "sha1": "919e16f1bd64a0a024276607b23a8e70527e4d78",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/WPC_BentConnector.docx",
+   "sha1": "1192dd1e4b387eab5b4f350f9a2dd44a663aadff",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/WPC_CanvasBackground.docx",
+   "sha1": "b7b0f7b2cc3bb9708b093d5da35240ee4b39f82a",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/WPC_CurvedConnector2.docx",
+   "sha1": "90930c29b47c86163891547e167c5f5743c3c899",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/WPC_CurvedConnector5.docx",
+   "sha1": "b8414a93d21c2e0ec2d425ca6b6d2a2a3b9d55f8",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/WPC_Glow.docx",
+   "sha1": "c5812126a305d6601facba8b6d007460bde6d3dd",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/WPC_MulticolorGradient.docx",
+   "sha1": "55f590caa77d597b4933572b20211fe67877b078",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/WPC_Shadow.docx",
+   "sha1": "fce7aa4e69f3cb2f27c4d2fe9d1f9839a227d6ed",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/WPC_tdf104671_Cloud.docx",
+   "sha1": "ce18519dfd100ffb6a257c7c7d28cf503a158040",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/WPC_tdf158339_shape_text_in_group.docx",
+   "sha1": "a9d587725630b015f699e623003496b85dd62825",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/WPC_tdf158348_shape_text_in_table_cell.docx",
+   "sha1": "7eeaaa2e34f3a0847547a20abcc4731aa9dc36b8",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/WPC_tdf48610_Textbox_with_table_inside.docx",
+   "sha1": "d1ddfd56507e8c83ec2ea9342ca191cb85f3324f",
+   "set": "sealed"
+  },
+  {
+   "file": "oox/qa/unit/data/WPC_Textwrap_in_ellipse.docx",
+   "sha1": "fff69ee6a002f772b9ac33466f9ecb48c0d65526",
+   "set": "dev"
+  },
+  {
+   "file": "oox/qa/unit/data/WPC_ThemeColor.docx",
+   "sha1": "de2efc34d9a88d2a9e5bf4e9946530f73f4e02c0",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/BoldonseFontEmbedded.pptx",
+   "sha1": "6a1c50076cba24f10a6f1e84e6bfda91a6b26cf5",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/fdo47434.pptx",
+   "sha1": "e2bdb1dff8572dc85965627bb1e7f5f0107ec9e5",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/fdo71434.pptx",
+   "sha1": "f944b8b1e2168c619b7e20a1006c567aa77f1fc1",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/fdo90607.pptx",
+   "sha1": "b86b933bba4e6409ff8fac80992f91dcea2579b1",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/n593612.pptx",
+   "sha1": "fc7711b558f8b8b32c25336b55caa1415c7020c8",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/n759180.pptx",
+   "sha1": "1daf8a32d87c8a2ae08cc8dcdd8d4c2265c5765b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/n762695.pptx",
+   "sha1": "f7a18ed359d5979f137898a3de3b7a0bf3f4c019",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/n819614.pptx",
+   "sha1": "a3ea853b4d481e05653d61bcbdeec1e462aa2cf2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/n820786.pptx",
+   "sha1": "d9721cdc014eb2117e10cd99d02c889ddc8ceed4",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/n902652.pptx",
+   "sha1": "f60f17b6509bd3c3d81e3739efe283ceef77d3c6",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/3columns.pptx",
+   "sha1": "6cf31201a2c0a41829e2d834fb82a4d8f56b8449",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/accent-color.pptx",
+   "sha1": "bf5b0c04cb8d17fbed673517167b53dfe2cd0189",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/activex_checkbox.pptx",
+   "sha1": "7e153e0bf85e9c979bcf00547847177e8b78f7a2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/activex_combobox.pptx",
+   "sha1": "52d8545040c90f30e4d99fb3a2644216c4dde88a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/activex_commandbutton.pptx",
+   "sha1": "dfc68dbb02be0b8ca6c1972556a14e9f3356cb15",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/activex_fontproperties.pptx",
+   "sha1": "d90bb7061967aa4de5e1a5fadc4b397ab476396b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/activex_label.pptx",
+   "sha1": "9afa22fa25ad6faae0006b48f2060b7bf9b0276f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/activex_listbox.pptx",
+   "sha1": "598e9f99dbe824a6a4fb300e2ad5cbb6d2fa278f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/activex_optionbutton.pptx",
+   "sha1": "43f6885aa148a91b64882a07371fbd74f4f6bce1",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/activex_picture.pptx",
+   "sha1": "26f94a22f51a708df1f78e815e423d4feb6544e1",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/activex_scrollbar.pptx",
+   "sha1": "53a75cbeb1e0d31d3bff464557245f56bec11f31",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/activex_spinbutton.pptx",
+   "sha1": "847aff4f6fbd5e5d205a22886425939529d3f0b5",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/activex_textbox.pptx",
+   "sha1": "29bfb5be5dece8a1f57e972ebb288140a9195051",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/activex_togglebutton.pptx",
+   "sha1": "75a48b790277ee6b709992ec70290f85e888321f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/airplane-transition.pptx",
+   "sha1": "0f0367b23ffe9fbba382e7e57c365e8ded5cb29b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/altdescription.pptx",
+   "sha1": "bb736796aed56de6a2e21281d3c27b85ee675722",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/animation-sound-embedded.pptx",
+   "sha1": "28dfe7d2004b09d90b532e254beadba2748896b9",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/animation-sound-external.pptx",
+   "sha1": "3d8bae2c00940fa3890fab551f58bf0db01e1c5b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/arc-validiert.pptx",
+   "sha1": "772a7e2c5447fe8f83951e0b71c403bee7765d38",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/Bar_List.pptx",
+   "sha1": "b388d66911b551f7e52f611ebc17f76255d9aa7a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bnc480256-2.pptx",
+   "sha1": "9117ec9e7cdca2e26d761205f8eab33a7993242f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bnc480256.pptx",
+   "sha1": "5d7c7f6a8ceb785888b4d6620d6a42394a287dc6",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bnc584721_1_2.pptx",
+   "sha1": "7733f3efded62d3673fc2b61daec2614c3b19b05",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bnc584721_4.pptx",
+   "sha1": "fb916bbc405a5e27770222bc2ae3919b0f1db90e",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bnc591147.pptx",
+   "sha1": "d5b5c564d46d7e038b022cde73a79b8fcaaf3d08",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bnc862510_5.pptx",
+   "sha1": "af1696914b0abd6db35634083ac154d57bdc7f86",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bnc862510_6.pptx",
+   "sha1": "00db2b9d30f24ba4c0ae39b617db0b7b36c3a6da",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bnc862510_7.pptx",
+   "sha1": "c484be6099b8ddf7aa527d4d13f0f80f92e276fd",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bnc870233_1.pptx",
+   "sha1": "321a0a4d7b4b623aae2419c6715cdea28f8f899e",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bnc870233_2.pptx",
+   "sha1": "2b44a678de20ac86777e395c6d59da3288d36ac6",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bnc870237.pptx",
+   "sha1": "3466634eed267c1a7854f15cf284b38de616d83d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bnc880763.pptx",
+   "sha1": "b0ea1e7a1d924095457796a0aa2a6172bb121363",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bnc887225.pptx",
+   "sha1": "c6878e8dfb1b5c0872399dc5389e00292bd9810e",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bnc887230.pptx",
+   "sha1": "ab33dda73d202442df663b4e8608a2d6a63c64eb",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bnc904423.pptx",
+   "sha1": "d3dfa854d4c39baace87a428744e860f549d9c9a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bnc910045.pptx",
+   "sha1": "91935e79e53daabc670973654e86e5f00cdb0117",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bullet-indent.pptx",
+   "sha1": "59e27bc77adef497be985eed16ae875b68009abf",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/Bullet_Timeline_one_Event.pptx",
+   "sha1": "a01df339373ca942059f721139c9dcbc94b1ad5f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bulletColor.pptx",
+   "sha1": "2c6ef084c0852286efdc4e39e86d46a9fdd42846",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/bulletMarginAndIndent.pptx",
+   "sha1": "814c0b162f4f88e1a89c51f1e057dadbc3fbec44",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/chart_pt_color_bg1.pptx",
+   "sha1": "b2621797f8661df8e2a62232c2367fe64a461f83",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/connector-shape-animations.pptx",
+   "sha1": "3d6750e9cc15b86d24383974a8242a9b64fa6dfd",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/connectors.pptx",
+   "sha1": "7b2760581f6c5867941588bb593d862fa1d0b810",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/content-placeholder-cases.pptx",
+   "sha1": "ca8b3138d7895ab90ffc281c800672f39dc704e7",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/control_background_color.pptx",
+   "sha1": "385a59f88808944fcc444a4fca195ae0c062b09b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/crop-position.pptx",
+   "sha1": "ce63a6436c49bceb89b78ae7096ba66e855f2070",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/crop-to-shape.pptx",
+   "sha1": "7a31e8a88cb53bf7de7a849571c8eb4039cd7d69",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/croppedTo0.pptx",
+   "sha1": "15b87dd1a00f6748dfa8f02d9e190701af778272",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/cshapes.pptx",
+   "sha1": "9dc324ea1c8f48736b3b4177328e25a5288a08df",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/custgeom-nofill-path.pptx",
+   "sha1": "8f84466cb1e768f6b9494cf43f7d089aac142e28",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/custgeom-overlapping-contours.pptx",
+   "sha1": "1445eefefe3acdc135dfd74e77606e8d6f1dbe03",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/custgeom-placeholder.pptx",
+   "sha1": "d23cca4919678123b4aad6ea54c42bf56d9c75cb",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/customshape-bitmapfill-srcrect.pptx",
+   "sha1": "35b165a2a0045542a8725003c457286ebaf3152d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/customxml.pptx",
+   "sha1": "d97c52500f204c3d095987cea6245d91b7eba5a7",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/effectOrder.pptx",
+   "sha1": "d32782fc9088935ada0195c60845faa49c7cd84d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/empty-title-placeholder.pptx",
+   "sha1": "67af72bde73184848f987793547d854a9a0570dc",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/fail/ofz35597-1.pptx",
+   "sha1": "783ee80740f26a5c166723f1257fbb8759a14fa8",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/fail/ofz46160-1.pptx",
+   "sha1": "533ac6d77c1e6f8e88000fab60dc0b851289622a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/fdo83751.pptx",
+   "sha1": "f9a851b36099ae3b1eb7a3b2d9108d792ce53442",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/fill-color-list.pptx",
+   "sha1": "b042bfbe290a2462028a20984c22bf34aaa013c1",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/font-scale.pptx",
+   "sha1": "2a30ee2f819d98a7fa5a90b25ccc7f3b04250af5",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/formatting-bullet-indent.pptx",
+   "sha1": "dcb46d01bd87a1a1858717892cee51c11404f017",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/forum-mso-de-138303.pptx",
+   "sha1": "148b4449522b47d23bfd69167b145bc32a5d61c7",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/glue_point_leaving_directions.pptx",
+   "sha1": "f414e379db05b0e7cdf35d25eeb37ccf89700a0c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/greysscale-graphic.pptx",
+   "sha1": "215ab7d18a200ac7c4fca6f439d07c748dfc3506",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/group-connector-descr.pptx",
+   "sha1": "6268684f035b0313d206159a8db7700a1eba0469",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/group-rot.pptx",
+   "sha1": "81db8de4874c2b9ec5b2f96cd9f804873143f07b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/group-shadow.pptx",
+   "sha1": "ea6b67b81a84765d21aec64c2bf13c57a85f355c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/group.pptx",
+   "sha1": "aa5bed95706da9423b243fe0852395c123e4208c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/hidden_group_shape.pptx",
+   "sha1": "82ffed59ab6b08bbad877e5f0fb2bcc1a7fc62a0",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/Horizontal_Organization_Chart.pptx",
+   "sha1": "32f8512f34b7865fc5e79936dc369eebb144178b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/hyperlinkOnImage.pptx",
+   "sha1": "a1a0e2532c80a052e168a0c443a4fc970c4dd031",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/hyperlinktest.pptx",
+   "sha1": "4749faaa7a3901ddda4d0716362c4e8629973052",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/layout-clrmap-override.pptx",
+   "sha1": "8a337ff1c6974e23abcdce5042c0fd0d5aa4502b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/layout-own-background.pptx",
+   "sha1": "46d8a7c5c809ffa6abab276681d5d0aefe40e191",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/lineStyle.pptx",
+   "sha1": "cc7af21b5770a7efc87b64912727ca129cd12e31",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/loopNoPause.pptx",
+   "sha1": "fbd107a1150f76544385fa7e67489bca238c0d9e",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/master-and-eleven-layouts.pptx",
+   "sha1": "4e49fd4900acf92cd8c2a34e5665bb6b05389dbe",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/master-bg-color.pptx",
+   "sha1": "e0637781355b52f7b8b0bb614f5e2ab68a9052b4",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/master-slides.pptx",
+   "sha1": "3940c2f8c68b4a1f5c9aa7150b2d7043b04e064d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/media-placeholder.pptx",
+   "sha1": "e14cea73be42922d08c17e80d030bc59aed02cb2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/mirrored-graphic.pptx",
+   "sha1": "d4f214683615c3cdc7155cd67754479dedaef66a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/multicol.pptx",
+   "sha1": "68e164b202023f90cfeb5ccf00fdf5675027564b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/multiplelayoutfooter.pptx",
+   "sha1": "10988e752464abe3febc146c3c6804437600d4be",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/n778859.pptx",
+   "sha1": "2dda4c24248f2366a9c2bb6c87a3d585c51ab606",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/n80340.pptx",
+   "sha1": "1f915375018aef52dfc30fd1ccdc473a2c312aa3",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/n821567.pptx",
+   "sha1": "75aaca9eb897b078deb995d516a63f6580a11436",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/n828390.pptx",
+   "sha1": "ecb3faea0f5c129704dd6e77d5a62d7229288892",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/n828390_2.pptx",
+   "sha1": "76bbb453200833979ee4fdcf47d4463b11d02e44",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/n828390_3.pptx",
+   "sha1": "33a85b953065d603b27b3cb0b505cd1b8ffe160d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/n83889.pptx",
+   "sha1": "9b4350d43fe8144dde5f73c8c4b8a66c82222a5c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/n862510_1.pptx",
+   "sha1": "bdd4400eb9001087ab84910b5158c59d1ef89de0",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/n862510_2.pptx",
+   "sha1": "fe1601714bcc626b98db0c72ecc894573fe0853f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/n862510_4.pptx",
+   "sha1": "5e17f460ba18da320a7f0c23a88611d08d7af532",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/n90190.pptx",
+   "sha1": "066e95570bb9f36688a18a23c4c07adfe6f0ade8",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/n90223.pptx",
+   "sha1": "dec02fa4b00a9e51d7a72d962ff3bca14617d27b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/n90223RT.pptx",
+   "sha1": "435116795f457ba3ff7123b7fbfa3a9a4d033571",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/n90255.pptx",
+   "sha1": "dd829fe35bd1144e8bc85bb133387d871942e590",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/narration-non-media-shape.pptx",
+   "sha1": "967397a585c153b1b8768fdaf00931f6825542f0",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/narration.pptx",
+   "sha1": "df35e6689d6e97c66aeb56630ba6eb015bb6c4df",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/narrow-placeholder-no-wrap.pptx",
+   "sha1": "0d5ddba0645f04b6e431becc278071860a36c274",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/NumberedList-12ab-ab-34.pptx",
+   "sha1": "e75dfc9c36c9e2d36571aeee42079434ce6ed121",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/numfmt.pptx",
+   "sha1": "209619dc6b973cba02fd813b5364ad292b190d2c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/ole-emf_min.pptx",
+   "sha1": "92f7689a86769f44f7ba84cec0c9a8ecd8534d0d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/ole.pptx",
+   "sha1": "2ba450522bf273d32380cb52c5c8d18dd8e2d16d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/onemaster-twolayouts.pptx",
+   "sha1": "9ab784ee7db4add12922081ea1495d88c081cd3d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/ooxtheme.pptx",
+   "sha1": "c619279e1ddaed3918043528fca86c6280e814ec",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/open-as-read-only.pptx",
+   "sha1": "e8b7c5c37a4e00c7c795fecd74abf0fe130d6e1d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/page_transparent_bitmap.pptx",
+   "sha1": "6f8e26cb7b1a31c4a1410688ede48577b53f757b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/paraMarginAndIndentation.pptx",
+   "sha1": "1335334c760fee86ae3f1b72c1c30ac08e918160",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/pass/tdf173266.pptx",
+   "sha1": "5a5a43e1a4474997ea8ab15e6baa1018db96adc2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/pass/tdf173267.pptx",
+   "sha1": "e345ad394f8bc21eda818d204d67c545e9a544d1",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/pic-placeholder-with-text.pptx",
+   "sha1": "c8dfc64677d0891e5138dab22ce81336ba40a04f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/picture-placeholder-custom-prompt.pptx",
+   "sha1": "17c12d87c6ba733a95e454764d50932b4db8c688",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/picture-placeholder-one-layout.pptx",
+   "sha1": "d17fd1282043c42bd14d7cf0188d2b464057568e",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/predefined-table-style.pptx",
+   "sha1": "45522aeceea7cc73aaafd9ed8be40bfcab9abe60",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/pres-with-notes.pptx",
+   "sha1": "a0a297945ca8ee489a8984602df0d9003a96bb0a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/presetDashDot.pptx",
+   "sha1": "24e54eb291394c6c0044e3f5fbd40b914bd4636e",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/presLeftAlign.pptx",
+   "sha1": "a6d73a7ffbd873452c60b087acb70af3fdef2d8b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/rightToLeftParagraph.pptx",
+   "sha1": "4f99906efd67dc79d16c43b4e751397c2b34c841",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/Segmented_Cycle_oneColor.pptx",
+   "sha1": "bea451352836c78a14d2641f63a7f7142ed5bef5",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/shape-blur-effect.pptx",
+   "sha1": "3897f3509f308b1f62f8f773f08ce134ef7b01e4",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/shape-glow-effect.pptx",
+   "sha1": "f4c79eceb9a5aec9144a6d331e1674462faa214a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/shape-reflection-effect.pptx",
+   "sha1": "780ef3e1c5534a05418c60bd316c96e5e1a88113",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/shape-soft-edges.pptx",
+   "sha1": "a215628a4b88336adefee5a15b754eca84f35fd2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/shape-text-glow-effect.pptx",
+   "sha1": "b381bb903f8a0ae2f7991ab14ab43b238ae56437",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/shape-text-rotate.pptx",
+   "sha1": "b1a0f50059b88a24ca15adde5d5179526627b9cf",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/ShapeLineProperties.pptx",
+   "sha1": "cf158bac92fa28a72e5c7b25d94e17ae68d78ca8",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/ShapePlusImage.pptx",
+   "sha1": "a657701b36b3d3af16faf68aca0b4edd55f02c3d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/ShapeTextInflateTop.pptx",
+   "sha1": "e534fb6872407151dd9b7efe46ffc5c8c5755243",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/slide-section-test.pptx",
+   "sha1": "47d8cabe1d9c871263e6773ffa4caee25fc48600",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/slide-sections.pptx",
+   "sha1": "de1f9a0788a949cce4d3ce3efcc4fdcdea648674",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/slidenum_field.pptx",
+   "sha1": "b34fddcfe826b61b263421c71033e3ed1f51be89",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-accent-process.pptx",
+   "sha1": "78a54f48616f69e4e8ddea39aa137e6989d07d9c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-autofit-sync.pptx",
+   "sha1": "42d1d88e5ffb764a05ba67d06aa4d7c243697932",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-autoTxRot.pptx",
+   "sha1": "9a28cf416d5c1f0b21a1f1cf2276cb0fe4d9d5b5",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-background-drawingml-fallback.pptx",
+   "sha1": "99153a0ddb855251b673ece3d518185e3369b13e",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-background.pptx",
+   "sha1": "bfd36ec857a3ff4879d5183b0c69c9a2cbafe820",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-bullet-list.pptx",
+   "sha1": "913323540ec9afb20be5d5d1c50e2623927e9954",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-center-cycle.pptx",
+   "sha1": "9ede21b6bd50ebcd58d8a5d60abae66d4bdc8086",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-chevron.pptx",
+   "sha1": "64416934b4d11886cc1738b07e7944bbf5f8d3f7",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-children.pptx",
+   "sha1": "dbe7e21e03954db3a8c59dedbfef2b446e065c08",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-cnt.pptx",
+   "sha1": "41d9a635e07106d1619123c615fe1bfb769134ec",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-composite-infer-right.pptx",
+   "sha1": "6d136aaa81f310f1cdacec7d58f6fe4146f23c05",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-continuous-block-process.pptx",
+   "sha1": "123192ae146f9d7fe099f8e7cfa05fd2310bc5f7",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-cycle-matrix.pptx",
+   "sha1": "761b9fbc392a646543d6c8ca44d71eecbca0a596",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-cycle.pptx",
+   "sha1": "eb9a37b0135909e814bb42a3e292757a4faaa356",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-data-follow.pptx",
+   "sha1": "0c5708adc600f8904687b854a4bb505391c09b68",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-dir.pptx",
+   "sha1": "e64de8a477fe757105aab2429ab0fbd01792cf17",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-font-size.pptx",
+   "sha1": "effcda2e08c6a28a346b6a9591cc95db2120199a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-hierarchy3-two-parents.pptx",
+   "sha1": "8b9e8f7b91d2c6d139fc6a310bd8a3cd5f74d18e",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-hprocess9-four-nodes.pptx",
+   "sha1": "2e1ed9e676297a17dd711320419d9b5202f6b565",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-interopgrabbag.pptx",
+   "sha1": "a33de2a3095195eb4789added9b0fcd4450f522a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-linear-rule-vert.pptx",
+   "sha1": "abcc80b989ac18d9c38ed58b756afa70b1fb2f89",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-linear-rule.pptx",
+   "sha1": "07b31f47df4cbf80cde95983653354caebc8921a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-maxdepth.pptx",
+   "sha1": "75a13b6b2fe58264fbc55d003926dc1446c4ef2f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-missing-bullet.pptx",
+   "sha1": "e11d84f28471e248babc97ed2441c24fb5eb0758",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-multidirectional.pptx",
+   "sha1": "82e35ee8684ab6c001ac9c3a98e5553cc0ccd947",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-org-chart.pptx",
+   "sha1": "89af9da291191df6d51fbd090105303041ece90d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-org-chart2.pptx",
+   "sha1": "bc76d6801e1d26a9fcea01a2fcc3ffec703a601a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-picture-strip.pptx",
+   "sha1": "12306c47c56fdb2720080a581e15197a442471fc",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-preserve.pptx",
+   "sha1": "42ec70248741b8a904e1d49cd505e535cb0ae1d9",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-pyramid-1child.pptx",
+   "sha1": "0db810118b09c7abac2dd9bcce2328b31047e65e",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-recursion.pptx",
+   "sha1": "d5900d0b96b9976f7170279119e87e102a6e5ea9",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-rightoleftblockdiagram.pptx",
+   "sha1": "8e5112820ccfbeab9f497b38fede7131332d15b9",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-rotation.pptx",
+   "sha1": "c4b769d54565102dfe96a2f9e5aa28d16e50a841",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-rotation2.pptx",
+   "sha1": "a6e70873c75641f16c45b264edf9ef9cc01ca1b2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-snake-rows.pptx",
+   "sha1": "9b8ea285b2e0e9da3632d76664dc83220c493f59",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-tdf134221.pptx",
+   "sha1": "83e6be6bcd1a5b47fa6afbb2f42ff9a2a21236e6",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-text.pptx",
+   "sha1": "54e8b2d3146f90e632073457f490590035f8cf93",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-vertical-block-list.pptx",
+   "sha1": "f01c4885e3f260cd894c53440fa728a7520c8167",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart-vertical-box-list.pptx",
+   "sha1": "15c920a4cbd922bf859db26fce5e32bec658da0a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/smartart1.pptx",
+   "sha1": "8d2b01cecd34d5a2e6d1a10f23b319b636200094",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/subtitle-animation-save.pptx",
+   "sha1": "e1d520bf98f98bf0ede85f2d948849ec3be5940d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/table-list.pptx",
+   "sha1": "1a6505f89adfbaae0d717b1e6310e5ca3d63c680",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tableBorderLineStyle.pptx",
+   "sha1": "407c23dd258ebd3dac56f7e5d386cea8e4cc5302",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tablescale.pptx",
+   "sha1": "f3aa06f991f5bc40eb2246ee7f6c89ab5037a03a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tcPr-vert-roundtrip.pptx",
+   "sha1": "c1a213a79f64957e25163a2b524c26987ce330f3",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf100065.pptx",
+   "sha1": "1c6aff82d724abe4a6ef92085552ef17d29882d2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf100926.pptx",
+   "sha1": "31087b0174e5bc703498da083a955c4fa65cf182",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf100926_ODP.pptx",
+   "sha1": "31087b0174e5bc703498da083a955c4fa65cf182",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf102261_testParaTabStopDefaultDistance.pptx",
+   "sha1": "d318d1c7acd3874b84cc5296d90ecc2adefa9896",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf103347.pptx",
+   "sha1": "78a8ef017abae73027d5c61583b0fcc36ead5f4a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf103473.pptx",
+   "sha1": "1b67976cb31a5a193dbae82802b0f99a75f520b9",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf103477.pptx",
+   "sha1": "c55ab07a1de50c25e395bdfcdb7883fb6e82a4f2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf103792.pptx",
+   "sha1": "c9da55c5cf3852eb6ff0ddd58d601b0f6203ab8c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf103800.pptx",
+   "sha1": "3761b6901d99394c4dcb3d36635f4121aac297f4",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf103876.pptx",
+   "sha1": "e80886cb406e78782a445557795f6bf8f9338311",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf104015.pptx",
+   "sha1": "2ffc3d43b4e3fed1d6eeda146583c96998e89fcc",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf104201.pptx",
+   "sha1": "c5137372e3693653398379925e57a9161de181d8",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf104445.pptx",
+   "sha1": "0948ff0f554731571bf1a202c53528b56d57e4d5",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf104722.pptx",
+   "sha1": "9bb41b4e44ea4d7313c6bb0ae50b85c722337bbd",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf104786.pptx",
+   "sha1": "caa56d0a190aca67b65ebf7bfa0925efd92837cb",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf104788.pptx",
+   "sha1": "10e45e6e4b545f13ee8c005063071479e5800938",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf104789.pptx",
+   "sha1": "cab438dd73063817251fb28c44ebf4f374bb8711",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf104792-smart-art-animation.pptx",
+   "sha1": "e0f53d9a62164fb7519b27ed8f86f63f75f0799b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf105150.pptx",
+   "sha1": "dfae24d2daa465db2df4e25d3e214778ea0edcb9",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf105739.pptx",
+   "sha1": "034cbb6243d1179b7926fee664fc390645f898c1",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf106638.pptx",
+   "sha1": "777373cada1435fe5ee02a2b769a069096103016",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf106867.pptx",
+   "sha1": "cc88409396d47dbacfd42dc0259e5bbe669331f7",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf107608.pptx",
+   "sha1": "eb7d0287b0a5d20380054df7d188acbab2d66de0",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf109067.pptx",
+   "sha1": "226f61faba3332cf3f5437fccd6d36cc5423a5a9",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf109187.pptx",
+   "sha1": "c903b6f041c807d85db2bc36ee9816831e25ffcf",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf111518.pptx",
+   "sha1": "a0bb6ba70a03a3b01a63dd52d50ad40a55f9393e",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf111786.pptx",
+   "sha1": "5ae5f4a1c704051cdd20f84c084752351a56b0f1",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf111789.pptx",
+   "sha1": "442ea78786942beefa1161909248038b3f77a353",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf111863.pptx",
+   "sha1": "37da411e34477d52b8705adca1401817cefebb33",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf111884.pptx",
+   "sha1": "402eb69711a32cce6185e24897a94df92d1d8e42",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf112086.pptx",
+   "sha1": "27ff5d3be660482461d3418fbd4666b6abeaab4d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf112088.pptx",
+   "sha1": "8c3721d59b84996410f42d65989943d40d786cb2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf112089.pptx",
+   "sha1": "8f1603e3bdd4fbad36ad8b9ec789b5f573e5b699",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf112209.pptx",
+   "sha1": "4f6b926c2cd7024ba988b929b775e7273f82452f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf112280.pptx",
+   "sha1": "7d1074ad7e8e9da61368505088df1971a0ecd88b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf112333.pptx",
+   "sha1": "8b73aa8008a41cb6a75cc26c4d37f122a2c302d2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf112334.pptx",
+   "sha1": "e448de9febf99cbc4a97de5b63bd3e1c7fc0f9ab",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf112633.pptx",
+   "sha1": "c2f63bb7a7074dba36408b4519cb633646fec6bf",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf113163.pptx",
+   "sha1": "8eab9efe11819b4a88cbda3dfaf9075ceaa01b16",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf113198.pptx",
+   "sha1": "b78d23f3aded876552afe198dbe9c78086104cf1",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf113818-swivel.pptx",
+   "sha1": "bc94b77c12dca38b5896aa0a581f82427392861d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf113822underline.pptx",
+   "sha1": "6f8c26504c6b9ff75bf691e01782e155fd61ff22",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf114821.pptx",
+   "sha1": "69d8911d419c2560d6390d5b0cc8f5615d426dad",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf114845_rotateShape.pptx",
+   "sha1": "90a244cda477f2a982548469eae07fb8afdaa8ec",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf114848.pptx",
+   "sha1": "d3afc2ab19d50607f8439f28c5dc8e1f6ad38ee7",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf114913.pptx",
+   "sha1": "bfe815094ca2cdb41f8ec681145d726e0df644f1",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf115394-zero.pptx",
+   "sha1": "66a08703b3507f52ee8058877a305f7ef0600588",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf115394.pptx",
+   "sha1": "880de7d9410fce6ff290095503dcfa6616bb8ab5",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf116350-texteffects.pptx",
+   "sha1": "54c36e2c8d4fb5d9336f996f7dd6d9ab477125fd",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf118776.pptx",
+   "sha1": "03d31a34558c799042df83302a861a2c9b3e3b60",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf119015.pptx",
+   "sha1": "6689d6e5599d99b76494c158d75de769af6dc970",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf119087.pptx",
+   "sha1": "5dc34f19ab6d65e29bce5b530482f27c0177f526",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf119118.pptx",
+   "sha1": "21f4711fb167b069fb35a5fe50626dea4b4b8643",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf119187.pptx",
+   "sha1": "4705ac27bf88c94cac6ba936c0bcd95b84f8ad14",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf119649.pptx",
+   "sha1": "ac62adf1061105443030e6ab1c74ad5687f48e4f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf120028.pptx",
+   "sha1": "f1811d3c8552cf1fa9ad83823cb6b282ebf71d58",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf120573.pptx",
+   "sha1": "fde09584ec41d401c477956dd6f33f2f926f73ac",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf123090.pptx",
+   "sha1": "8cb68c2efd8528f9c7e599fc02aacd9c4d1c0ff7",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf123684.pptx",
+   "sha1": "5e590ffc04b8f3c11222f1ea740d7f4de9a2e91f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf124457.pptx",
+   "sha1": "56efb08222613fb4e2ee7510c6136e449ce725f4",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf125071.pptx",
+   "sha1": "91dfd32128ccf1a91e4b935941f216db0937ff25",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf125346.pptx",
+   "sha1": "e2a70e76690a85c3a11161244392bb0cb1178d7a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf125346_2.pptx",
+   "sha1": "32aa4c204bfff9686d0cd6917929dd75e71f797c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf125360.pptx",
+   "sha1": "d6aba537511a0c27c37478104c9a2f3caf266331",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf125360_1.pptx",
+   "sha1": "b97f91272a58b717f2958cd6060aab3f0545a8a8",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf125360_2.pptx",
+   "sha1": "b98785c47faaba592075887f800887ea1e3d66f1",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf125551.pptx",
+   "sha1": "ae617f0afab6eead3267c6b6893773c6fa3817cf",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf125554.pptx",
+   "sha1": "edb93ff86a81756f896c65b7ccbe9834fd37dc87",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf125573_FontWorkScaleX.pptx",
+   "sha1": "cec3bcde526797c0c227ea3f3834a663913c2861",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf126234.pptx",
+   "sha1": "124faba601cef7a0e2c0fb18756c2c8d98cc1e22",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf126324.pptx",
+   "sha1": "9e52772487b269ddb7fd3996e98b19eedb9f24b5",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf126741.pptx",
+   "sha1": "9f137a3d5c99c17ccc5aba98acc74e99ba8cabdc",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf127129.pptx",
+   "sha1": "fb0dcaf40fb78557c4d3741146bd7d83dbc23f17",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf127237.pptx",
+   "sha1": "27c96e5676de7c402f33aa10ce75551ca7d1108e",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf127964.pptx",
+   "sha1": "ca7e7c97833f983683580560ddc45c1652d124bf",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf128206.pptx",
+   "sha1": "25e98844d2111f28f111a1fac1b2c155d1cca52f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf128212.pptx",
+   "sha1": "d641d3a5cfa75dd9e2bed3829af86819d4c1ebd6",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf128213-shaperot.pptx",
+   "sha1": "9ea0200aeea16937aebfb1309d1c9f2aa656610f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf128213.pptx",
+   "sha1": "b9224b6875c1b3eff8e16b8c155f3a1e7fc810cb",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf128550.pptx",
+   "sha1": "192acf0d263daeab2968b6f460b986ba5378b987",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf128596.pptx",
+   "sha1": "5fab1d0e6e312bac93cc22d48cc4794d9d077fa8",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf128684.pptx",
+   "sha1": "a71654e2fa601f5a0d5b740703710f2ebbc3adcb",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf128952.pptx",
+   "sha1": "2bda9356b3d7dde6c44f15871f1daeac5a2b6b68",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf129372.pptx",
+   "sha1": "4bc706a920d052132e0c47b2218dda560f80fb2e",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf129686.pptx",
+   "sha1": "a51d639e5ae36df1fb66428d4d80f82dd11498c4",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf130058.pptx",
+   "sha1": "691a5f4049e34a30cf8066818f99a53af1096848",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf131390.pptx",
+   "sha1": "076e1acccefd0e9a9720028120d3adb234c6ff37",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf131553.pptx",
+   "sha1": "b03b7ab495383d571fd037df4779c097c2c9906d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf131554.pptx",
+   "sha1": "091ed8a63a5f054584848e5756438c98f837f630",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf131905.pptx",
+   "sha1": "43e45e9e8f4e95c1a73d522f91c9af45d6d2d522",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf132282.pptx",
+   "sha1": "de5db904264d9189f5191c8442e87b943c8cd0e6",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf132302_SmartArt_rightArrow.pptx",
+   "sha1": "d571c080ab17401a035cb15a3a8172432e9d45e3",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf132472.pptx",
+   "sha1": "0fc507e9e3fe0524bf7274e27e0f7718ac8adf43",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf134053_dashdot.pptx",
+   "sha1": "0de10e1426b0184f249da1df3a2e3702ba0a4eaa",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf134174.pptx",
+   "sha1": "608c442a76b0cfdc9521248f338a38bb34842424",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf134210.pptx",
+   "sha1": "a41fa8b4d1c33396bac1f87d1026211982f7f6f0",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf134862.pptx",
+   "sha1": "fbbb3a8a668a5d3ca71d80c7812b128419eba312",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf135843.pptx",
+   "sha1": "d0b02e8d8bef9905b6c992aace849f943c138b3a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf135843_export.pptx",
+   "sha1": "3cdd8e3e45126cafbe072962dd23bc644c6aef4d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf135843_insideH.pptx",
+   "sha1": "cb3961408d912b34950f349b2f6e9b997318de17",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf135953_SmartArt_textposition.pptx",
+   "sha1": "663ee45523539ce94c2686baf34293af7eca123b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf136830.pptx",
+   "sha1": "d3a9a1eecb0f0e2bf2cc9f4d6e9c353c5eb8c059",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf137367.pptx",
+   "sha1": "b75eab5bf604afea05058b440fe493483be80c58",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf137675.pptx",
+   "sha1": "76f44258c3c5015f3defbd0fcb0e5de2b15b8c9c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf138148.pptx",
+   "sha1": "ad5cf121bf1bf0245fd1307ff3f439acf609a9f5",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf140714.pptx",
+   "sha1": "253c1a83d12142b6e597fa021f8f415d8a222fa2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf140852.pptx",
+   "sha1": "97029c95cf24302e1759f34cec457c8892ef6ac3",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf140865Wordart3D.pptx",
+   "sha1": "b2d006328f1db569b71762abfd232ce088a9a361",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf141058-1.pptx",
+   "sha1": "fb08be2ad0c4c6e6a11795c442b1cd00770bbd79",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf141704.pptx",
+   "sha1": "f3517a3b22e12cec467e10abe39fb784b8f7013e",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf142590.pptx",
+   "sha1": "738b77199c0140564eb09585d67cc538fd0a6919",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf142645.pptx",
+   "sha1": "f389c4e3c63f3f8137e7949137ae1928a2c0eff3",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf142648.pptx",
+   "sha1": "2a3467ec8c966d28dc1bbd8f19467112f65359ab",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf142716.pptx",
+   "sha1": "3e1436685622bb804b471e37c846f1f3ef97359f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf142913.pptx",
+   "sha1": "e28aec1ebf3cd2decc26002adffac491a17599dc",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf142915.pptx",
+   "sha1": "f139f6f0b94059e68e858d3713fd6d38e225958b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf143126.pptx",
+   "sha1": "b8995f15b1a64782f6e984ccea71b80c45dc9421",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf143129.pptx",
+   "sha1": "181f2683a040b8055035cac1b0ee8a145ca9e30c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf143222.pptx",
+   "sha1": "92d55fa27a894033b16cf68ab8a74b3623534402",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf143624.pptx",
+   "sha1": "ce7e93bf51c199d708f144438c005e93d589f47a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf144092-emptyShapeTextProps.pptx",
+   "sha1": "369f9d1a14b40aefc654f745d0e4acb7a6cce5d2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf144092-tableHeight.pptx",
+   "sha1": "fd304a99875b952186cfee99f0d616cc1e218116",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf144616.pptx",
+   "sha1": "b2422cc3a2853f3ba4eedb53d23472e66a588a69",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf144917.pptx",
+   "sha1": "83e873ef9e0250d850839219a82fbd5ff12b4e40",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf144918.pptx",
+   "sha1": "16f8551b75c63fd3af28703454617981dc53061c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf145162.pptx",
+   "sha1": "c64b92beff33f4aeb74413af4359c3aa365ae444",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf145528_SmartArt_Matrix.pptx",
+   "sha1": "b07f7da906205ac01f862995eca0f7a0095aa518",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf146223.pptx",
+   "sha1": "b913780c96c86d9a60c83270cedede13cdc860aa",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf146731.pptx",
+   "sha1": "37e9c1e666fe7cc5e9d4b4046b44cde5d06350e7",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf147121.pptx",
+   "sha1": "76c5c88904de0b7778d7c571d80b37324cf85129",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf147459.pptx",
+   "sha1": "f6359a22e3610b5baabcc507c9daf3a0bfdb7495",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf147586.pptx",
+   "sha1": "753a8d0945d7ab61d3781b1a9751c3d1b4c08ed2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf148478_transitionMusic.pptx",
+   "sha1": "44a8741fc6da3f942f162a76d7766ff697c63f3e",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf148665.pptx",
+   "sha1": "e8a948496a428168072975f484039e1e011300b6",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf148685.pptx",
+   "sha1": "0217aca0d48cc15acf3004841107bb348cfb2bb8",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf148810_PARA_OUTLLEVEL.pptx",
+   "sha1": "c99de0c4cfc99dc002ef5e4d6afb923de3054ece",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf148921.pptx",
+   "sha1": "c933463c3b8bcafe3ba2cce1d1bb78098126a394",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf148965.pptx",
+   "sha1": "f9acb75fc21b4deca8c14b19417cfe9eae8a39be",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf148966.pptx",
+   "sha1": "d927aeb8cc9c5493a333b195cfdbc44b1f58fdcc",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf149124.pptx",
+   "sha1": "de1771001f8b3d5d10f9d42c4b39be028d97d14c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf149206.pptx",
+   "sha1": "b97791289f889021122436414a81b116bec6859c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf149314.pptx",
+   "sha1": "cb154d9abb34c8db61255deaffc1502d621e1255",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf149551_SmartArt_Gear.pptx",
+   "sha1": "18d8c2db2dc26a121e8e1adad1aaf0809f0f956d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf149551_SmartArt_Pie.pptx",
+   "sha1": "8c99ff54181fa85429045e0922ffdbb9f11effeb",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf149551_SmartArt_Pyramid.pptx",
+   "sha1": "a73f184f0396d877b7b9e070b02e721a8366f311",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf149551_SmartArt_Venn.pptx",
+   "sha1": "1afef1703c12ec90f57822ed5cccdd0d2b53163c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf149588_transparentSolidFill.pptx",
+   "sha1": "3be336a7b5c0fe0b10cdb45b42c5cac03b138b42",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf149697.pptx",
+   "sha1": "605f725b965f951f2e99c648d704363de5d905e6",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf149785.pptx",
+   "sha1": "ab1aa1a7051ab27c2fcf0ddb380a77bcba30c0b1",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf149803.pptx",
+   "sha1": "8975d8145f2670bdd13e3af039f8ffd3ab8eda68",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf149865.pptx",
+   "sha1": "3dc689142b6bb3b03400cf58b945b7424258ea6d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf149961-autofitIndentation.pptx",
+   "sha1": "ba54af16aa270627e48fd3158335fed49aeb4b6c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf149985.pptx",
+   "sha1": "d6cc124fb8d64e79cd03c17f01853807f1d0d638",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf150719.pptx",
+   "sha1": "e96de8fb1fc6edcdd75b04d8406d1b3a8e988e3d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf150770.pptx",
+   "sha1": "115c99ec9d6f2d96b5cd9377c98b7434962b751c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf150789.pptx",
+   "sha1": "31013b6bfedf44ab66cf61047abf571c3e7fa000",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf151547-transparent-white-text.pptx",
+   "sha1": "77119b2c497fdeb6ddf94103529e4e5aad6d6d61",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf151767.pptx",
+   "sha1": "69c3350d8dff44a6102bd949cb9971460d66f154",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf152070.pptx",
+   "sha1": "3c49f20f803a86edc7a7900ba5455fa61bfe6c70",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf152186.pptx",
+   "sha1": "fd93a0b49ce73674c2ab8bf037a92a72ecd0233c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf152335.pptx",
+   "sha1": "980a998dedb7ab3c8916ebf874cadae2bc4bc2ad",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf152434.pptx",
+   "sha1": "896acb93dc62f19f812361bb1671f91ea0fbf3c4",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf152606.pptx",
+   "sha1": "b9ad9682569f3ace08060eede7c66b134938de66",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf153008-srcRect-smallNegBound.pptx",
+   "sha1": "ec93ad44b7db36badc12a3dfec3185109c9d5697",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf153036_resizedConnectorL.pptx",
+   "sha1": "deb57e55511235bc125b124afc46d23724d45827",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf153466.pptx",
+   "sha1": "6281c467b76edb791606794e7d76f1c3c2ae26b9",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf154363.pptx",
+   "sha1": "f02003ec033f27bf5eade5313fc60ae6e8af1ed9",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf154858.pptx",
+   "sha1": "eb21ae2d37d7fc5c2943b80526da27f6f7fac986",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf156649.pptx",
+   "sha1": "546be22b10e93b1f86a2d0d8054881c1dc9b985c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf156718.pptx",
+   "sha1": "89ab2bcaa11033ba56cf069d2a4cac22bf7bb83a",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf156808.pptx",
+   "sha1": "09d4ae99bee56edb8e529ff1b92beb348e5feabb",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf156829.pptx",
+   "sha1": "849714f88a37ca53256d8824ecf8046cf30b9bbf",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf156856.pptx",
+   "sha1": "f30fd724ace3563f789668476f42ed32393f250f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf157216.pptx",
+   "sha1": "8dabaec91b02a817f6b65ea3f9e2152c94700148",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf157285.pptx",
+   "sha1": "d6fe798ec769bbfaa390028547403ff9f78b106d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf157529.pptx",
+   "sha1": "6722ef326c2197d2f3e5af31bf821bf5d24f3e90",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf157635.pptx",
+   "sha1": "6baa0d5623b76d50ee31a2770c4979e404a22549",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf157740.pptx",
+   "sha1": "22f7947f41bd54cc5036145d27535876bd002650",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf157793.pptx",
+   "sha1": "d6e63d976ecd608c75169a380da1e94029b5d445",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf158512.pptx",
+   "sha1": "d9f72b524716934a65b7fab85a10449d9c8d1528",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf160487.pptx",
+   "sha1": "9bf989805c7075da207db5af3481b5aa07675781",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf160490.pptx",
+   "sha1": "1d496f987bbe7787b86ab8d29a47ca950f08b7c1",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf160591.pptx",
+   "sha1": "97de49fdce7821ab338a57319f5649403a744fec",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf162283.pptx",
+   "sha1": "7238d3f99478a6d4fb6d83ef7080416768835343",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf163239.pptx",
+   "sha1": "90c3696237983a8e0fd80d6d0f74c2ca80a95139",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf163239_v2.pptx",
+   "sha1": "103c287d39f9ed965364299df24b9747e5b35be7",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf163852.pptx",
+   "sha1": "cbda4d94ed7c76c657a4e53336753036271a4832",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf164622.pptx",
+   "sha1": "984700a9bf509687c694f52fa692b873186731d2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf164936.pptx",
+   "sha1": "83387f3f4bee84d5d2d133861f6d3acf0095343b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf165261.pptx",
+   "sha1": "f7ccb07c765722578e967d6a5bf0ef13771aa692",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf165321.pptx",
+   "sha1": "becc51e15dc7578af7cd1394cf9f8ea706c9bee5",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf165341.pptx",
+   "sha1": "577815a6931150515006a9766d5429ab2babda17",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf165670.pptx",
+   "sha1": "720a2164b02b917308afd32d088d6a39e690e487",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf165732.pptx",
+   "sha1": "b6cf9b7639f31a3b3774c5c66c80955073d9a688",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf167214.pptx",
+   "sha1": "99b98974b22375a2ef5b19ccd83d30fc0982869c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf168755_anim_on_SmartArt.pptx",
+   "sha1": "b58c12068736ba30edf26f37a4a485c0262a427f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf168835.pptx",
+   "sha1": "7fbb51e28bbc6dd4b546dce9d529576d3b6a6c27",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf169088.pptx",
+   "sha1": "b021e3b8e7e06e152c11df124d40dfc9d9c0b383",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf169496_hidden_graphic.pptx",
+   "sha1": "e332309886f9c03079d0f4c857419de0a581ba81",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf169524.pptx",
+   "sha1": "275798611817c4fa77c6cabbd45f68555959b8bd",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf169694.pptx",
+   "sha1": "1fc3465823e2d88a46860ee1de835b6abea8a232",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf169781.pptx",
+   "sha1": "283425e34ceaac260051b2feb87acf4ded6a12f7",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf169825_vertical_layouts.pptx",
+   "sha1": "ae2bfbdbadf9d845a6d39f57624deba2a9847883",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf173410.pptx",
+   "sha1": "6c8883bf734844b8d16ba9e215db56436693010d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf173682.pptx",
+   "sha1": "0d98841b386fb7cd3c6bf8a3a0b769605cdb0bce",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf173712-liststyle.pptx",
+   "sha1": "3496944a4e9e57c8cced76f2fdbc255bac12bb17",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf173712.pptx",
+   "sha1": "e54995742c1ed100861c10b6ed6436a028fff37c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf44223.pptx",
+   "sha1": "4602ed0bf3d51fe84f79d5e5566e86eab7db8090",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf50499.pptx",
+   "sha1": "71a38a862180fd596bedd32d62223ed2f306b8c8",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf51340.pptx",
+   "sha1": "9c342e6221aace7513bbb1c2f84d219189b4f1eb",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf54037.pptx",
+   "sha1": "8dbd8a7e5aa3cc87489730535bdd3efaa685754c",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf59323.pptx",
+   "sha1": "208c37760fe08e030053f59e313969abfae4f024",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf62255.pptx",
+   "sha1": "f8d05831e58b6d6ae53cc8b5403e8aacfbaa5d61",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf65724.pptx",
+   "sha1": "7827ef0e4e859a710fba18ce41fc901b20a50da8",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf79007.pptx",
+   "sha1": "b4c91b7ba8e1df4cbc040e3d11141c352f1c72eb",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf79082.pptx",
+   "sha1": "f5f61785ca09056da716eef0a64d8e608c320cdc",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf84205.pptx",
+   "sha1": "cc48bb6f2c547f8f8c46612a79c1a44b6375df9f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf89064.pptx",
+   "sha1": "9e119e87f9324286ee08e74f36c7be52bfa67c7d",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf89449.pptx",
+   "sha1": "d61b9739cb2b8f9f2cf30e35cd41bb4052bac9aa",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf89927.pptx",
+   "sha1": "b76bbef1bfab3a2970522e306ca2794a54f0e459",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf89928-blackWhiteEffectThreshold.pptx",
+   "sha1": "fd20f460d14eb8b5ce791d017296699643801ee2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf90626.pptx",
+   "sha1": "a8cef56aeee775364a7bb05e3348352bb059b93f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf91060.pptx",
+   "sha1": "7c453f9ef81bd0af909a2dc286a2c8561d8635bd",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf91378.pptx",
+   "sha1": "6cafc39347d37f21c012357b31b97a62ef1eff2e",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf91999_rotateShape.pptx",
+   "sha1": "ff39d51efae3124af4adb08cc9e9b48a598e389e",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf92222.pptx",
+   "sha1": "aaaddf7826aea2aa7fb76b3e8b73b9fdef2a2747",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf93097.pptx",
+   "sha1": "6ea4edbed57b7a971a710a7b051b57401e3354b6",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf93830.pptx",
+   "sha1": "52cd873511ebc591366babe32fcaee62a78b14f9",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf93868.pptx",
+   "sha1": "0743c46a4000d617a6b63bb7a42b9886153588a0",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf94238.pptx",
+   "sha1": "93aa26ed4d0cc7c8f8c826c0b78ebf418f5cf2d6",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf95932.pptx",
+   "sha1": "9c68c0d2cc06c9121de6f2e0bc97e1a25c68b62b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf96061.pptx",
+   "sha1": "d778fe541e012ffca34b6826730f8e5d8695ed71",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf98477grow.pptx",
+   "sha1": "241556868130c29c65636ac0d89d6eecda5286d5",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf98603.pptx",
+   "sha1": "74958b0e056514cceaaeb9c72f70bba0f45aa385",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdf99030.pptx",
+   "sha1": "4b5fd4aa9f8aa2b4b16cf3e7e1f1ac8625235395",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdfpictureplaceholder.pptx",
+   "sha1": "028b268654702f563fb0a56d15b1bc624d858664",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/tdt142291.pptx",
+   "sha1": "8f7d55e3881965c901b8a02a68a4458906edc4ec",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/testShapeAutofit.pptx",
+   "sha1": "4de779e873f11f971f8d4c34f1780eb4849007ad",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/TextFittingStored.pptx",
+   "sha1": "371baf61cf379389b211391ec68d6e6daec59429",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/trailing-paragraphs.pptx",
+   "sha1": "c7ebc18c21e4b034d9bd35dbfed1a78ceaecaeb2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/trigger.pptx",
+   "sha1": "bd65bfb99114a39ba1647eb955c98f6005a47694",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/vertical-bracket-list.pptx",
+   "sha1": "6a7e1ec47fc978d4dc8c5c65c2b158b36e1367a4",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/pptx/video-loop-mute.pptx",
+   "sha1": "39ab5639501f86f5dedcc9d161b661f2d0f54224",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/smoketest.pptx",
+   "sha1": "60894722593cabf68d0037cf60c9a77d7d050b62",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/strict_ooxml.pptx",
+   "sha1": "bf6ddb809bc2fd499eb9c453ff616dfec81112f2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/tdf100491.pptx",
+   "sha1": "3cb7dfb0953f8d4b7be8e790e94c335e1deea40b",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/tdf109317.pptx",
+   "sha1": "fe9f87755b53e0f7a42b7485e00e95d4d8010ef8",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/tdf90403.pptx",
+   "sha1": "7a8c519b22cc57279ab7a772dd1f673084833227",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/TextDistancesInsets1.pptx",
+   "sha1": "a2d9f3b5f2f77a0a5ff74aaf8b262382e7f8a4d2",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/TextDistancesInsets2.pptx",
+   "sha1": "40c024527bb7fa4a4b3aae3abc3d4c0cec07740f",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/TextDistancesInsets3.pptx",
+   "sha1": "da79099f80ae5329fd3b70265fe0cf02fa730943",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/TextFittingComparisonWithMSO_1.pptx",
+   "sha1": "70a4620113d9770edae1ba554c9203dee8387079",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/TextFittingComparisonWithMSO_2.pptx",
+   "sha1": "fdb912f37f54b8b5d8ee3db9f60787b4341257da",
+   "set": "sealed"
+  },
+  {
+   "file": "sd/qa/unit/data/TextFittingComparisonWithMSO_3.pptx",
+   "sha1": "89c81f13137b9ab9960318b21781803954e31d94",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/TextFittingComparisonWithMSO_TopBottomMiddleAlignment.pptx",
+   "sha1": "607687e5d5169267edbbb01ed8e5cd76763f5884",
+   "set": "dev"
+  },
+  {
+   "file": "sd/qa/unit/data/theme.pptx",
+   "sha1": "dddaf19829438dc49c2a9c3d5ec80ec80560caaf",
+   "set": "sealed"
+  }
+ ],
+ "seal_sha256": "4a84db4d443be0679c80b8efa013f349e30281009329eb38af4b4682b3d1276e"
+}
