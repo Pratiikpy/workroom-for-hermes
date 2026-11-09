@@ -77,3 +77,23 @@ def test_scale_and_percent_are_handled() -> None:
     ], idx)
     assert [r.decision for r in results] == ["accept", "accept"]
     assert [r.best.cell.ref for r in results] == ["B2", "B3"]
+
+
+def test_the_value_index_finds_exactly_the_cells_a_full_scan_would() -> None:
+    """The matcher looks cells up by value range for speed; it must return the very cells that testing every cell would."""
+    import random
+
+    from workroom.workroom_core.match.engine import SourceIndex
+    from workroom.workroom_core.match.numbers import consistent_with_source, parse_numbers
+    from workroom.workroom_core.ooxml.xlsx import SourceCell
+
+    rnd = random.Random(5)
+    values = [round(rnd.uniform(-5000, 5000), rnd.choice([0, 1, 2, 3])) for _ in range(400)] + [0.0786, 0.5, 12.5, 1_250_000.0, 3.2e9, -42.0, 7.0]
+    cells = [SourceCell("S", f"A{i}", i, 1, v, False, False, (), (), False) for i, v in enumerate(values, 1)]
+    index = SourceIndex(cells)
+    texts = ["12.5%", "$3.2 billion", "1,250 thousand", "$1.25 million", "-42", "7.9%", "(42)", "0.5", "78.6 bps", "1.3m", "3,200 million", "13", "0.1%", "2k"]
+    for text in texts:
+        for m in parse_numbers(text):
+            brute = [i for i, c in enumerate(index.cells) if consistent_with_source(m, c.value)[0]]
+            via_index = [i for i in index.candidates(m) if consistent_with_source(m, index.cells[i].value)[0]]
+            assert via_index == brute, (text, brute[:5], via_index[:5])

@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 from .claims import Claim, figures_in, holds, rank_holds, read_claims
 from .decisions import Decisions
 from .findings import Finding, mask_digits, opposite_word, sort_findings
+from ..match.numbers import display_round
 from .timeline import Timeline
 
 if TYPE_CHECKING:
@@ -50,7 +51,7 @@ def _same_shown(a: float, b: float, raw: str, transform: str) -> bool:
         return a == b
     m = found[0]
     f = _TRANSFORMS.get(transform) or _TRANSFORMS["exact"]
-    return round(f(a, m.scale), m.decimals) == round(f(b, m.scale), m.decimals)
+    return display_round(f(a, m.scale), m.decimals) == display_round(f(b, m.scale), m.decimals)
 
 
 def _num(v: float) -> str:

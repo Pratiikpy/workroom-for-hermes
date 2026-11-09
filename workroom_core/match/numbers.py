@@ -36,6 +36,7 @@ class NumberMention:
     negative: bool
     start: int
     end: int
+    aside: bool = False   # a percentage in brackets inside a sentence, "283 skills (7.1%) leaking": an aside, not an accounting negative
 
 
 _MONTH = r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
@@ -78,6 +79,11 @@ def parse_numbers(text: str) -> list[NumberMention]:
         decimals = len(raw_num.split(".")[1]) if "." in raw_num else 0
         value = float(raw_num.replace(",", ""))
         balanced = bool(m.group("neg_open")) and bool(m.group("neg_close"))
+        pct_unit = (m.group("pct") or "").lower() in ("%", "pp")
+        before_text = text[: m.start("neg_open")].rstrip() if balanced else ""
+        aside = balanced and pct_unit and bool(before_text) and (before_text[-1].isalnum() or before_text[-1] in "%)")
+        if aside:
+            balanced = False
         sign_at = m.start("sign")
         # a dash glued to the figure before it (10-15%, 2026-27) is a range, not a minus sign
         is_range = sign_at >= 1 and (text[sign_at - 1].isalnum() or text[sign_at - 1] in "%)")
@@ -97,12 +103,12 @@ def parse_numbers(text: str) -> list[NumberMention]:
             unit = "plain"
         sign = -1.0 if negative else 1.0
         firsts = (m.start("cur"), m.start("num")) if is_range else (m.start("sign"), m.start("cur"), m.start("num"))
-        lo = m.start("neg_open") if balanced else min(i for i in firsts if i >= 0)
-        hi = m.end("neg_close") if balanced else max(m.end(g) for g in ("num", "scale", "pct") if m.group(g))
+        lo = m.start("neg_open") if (balanced or aside) else min(i for i in firsts if i >= 0)
+        hi = m.end("neg_close") if (balanced or aside) else max(m.end(g) for g in ("num", "scale", "pct") if m.group(g))
         whole = text[lo:hi]
         start = lo + (len(whole) - len(whole.lstrip()))
         end = hi - (len(whole) - len(whole.rstrip()))
-        out.append(NumberMention(whole.strip(), sign * value, sign * value * scale, decimals, unit, scale, negative, start, end))
+        out.append(NumberMention(whole.strip(), sign * value, sign * value * scale, decimals, unit, scale, negative, start, end, aside))
     return out
 
 
@@ -113,6 +119,8 @@ def consistent_with_source(mention: NumberMention, source_value: float) -> tuple
     percent-versus-fraction and displayed rounding are allowed for.
     """
     tol = 0.5 * 10 ** (-mention.decimals)
+    if mention.aside:
+        source_value = abs(source_value)  # the brackets carry no sign: 7.1% can be a cell of 0.071 or of -0.071
     candidates: list[tuple[str, float]] = [("exact", source_value)]
     if mention.unit in ("percent", "pp"):
         candidates.append(("fraction_to_percent", source_value * 100.0))
@@ -138,13 +146,28 @@ _TRANSFORMS = {
 }
 
 
+def display_round(value: float, decimals: int):
+    """Round the way a spreadsheet displays: halves go away from zero, judged on the number as written in decimal (2.675 shows as 2.68, 2414.5
+    as 2,415). Python's round() sends exact halves to the even neighbour, which printed 2,414 where the workbook cell shows 2,415."""
+    from decimal import ROUND_HALF_UP, Decimal, localcontext
+
+    with localcontext() as ctx:
+        ctx.prec = 80
+        return Decimal(repr(float(value))).quantize(Decimal(1).scaleb(-decimals), rounding=ROUND_HALF_UP)
+
+
 def format_like(old: NumberMention, new_source_value: float, transform: str) -> str:
     """Write ``new_source_value`` the way ``old`` was written: same affixes, decimals, separators and sign style.
 
     ``transform`` is the one the matcher found when it linked the mention to its source (see consistent_with_source).
     """
     shown = _TRANSFORMS[transform](new_source_value, old.scale)
-    rounded = round(abs(shown), old.decimals)
+    if old.aside:
+        body = f"{display_round(abs(shown), old.decimals):,.{old.decimals}f}" if "," in old.raw else f"{display_round(abs(shown), old.decimals):.{old.decimals}f}"
+        m = _NUM_IN_RAW.search(old.raw)
+        pre, post = old.raw[1:m.start()], old.raw[m.end():-1]
+        return f"({'-' if shown < 0 and float(body.replace(',', '')) != 0 else ''}{pre}{body}{post})"
+    rounded = display_round(abs(shown), old.decimals)
     use_commas = "," in old.raw
     body = f"{rounded:,.{old.decimals}f}" if use_commas else f"{rounded:.{old.decimals}f}"
     m = _NUM_IN_RAW.search(old.raw)

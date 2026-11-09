@@ -167,7 +167,7 @@ def _num(value: float | int | str) -> str:
 
 
 # ---- bulk reading with labels, for matching ----
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SourceCell:
     sheet: str
     ref: str
@@ -276,10 +276,13 @@ def index_workbook(pkg: Package, max_cells: int = 500_000, file: str = "") -> li
             if s:
                 rows_by.setdefault(r, []).append((c, s))
                 cols_by.setdefault(c, []).append((r, s))
+        share: dict[tuple[str, ...], tuple[str, ...]] = {}  # cells of one row or column hold the same label tuples; keep one copy of each
         for r_, c_, ref, val, isf, isd, hid in numbers:
             row_labels = tuple(s for cc, s in sorted(rows_by.get(r_, []), key=lambda t: -t[0]) if cc < c_)[:3]
             above = sorted((rr, s) for rr, s in cols_by.get(c_, []) if rr < r_)
             col_labels = tuple(dict.fromkeys([s for _, s in reversed(above)][:2] + ([above[0][1]] if above else [])))
+            row_labels = share.setdefault(row_labels, row_labels)
+            col_labels = share.setdefault(col_labels, col_labels)
             out.append(SourceCell(sh.name, ref, r_, c_, val, isf, isd, row_labels, col_labels, hid, file))
             if len(out) >= max_cells:
                 return out

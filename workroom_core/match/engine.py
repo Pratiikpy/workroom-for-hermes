@@ -6,6 +6,7 @@ and a clear margin over the next candidate; everything else is reported as needs
 
 from __future__ import annotations
 
+import bisect
 import math
 import re
 from collections import Counter
@@ -126,18 +127,66 @@ class SourceIndex:
 
     def __init__(self, cells: list[SourceCell]) -> None:
         self.cells = [c for c in cells if not c.is_date]
-        self.label_tokens: dict[int, set[str]] = {}
+        # Counting how many cells carry each word needs every cell's words once; keeping every cell's words would cost gigabytes on a large
+        # workbook, so only the counts are kept and a cell's words are worked out again when a number turns out to be a candidate for it.
+        self._tokens: dict[int, frozenset[str]] = {}
+        self._periods: dict[int, frozenset[str]] = {}
         df: Counter[str] = Counter()
-        for i, c in enumerate(self.cells):
-            toks = set(tokens(" ".join(c.row_labels + c.col_labels + (c.sheet,))))
-            self.label_tokens[i] = toks
+        seen: dict[str, frozenset[str]] = {}
+        for c in self.cells:
+            text = " ".join(c.row_labels + c.col_labels + (c.sheet,))
+            toks = seen.get(text)
+            if toks is None:
+                toks = frozenset(tokens(text))
+                if len(seen) < 200_000:
+                    seen[text] = toks
             df.update(toks)
         n = max(len(self.cells), 1)
         self.idf = {t: math.log(1 + n / f) for t, f in df.items()}
-        self.periods = {i: periods(" ".join(c.row_labels + c.col_labels)) for i, c in enumerate(self.cells)}
+        self._order = sorted(range(len(self.cells)), key=lambda i: self.cells[i].value)
+        self._sorted_values = [self.cells[i].value for i in self._order]
+
+    def candidates(self, number: NumberMention) -> list[int]:
+        """Indices of the cells whose value could display as ``number`` under any transform consistent_with_source allows, in cell order.
+        A superset found by value range; the caller still applies consistent_with_source, so the answer is unchanged, only far cheaper."""
+        shown = number.value
+        pad = 0.5 * 10 ** (-number.decimals) * 1.0001 + 1e-12
+        factors = [1.0, 1e3, 1e6, 1e9]
+        if number.unit in ("percent", "pp"):
+            factors.append(0.01)
+        if number.scale != 1.0 and number.scale > 0:
+            factors.append(number.scale)
+        found: set[int] = set()
+        for f in factors:
+            lo, hi = (shown - pad) * f, (shown + pad) * f
+            slack = 1e-9 * max(abs(lo), abs(hi), 1.0)
+            a = bisect.bisect_left(self._sorted_values, lo - slack)
+            b = bisect.bisect_right(self._sorted_values, hi + slack)
+            found.update(self._order[a:b])
+        return sorted(found)
+
+    def label_tokens(self, i: int) -> frozenset[str]:
+        got = self._tokens.get(i)
+        if got is None:
+            c = self.cells[i]
+            got = frozenset(tokens(" ".join(c.row_labels + c.col_labels + (c.sheet,))))
+            if len(self._tokens) >= 50_000:
+                self._tokens.clear()
+            self._tokens[i] = got
+        return got
+
+    def cell_periods(self, i: int) -> frozenset[str]:
+        got = self._periods.get(i)
+        if got is None:
+            c = self.cells[i]
+            got = periods(" ".join(c.row_labels + c.col_labels))
+            if len(self._periods) >= 50_000:
+                self._periods.clear()
+            self._periods[i] = got
+        return got
 
     def label_score(self, i: int, ctx_tokens: set[str]) -> float:
-        labels = self.label_tokens[i]
+        labels = self.label_tokens(i)
         if not labels:
             return 0.0
         total = sum(self.idf.get(t, 1.0) for t in labels)
@@ -178,14 +227,15 @@ def match_mentions(mentions: list[Mention], index: SourceIndex, top: int = 5) ->
         ctx_tokens = set(tokens(ctx_text))
         ctx_periods = periods(ctx_text)
         scored: list[Scored] = []
-        for i, cell in enumerate(index.cells):
+        for i in index.candidates(m.number):
+            cell = index.cells[i]
             ok, transform = consistent_with_source(m.number, cell.value)
             if not ok:
                 continue
             if transform in _IMPLICIT_SCALES and m.number.unit in ("percent", "pp"):
                 continue  # a percentage is never a scaled money figure
             ls = index.label_score(i, ctx_tokens)
-            cp = index.periods[i]
+            cp = index.cell_periods(i)
             conflict = bool(ctx_periods and cp and not (ctx_periods & cp))
             score = ls - (1.0 if conflict else 0.0) + (0.02 if transform == "exact" else 0.0)
             scored.append(Scored(cell, transform, ls, conflict, score))

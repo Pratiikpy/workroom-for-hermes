@@ -1,6 +1,6 @@
 import pytest
 
-from workroom.workroom_core.match.numbers import consistent_with_source, parse_numbers
+from workroom.workroom_core.match.numbers import consistent_with_source, format_like, parse_numbers
 
 
 def one(text: str):
@@ -108,3 +108,24 @@ def test_the_day_of_a_date_and_an_ordinal_are_not_quantities() -> None:
     assert [m.raw for m in parse_numbers("on 30 January we sold 30 units")] == ["30"]
     assert parse_numbers("our 30th year and the 3rd quarter") == []
     assert [m.raw for m in parse_numbers("Mar 2026 sales were 31 units")] == ["2026", "31"]
+
+
+def test_a_rewritten_figure_rounds_the_way_the_workbook_displays_it() -> None:
+    """Exact halves go away from zero, as Excel shows them: the source cell 2414.5 reads 2,415, so the document must too."""
+    cases = [("2,195", 2414.5, "2,415"), ("$115", 126.5, "$127"), ("95", 104.5, "105"), ("0.12", 0.125, "0.13"), ("2.67", 2.675, "2.68"),
+             ("15", 16.5, "17"), ("-3", -2.5, "-3"), ("(3)", -2.5, "(3)"), ("5.0%", 7.25, "7.3%"), ("1,000", 1_000_000.5e-3, "1,000")]
+    for raw, value, want in cases:
+        m = parse_numbers(raw)[0]
+        assert format_like(m, value, "exact") == want, (raw, value, format_like(m, value, "exact"))
+
+
+def test_a_bracketed_percentage_inside_a_sentence_is_an_aside_not_a_negative() -> None:
+    m = [x for x in parse_numbers("283 skills (7.1%) leaking keys") if x.unit == "percent"][0]
+    assert (m.raw, m.value, m.negative, m.aside) == ("(7.1%)", 7.1, False, True)
+    assert consistent_with_source(m, 0.071)[0] and consistent_with_source(m, -0.071)[0]
+    assert format_like(m, 0.073, "fraction_to_percent") == "(7.3%)"
+    assert format_like(m, -0.032, "fraction_to_percent") == "(-3.2%)"
+    alone = parse_numbers("(7.1%)")[0]  # a table cell holding only the bracketed figure is the accounting form
+    assert alone.negative and not alone.aside
+    money = parse_numbers("the loss was ($4.5m) this year")[0]
+    assert money.negative and not money.aside

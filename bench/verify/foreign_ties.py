@@ -127,7 +127,7 @@ def build_project(doc: Path, seeds: list[dict], mode: str) -> tuple[Path, Path]:
     return root, root / "data.xlsx"
 
 
-def classify(seeds: list[dict], ties: list[dict], docname: str) -> list[dict]:
+def classify(seeds: list[dict], ties: list[dict], docname: str, mode: str = "labelled") -> list[dict]:
     out = []
     for i, s in enumerate(seeds):
         want = f"B{i + 2}"
@@ -138,7 +138,15 @@ def classify(seeds: list[dict], ties: list[dict], docname: str) -> list[dict]:
         t = cands[0]
         got = t["source"].split("!")[-1]
         if t["state"] == "accepted":
-            out.append({"seed": i, "result": "linked_right" if got == want else "LINKED_WRONG", "got": got, "want": want, "tie": t["id"]})
+            result = "linked_right" if got == want else "LINKED_WRONG"
+            if result == "LINKED_WRONG":
+                other = seeds[int(got[1:]) - 2] if got[1:].isdigit() and 0 <= int(got[1:]) - 2 < len(seeds) else None
+                words = set(re.findall(r"[a-z]{3,}", s["para"].lower()))
+                if other and other["raw"] == s["raw"] and other["label"] and {w.lower() for w in other["label"].split()} <= words:
+                    result = "linked_equivalent"  # another cell holds the same figure and its label is in this paragraph: a person would pick it too
+            out.append({"seed": i, "result": result, "got": got, "want": want, "tie": t["id"]})
+            if mode == "labelled" and not s["label"] and result in ("LINKED_WRONG",):
+                out[-1]["result"] = "unlabelled_ambiguous_linked"  # the workbook row has no words at all: the harness built an unlabelled row, another cell with the same figure may rightly win
         else:
             out.append({"seed": i, "result": "proposed" if got == want else "proposed_wrong", "got": got, "want": want, "tie": t["id"], "state": t["state"]})
     return out
@@ -178,7 +186,7 @@ def run_doc(doc: Path, mode: str, max_seeds: int, min_seeds: int, updates: int) 
         svc.discover(pid)
         row["discover_seconds"] = round(time.time() - t0, 2)
         ties = svc.ties(pid)
-        cls = classify(seeds, ties, doc.name)
+        cls = classify(seeds, ties, doc.name, mode)
         count = {}
         for c in cls:
             count[c["result"]] = count.get(c["result"], 0) + 1
@@ -210,6 +218,13 @@ def run_doc(doc: Path, mode: str, max_seeds: int, min_seeds: int, updates: int) 
         edits = [e for e in edits if e[0] != e[1]]
         ok, why = compare_text(before_texts, after_texts, edits)
         row.update(updated=len(edits), text_ok=ok, text_note=why)
+        if not ok:
+            from collections import Counter
+
+            cb, ca = Counter(before_texts), Counter(after_texts)
+            row["removed"] = [t[:300] for t in list((cb - ca).elements())[:3]]
+            row["added"] = [t[:300] for t in list((ca - cb).elements())[:3]]
+            row["edits"] = edits[:8]
     except (ServiceError, Exception) as exc:  # noqa: BLE001
         row.update(status=row.get("status", "failed") if row.get("status") == "ok" else "failed", error=f"{type(exc).__name__}: {str(exc)[:160]}")
     finally:
@@ -227,11 +242,12 @@ def main() -> None:
     ap.add_argument("--min-seeds", type=int, default=6)
     ap.add_argument("--updates", type=int, default=5)
     ap.add_argument("--limit", type=int, default=10_000)
+    ap.add_argument("--no-update", action="store_true", help="classify the links only; skip the update and the real-Office check")
     ns = ap.parse_args()
     files = collect(ns.targets, (".docx", ".pptx"))[: ns.limit]
     rows = []
     for i, f in enumerate(files, 1):
-        r = run_doc(f, ns.mode, ns.max_seeds, ns.min_seeds, ns.updates)
+        r = run_doc(f, ns.mode, ns.max_seeds, ns.min_seeds, 0 if ns.no_update else ns.updates)
         rows.append(r)
         print(f"{i}/{len(files)} {f.name[:40]} {r.get('status')} {r.get('classes', r.get('reason', r.get('error', '')))}", flush=True)
         Path(ns.out).write_text(json.dumps(rows, indent=1, default=str), encoding="utf-8")

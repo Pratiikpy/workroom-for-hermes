@@ -6,11 +6,14 @@ that are tied to a source cell whose value changed since the last release.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
 import re
 import sqlite3
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -133,6 +136,10 @@ class Discovery:
     held: int = 0
 
 
+_INDEX_CACHE: "OrderedDict[tuple, tuple[SourceIndex, list[str]]]" = OrderedDict()  # the two most recently read source sets, shared by every Project in this process
+_INDEX_LOCK = threading.Lock()
+
+
 class Project:
     def __init__(self, root: Path, state: Path) -> None:
         self.root = Path(root).resolve()
@@ -200,14 +207,30 @@ class Project:
         return p.relative_to(self.root).as_posix()
 
     def source_index(self) -> SourceIndex:
+        """Every numeric source cell with its labels. Parsing and indexing a large workbook is the slow part of reading a project, so the
+        result is kept while the workbooks' bytes (compared by digest, never by timestamp) are unchanged."""
+        files = [(p, p.read_bytes()) for p in self._files(SOURCE_EXT)]
+        key = (str(self.root), tuple((self._rel(p), hashlib.sha256(b).digest()) for p, b in files))
+        with _INDEX_LOCK:
+            cached = _INDEX_CACHE.get(key)
+            if cached is not None:
+                _INDEX_CACHE.move_to_end(key)
+        if cached is not None:
+            self.unreadable_sources = list(cached[1])
+            return cached[0]
         cells: list[SourceCell] = []
-        self.unreadable_sources: list[str] = []
-        for p in self._files(SOURCE_EXT):
+        self.unreadable_sources = []
+        for p, data in files:
             try:
-                cells.extend(index_workbook(open_package(p.read_bytes()), file=self._rel(p)))
+                cells.extend(index_workbook(open_package(data), file=self._rel(p)))
             except (PackageError, EditError, KeyError, ValueError):
                 self.unreadable_sources.append(self._rel(p))
-        return SourceIndex(cells)
+        index = SourceIndex(cells)
+        with _INDEX_LOCK:
+            _INDEX_CACHE[key] = (index, list(self.unreadable_sources))
+            while len(_INDEX_CACHE) > 2:
+                _INDEX_CACHE.popitem(last=False)
+        return index
 
     # ---- born ties ----
     def locate_born(self, rel: str, data: bytes, occurrences: list[tuple[str, str, str, str]], values: dict[str, float]) -> list[tuple[DocMention, str, str]]:
@@ -411,7 +434,31 @@ class Project:
         return (t.slide_uid or f"#{t.slide}", t.shape_id, t.para, t.seg, t.offset, t.cell_rc)
 
     # ---- discover ----
+    @contextlib.contextmanager
+    def _transaction(self):
+        """One transaction around a group of writes. Nested uses join the outermost one. Each statement on its own is a synced write, which
+        made reading a project with a thousand links take minutes."""
+        depth = getattr(self, "_tx_depth", 0)
+        if depth == 0:
+            self.db.execute("BEGIN")
+        self._tx_depth = depth + 1
+        try:
+            yield
+        except BaseException:
+            self._tx_depth -= 1
+            if self._tx_depth == 0:
+                self.db.execute("ROLLBACK")
+            raise
+        else:
+            self._tx_depth -= 1
+            if self._tx_depth == 0:
+                self.db.execute("COMMIT")
+
     def discover(self) -> "Discovery":
+        with self._transaction():
+            return self._discover()
+
+    def _discover(self) -> "Discovery":
         """Find numbers and link new ones. A link that already exists is kept as it is: its state (confirmed or skipped by the
         owner), its source cell and the value it was linked at, even when the source value has since changed.
 
@@ -623,7 +670,8 @@ class Project:
         """Check each tie's source cell against its remembered headings; follow cells that moved. Writes only this project's own database."""
         from .meaning.anchors import relocate_sources
 
-        self.last_notes = relocate_sources(self)
+        with self._transaction():
+            self.last_notes = relocate_sources(self)
         return self.last_notes
 
     # ---- calculated numbers ----
@@ -779,17 +827,15 @@ class Project:
 
     def _seed_snapshot(self, cells) -> None:
         keys = self._snapshot_keys(cells)
-        self.db.execute("BEGIN")
-        self.db.executemany("INSERT OR IGNORE INTO snapshot2 (file, sheet, key, value) VALUES (?,?,?,?)", [(c.file, c.sheet, keys[(c.file, c.sheet, c.ref)], c.value) for c in cells])
-        self.db.execute("COMMIT")
+        with self._transaction():
+            self.db.executemany("INSERT OR IGNORE INTO snapshot2 (file, sheet, key, value) VALUES (?,?,?,?)", [(c.file, c.sheet, keys[(c.file, c.sheet, c.ref)], c.value) for c in cells])
 
     def _write_snapshot(self, values: dict[tuple[str, str, str], float]) -> None:
         cells = self.source_index().cells
         keys = self._snapshot_keys(cells)
-        self.db.execute("BEGIN")
-        self.db.executemany("INSERT OR REPLACE INTO snapshot2 (file, sheet, key, value) VALUES (?,?,?,?)",
-                            [(c.file, c.sheet, keys[(c.file, c.sheet, c.ref)], values.get((c.file, c.sheet, c.ref), c.value)) for c in cells])
-        self.db.execute("COMMIT")
+        with self._transaction():
+            self.db.executemany("INSERT OR REPLACE INTO snapshot2 (file, sheet, key, value) VALUES (?,?,?,?)",
+                                [(c.file, c.sheet, keys[(c.file, c.sheet, c.ref)], values.get((c.file, c.sheet, c.ref), c.value)) for c in cells])
 
     @staticmethod
     def _tie_value(t: Tie, values: dict[tuple[str, str, str], float], default: float | None = None) -> float | None:
