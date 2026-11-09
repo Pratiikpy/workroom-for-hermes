@@ -130,17 +130,27 @@ def main() -> None:
         "of_those_left_as_last_year": sum(1 for k in should if after.get(k) == before[k]),
     }
     result["wrong_examples"] = wrong[:400]
-    b_before, b_after, b_official = figures(tmp / "archive" / "statements_y1.docx", True), figures(root / "statements_y2.docx", True), figures(y2_doc, True)
-    by_head_scored = collections.Counter()
-    for k, v in b_after.items():
-        if k in b_before and b_before[k] != v:
-            by_head_scored["changed, no counterpart in the official report" if k not in b_official else ("changed to the official figure" if b_official[k] == v else "changed to something else")] += 1
-    b_should = {k for k in b_before if k in b_official and b_before[k] != b_official[k]}
-    result["score_by_column_heading"] = {"outcomes": dict(by_head_scored), "figures_that_differ_between_the_two_official_years": len(b_should),
-                                         "of_those_updated_to_the_official_figure": sum(1 for k in b_should if b_after.get(k) == b_official[k]),
-                                         "of_those_left_as_last_year": sum(1 for k in b_should if b_after.get(k) == b_before[k])}
+    from oracle_groups import figures_grouped
+
+    g_before, g_after, g_official = figures_grouped(tmp / "archive" / "statements_y1.docx"), figures_grouped(root / "statements_y2.docx"), figures_grouped(y2_doc)
+    grouped = collections.Counter()
+    grouped_wrong = []
+    for k, v in g_after.items():
+        if k in g_before and g_before[k] != v:
+            if k not in g_official:
+                grouped["changed, no counterpart in the official report"] += 1
+            elif g_official[k] == v:
+                grouped["changed to the official figure"] += 1
+            else:
+                grouped["changed to something else"] += 1
+                grouped_wrong.append({"key": list(map(str, k)), "old": g_before[k], "new": v, "official": g_official[k]})
+    g_should = {k for k in g_before if k in g_official and g_before[k] != g_official[k]}
+    result["score_by_group_heading"] = {"outcomes": dict(grouped), "figures_that_differ_between_the_two_official_years": len(g_should),
+                                        "of_those_updated_to_the_official_figure": sum(1 for k in g_should if g_after.get(k) == g_official[k]),
+                                        "of_those_left_as_last_year": sum(1 for k in g_should if g_after.get(k) == g_before[k])}
+    result["grouped_wrong_examples"] = grouped_wrong[:60]
     out.write_text(json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
-    print(json.dumps({k: result[k] for k in ("cycle1", "recipe", "cycle2", "score", "score_by_column_heading")}, indent=1, ensure_ascii=False))
+    print(json.dumps({k: result[k] for k in ("cycle1", "recipe", "cycle2", "score", "score_by_group_heading")}, indent=1, ensure_ascii=False))
     shutil.rmtree(tmp, ignore_errors=True)
 
 
