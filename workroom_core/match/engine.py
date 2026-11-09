@@ -134,6 +134,8 @@ class SourceIndex:
         # Counting how many cells carry each word needs every cell's words once; keeping every cell's words would cost gigabytes on a large
         # workbook, so only the counts are kept and a cell's words are worked out again when a number turns out to be a candidate for it.
         self._tokens: dict[int, frozenset[str]] = {}
+        self._totals: dict[int, float] = {}
+        self._headings: dict[tuple[str, str, str], frozenset[str]] = {}
         self._periods: dict[int, frozenset[str]] = {}
         df: Counter[str] = Counter()
         seen: dict[str, frozenset[str]] = {}
@@ -193,9 +195,24 @@ class SourceIndex:
         labels = self.label_tokens(i)
         if not labels:
             return 0.0
-        total = sum(self.idf.get(t, 1.0) for t in labels)
-        hit = sum(self.idf.get(t, 1.0) for t in labels if t in ctx_tokens)
+        total = self._totals.get(i)
+        if total is None:
+            total = self._totals[i] = sum(self.idf.get(t, 1.0) for t in labels)
+        common = labels & ctx_tokens
+        if not common:
+            return 0.0
+        hit = sum(self.idf.get(t, 1.0) for t in common)
         return hit / total if total else 0.0
+
+    def heading_tokens(self, cell: SourceCell) -> frozenset[str]:
+        """The words of a cell's row and column headings (not its sheet name), kept so a figure's candidates do not each work them out again."""
+        key = (cell.file, cell.sheet, cell.ref)
+        got = self._headings.get(key)
+        if got is None:
+            if len(self._headings) >= 50_000:
+                self._headings.clear()
+            got = self._headings[key] = frozenset(tokens(" ".join(cell.row_labels + cell.col_labels)))
+        return got
 
 
 SECTION_BONUS = 0.25  # added to a candidate whose sheet is named by the heading the figure sits under: it breaks ties, it never lifts a weak match
@@ -227,12 +244,11 @@ ROW_WEIGHT = 0.3  # how much a candidate whose row headings cover the document t
 ROW_FIT_MIN = 0.34  # below this share of the document row heading found in the cell's row headings, the row is not the same row
 
 
-def row_fit(doc_row: set[str], cell_labels: tuple[str, ...], idf: dict[str, float]) -> float:
+def row_fit(doc_row: set[str], have: frozenset[str], idf: dict[str, float]) -> float:
     """Share (weighted by how telling each word is) of the document table's row heading found among the cell's headings. Tables are often turned
     on their side between the report and the workbook, so the row heading may sit on the cell's column."""
     if not doc_row:
         return 1.0
-    have = set(tokens(" ".join(cell_labels)))
     total = sum(idf.get(t, 1.0) for t in doc_row)
     return sum(idf.get(t, 1.0) for t in doc_row if t in have) / total if total else 1.0
 
@@ -344,9 +360,9 @@ def match_mentions(mentions: list[Mention], index: SourceIndex, top: int = 5) ->
             cp = index.cell_periods(i)
             conflict = bool(ctx_periods and cp and not (ctx_periods & cp))
             in_section = section_agrees(cell.sheet, m.section)
-            score = ls - (1.0 if conflict else 0.0) + (0.02 if transform == "exact" else 0.0) + (SECTION_BONUS if in_section else 0.0) + ROW_WEIGHT * row_fit(doc_row, cell.row_labels + cell.col_labels, index.idf)
+            score = ls - (1.0 if conflict else 0.0) + (0.02 if transform == "exact" else 0.0) + (SECTION_BONUS if in_section else 0.0) + ROW_WEIGHT * row_fit(doc_row, index.heading_tokens(cell), index.idf)
             scored.append(Scored(cell, transform, ls, conflict, score, in_section))
-        scored.sort(key=lambda s: -s.score)
+        scored.sort(key=lambda s: (-round(s.score, 9), s.cell.file, s.cell.sheet, s.cell.row, s.cell.col))  # equal scores come out in the same order every time
         if not scored:
             results.append(MatchResult(m, "none", None, None, "no source cell is consistent with this number"))
             continue
@@ -381,7 +397,7 @@ def match_mentions(mentions: list[Mention], index: SourceIndex, top: int = 5) ->
             decision, reason = "confirm", "one cell has this value but nothing in the text names it"
         else:
             decision, reason = "confirm", "this value appears in several cells and the text does not tell them apart"
-        if decision == "accept" and doc_row and row_fit(doc_row, best.cell.row_labels + best.cell.col_labels, index.idf) < ROW_FIT_MIN:
+        if decision == "accept" and doc_row and row_fit(doc_row, index.heading_tokens(best.cell), index.idf) < ROW_FIT_MIN:
             decision, reason = "confirm", "the row heading in the document does not match the row of the closest cell"
         elif decision == "accept" and m.section and not best.in_section and any(c.in_section for c in scored[1:]):
             decision, reason = "confirm", "the closest cell is not on the sheet the section names, and a cell on that sheet fits too"
