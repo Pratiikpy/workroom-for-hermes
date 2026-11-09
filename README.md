@@ -17,6 +17,8 @@ These are from a real Hermes Desktop v0.23.0 session on Windows (not mockups), t
 5. Before and after, drawn by PowerPoint from a private copy. ![Before and after](docs/screenshots/05-before-and-after.png)
 6. Creating a file from sources: every figure listed with its cell, nothing written until approval. ![Create release](docs/screenshots/06-create-release.png)
 7. The page editor floating over a session. ![Page editor](docs/screenshots/07-page-editor.png)
+8. The change map: changed source cells on the left, the places they reach on the right. ![Change map](docs/screenshots/08-change-map.png)
+9. Selecting a place shows its finding and lights its one link. ![Change map, finding](docs/screenshots/09-change-map-finding.png)
 
 The whole first-run loop (make the sample, approve the deck, a new quarter arrives, see what changes, approve the update) is in [`docs/demo/first-run.gif`](docs/demo/first-run.gif).
 
@@ -33,7 +35,7 @@ Ask Why: for any linked number, Workroom says which cell it came from, which lab
 
 Under "See what would change", **Map** draws the Changes inbox as a graph. Every box and line is a link the project holds, not a picture of it: on the left the source cells that changed (a dashed red box when a cell no longer holds a number), on the right the places in each document they reach, coloured by what will happen (will update, held for you, source missing), with a red or amber "!" where a finding needs your check. Select a box to follow its links: the old and new value, the sentence, why it will or will not change, and the finding with its evidence. "Show this file in its folder" uses the Desktop's reveal door. It works from the keyboard (Tab, Enter, Escape), and **List** is the same information as text.
 
-What it does not draw: a calculated figure is its own box on the left (the inbox does not list the cells it was calculated from, so no lines are invented to them); at most 80 places are drawn, and the list has all of them; in a window narrower than 700 px the list is shown first. Tested against the project's own tie table (every drawn line is a link, every changed link is drawn) and in a real browser with the real Desktop script; **not yet run inside Hermes Desktop itself**.
+What it does not draw: a calculated figure is its own box on the left (the inbox does not list the cells it was calculated from, so no lines are invented to them); at most 80 places are drawn, and the list has all of them; in a window narrower than 700 px the list is shown first. Tested against the project's own tie table (every drawn line is a link, every changed link is drawn), in a real browser with the real Desktop script, and driven in the real Hermes Desktop v0.23.0 on Windows (9 of 9 checks). Not clicked in the real Desktop: "Show this file in its folder".
 
 ## What a change means
 

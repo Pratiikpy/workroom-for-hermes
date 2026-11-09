@@ -47,27 +47,26 @@ window.__ready = true
 </script></body></html>"""
 
 
-def build_project(root: Path, state: Path) -> tuple[dict, dict]:
+def write_files(root: Path, changed: bool = False) -> None:
+    """A deck, a report and a workbook. With ``changed`` the workbook is the next version: revenue up, income a thousand times too large (a unit slip), the cost row gone."""
     from docx import Document
     from pptx import Presentation
     from pptx.util import Inches
     from xlsxwriter import Workbook
 
-    from workroom.workroom_core.service import Service
-
-    def workbook(revenue, income, margin, headcount, cogs):
-        with Workbook(str(root / "results.xlsx")) as wb:
-            ws = wb.add_worksheet("Results")
-            ws.write_row(0, 0, ["Metric", "Q1 2026", "Q2 2026", "Q3 2026"])
-            ws.write_row(1, 0, ["Net revenue", 13_000_000, revenue, 15_100_000])
-            ws.write_row(2, 0, ["Operating income", 1_850_000, income, 2_640_000])
-            ws.write_row(3, 0, ["Gross margin", 0.41, margin, 0.43])
-            ws.write_row(4, 0, ["Headcount", 410, headcount, 455])
-            if cogs is not None:
-                ws.write_row(5, 0, ["Cost of goods sold", 7_100_000, cogs, 8_900_000])
-
     root.mkdir(parents=True, exist_ok=True)
-    workbook(14_000_000, 2_210_000, 0.42, 431, 8_200_000)
+    revenue, income, headcount, cogs = (15_000_000, 2_210_000_000, 438, None) if changed else (14_000_000, 2_210_000, 431, 8_200_000)
+    with Workbook(str(root / "results.xlsx")) as wb:
+        ws = wb.add_worksheet("Results")
+        ws.write_row(0, 0, ["Metric", "Q1 2026", "Q2 2026", "Q3 2026"])
+        ws.write_row(1, 0, ["Net revenue", 13_000_000, revenue, 15_100_000])
+        ws.write_row(2, 0, ["Operating income", 1_850_000, income, 2_640_000])
+        ws.write_row(3, 0, ["Gross margin", 0.41, 0.42, 0.43])
+        ws.write_row(4, 0, ["Headcount", 410, headcount, 455])
+        if cogs is not None:
+            ws.write_row(5, 0, ["Cost of goods sold", 7_100_000, cogs, 8_900_000])
+    if changed:
+        return
     prs = Presentation()
     first = prs.slides.add_slide(prs.slide_layouts[5])
     first.shapes.title.text = "Quarterly business review"
@@ -83,13 +82,17 @@ def build_project(root: Path, state: Path) -> tuple[dict, dict]:
     doc.add_paragraph("Net revenue for Q2 2026 was $14.0 million and operating income was $2.2 million.")
     doc.add_paragraph("Headcount at the end of Q2 2026 was 431.")
     doc.save(str(root / "report.docx"))
+
+
+def build_project(root: Path, state: Path) -> tuple[dict, dict]:
+    from workroom.workroom_core.service import Service
+
+    write_files(root)
     svc = Service(state)
     pid = svc.add_project(str(root))["project"]
     svc.discover(pid)
-    # a new workbook: revenue up, income a thousand times too large (a unit slip), the cost row gone
-    workbook(15_000_000, 2_210_000_000, 0.42, 438, None)
-    inbox = svc.changes_inbox(pid)
-    return inbox, {"project": pid}
+    write_files(root, changed=True)
+    return svc.changes_inbox(pid), {"project": pid}
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
