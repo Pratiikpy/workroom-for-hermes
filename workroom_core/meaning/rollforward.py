@@ -14,7 +14,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from ..match.numbers import consistent_with_source, format_like, house_of
+from ..match.numbers import consistent_with_source, format_like, house_of, parse_numbers
 from .calc import evaluate
 from .periods import Period, describe_period, find_periods, parse_period, period_label
 from .timeline import Timeline
@@ -34,11 +34,12 @@ class RollPlan:
     notes: list[str] = field(default_factory=list)
     kept: list[str] = field(default_factory=list)
     not_rolled: list[str] = field(default_factory=list)
+    restated: list[str] = field(default_factory=list)  # a figure for a period the report already showed, which the workbook now gives differently
     files: dict[str, bytes] = field(default_factory=dict)
     impacts: list[Impact] = field(default_factory=list)
 
     def meta(self) -> dict[str, Any]:
-        return {"steps": self.steps, "kind": self.kind, "ties": self.items, "labels": self.labels, "turned": self.turned}
+        return {"steps": self.steps, "kind": self.kind, "ties": self.items, "labels": self.labels, "turned": self.turned, "restated": self.restated}
 
 
 def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> RollPlan:
@@ -101,6 +102,7 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
         return plan
     plan.kind = max(kinds, key=lambda k: (kinds[k], k == "q"))
     rolled: dict[int, dict[str, Any]] = {}
+    period_of: dict[int, Period] = {}
     old_periods: dict[tuple[str, int], set[Period]] = {}
     deck_periods: dict[str, set[Period]] = {}
     unrolled_paras: set[tuple] = set()  # paragraphs whose figures could not be rolled
@@ -140,6 +142,7 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
                 continue
             rolled[t.id] = {"id": t.id, "deck": t.deck, "slide": t.slide, "raw": t.raw, "from": [t.src_file, t.sheet, t.ref], "to": [tgt.file, tgt.sheet, tgt.ref],
                             "old_value": t.linked_value, "new_value": tgt.value, "old_formula": "", "new_formula": "", "period": [pl.period.kind, pl.period.index]}
+            period_of[t.id] = pl.period
             rolled_paras.add((t.deck, t.slide, t.shape_id, t.para, t.cell_rc))
             old_periods.setdefault((t.deck, t.slide), set()).add(pl.period)
             deck_periods.setdefault(t.deck, set()).add(pl.period)
@@ -174,6 +177,7 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
                             "old_value": t.linked_value, "new_value": nv, "old_formula": t.formula, "new_formula": new_formula, "period": []}
     if plan.blocked:
         return plan
+    row_of: dict[int, tuple] = {}
     # ---- write the new figures and period words into new copies of the documents ----
     by_tie = {t.id: t for t in ties}
     for rel in sorted({it["deck"] for it in rolled.values()} | {d for d in {t.deck for t in ties}}):
@@ -185,6 +189,11 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
         for d in doc.mentions():
             dms[project._mkey(d)] = d
             dms.setdefault(project._mkey(d, f"#{d.slide}"), d)
+        for t in ties:
+            if t.deck == rel and t.kind == "text":
+                d0 = dms.get(project._tkey(t))
+                if d0 is not None and d0.cell is not None:
+                    row_of[t.id] = (rel, project._table_id(d0), d0.cell[0])
         applied = 0
         mine = [by_tie[i] for i, it in rolled.items() if it["deck"] == rel]
         for t in sorted(mine, key=lambda t: (t.slide, t.shape_id, t.para, t.seg, -t.offset)):
@@ -247,6 +256,33 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
         if applied:
             data, _report = doc.serialize()
             plan.files[rel] = data
+    # a figure for a period the report already showed (last year's column becoming this year's) must equal what the report said then, unless it was restated
+    def group_of(t) -> tuple:
+        """The headings of a figure's cell apart from the period one: two year columns of one group share it, the columns of another group do not."""
+        try:
+            labels = json.loads(t.intent_labels or t.src_labels or "[[], []]")
+        except ValueError:
+            return ()
+        return tuple(x for axis in labels[:2] for x in axis if parse_period(x) is None)
+
+    row_periods: dict[tuple, dict[Any, Any]] = {}
+    for t in ties:
+        if t.id in row_of:
+            _c, pl = placed_of(t)
+            if pl is not None:
+                row_periods.setdefault(row_of[t.id] + (group_of(t),), {})[pl.period] = t
+    for tid, it in rolled.items():
+        if tid not in row_of or tid not in period_of:
+            continue
+        t0 = by_tie[tid]
+        earlier = row_periods.get(row_of[tid] + (group_of(t0),), {}).get(period_of[tid].shifted(plan.steps))
+        if earlier is None or earlier.id == tid:
+            continue
+        said, now = earlier.linked_value, it["new_value"]
+        shown_before = parse_numbers(earlier.raw)
+        resolution = 0.5 * 10 ** -(shown_before[0].decimals if shown_before else 0)
+        if said is not None and now is not None and abs(project._display_value(earlier, said) - project._display_value(earlier, now)) >= resolution:
+            plan.restated.append(f"{t0.deck} slide {t0.slide}: '{t0.raw}' becomes {describe_period(period_of[tid].shifted(plan.steps))}, which this report already gave as '{earlier.raw}'; the workbook now says {now:,.6g}. Restated, or a row that moved in the workbook: check before releasing")
     if plan.blocked:
         plan.files.clear()
         plan.impacts.clear()

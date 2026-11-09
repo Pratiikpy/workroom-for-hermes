@@ -1313,14 +1313,14 @@ class Service:
         meta_dir = self.data_dir / "projects" / pid / "meta"
         meta_dir.mkdir(parents=True, exist_ok=True)
         flags, coverage = self._flags(proj, plan, plan.meta())
-        meta = {"changes": self._changes(proj, plan), "held": plan.not_rolled, "kept": plan.kept, "flags": flags, "coverage": coverage, "rolled": plan.meta(), "notes": plan.notes}
+        meta = {"changes": self._changes(proj, plan), "held": plan.not_rolled, "kept": plan.kept, "flags": flags, "coverage": coverage, "rolled": plan.meta(), "notes": plan.notes, "restated": plan.restated}
         (meta_dir / f"{rid}.json").write_text(json.dumps(meta), encoding="utf-8")
         try:
             ctl.mark_verified(rid, findings)
         except NotReady:
             return {"release_id": rid, "state": "blocked", "findings": findings}
         return {"release_id": rid, "state": "awaiting_approval", "digest": ctl.digest(rid), "changes": meta["changes"], "held": plan.not_rolled, "kept": plan.kept,
-                "flags": flags, "coverage": coverage, "figures": len(plan.items), "period_words": len(plan.labels)}
+                "flags": flags, "coverage": coverage, "figures": len(plan.items), "period_words": len(plan.labels), "restated": plan.restated}
 
     def _flags(self, proj: Project, plan: Plan, roll: dict | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         """What the update means for the sentences around the numbers, each with the owner's earlier decision about it, if any."""

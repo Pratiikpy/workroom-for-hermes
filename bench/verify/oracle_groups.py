@@ -32,11 +32,12 @@ def _is_figure(text: str) -> bool:
     return bool(t) and bool(_FIGURE.match(t)) and not _YEAR.fullmatch(t) and any(ch.isdigit() for ch in t)
 
 
-def figures_grouped(path: Path) -> dict[tuple, str]:
+def figures_grouped(path: Path, by_table: bool = False) -> dict[tuple, str]:
     d = docx.Document(str(path))
     out: dict[tuple, str] = {}
     seen: collections.Counter = collections.Counter()
     section = ""
+    tables_in_section: collections.Counter = collections.Counter()
     for child in d.element.body.iterchildren():
         tag = child.tag.rsplit("}", 1)[-1]
         if tag == "p":
@@ -51,6 +52,8 @@ def figures_grouped(path: Path) -> dict[tuple, str]:
         first_data = next((i for i, r in enumerate(rows) if sum(_is_figure(x) for x in r[1:]) >= 2), None)
         if first_data is None or not section:
             continue
+        table_no = tables_in_section[section]
+        tables_in_section[section] += 1
         headers = []
         for j in range(len(rows[0])):
             parts = [_norm(rows[i][j]) for i in range(min(first_data, 4)) if j < len(rows[i])]
@@ -62,7 +65,7 @@ def figures_grouped(path: Path) -> dict[tuple, str]:
             for j, cell in enumerate(r):
                 if j == 0 or not _is_figure(cell):
                     continue
-                key = (section, head, headers[j] if j < len(headers) else "")
+                key = (section, table_no if by_table else 0, head, headers[j] if j < len(headers) else "")
                 n = seen[key]
                 seen[key] += 1
                 out[key + (n,)] = cell.strip()

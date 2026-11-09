@@ -9,6 +9,7 @@ Added
 - Columns placed by their order: a report table that is a block of a sheet is matched column by column in the sheet's order, when every best assignment agrees and nearly every figure equals its cell. This also corrects links that value alone made to another period.
 - Release record: a readable record of every published release (changes with source cells, files by hash, checks that ran or could not run, who approved, how to restore), in the Past releases list and as a read-only agent tool.
 - A table that lost a source is not half-updated: none of its figures is rewritten and the release lists them as blocked.
+- Window refresh: a copy of last period's report can be rolled against a workbook whose window of periods has slid, from the headings its links were inherited under; years printed as numbers are read as headings; headings are compared without footnote marks; rewritten figures follow the document's thousands and bracket style; prior-period figures the workbook now gives differently are listed as restated before release.
 - Evidence: two holdout sets of public Victorian department reports, judged by an independent reader, and the scripts to repeat them (`bench/verify/HOLDOUT1_RESULT.md`, `HOLDOUT2_RESULT.md`).
 
 Fixed

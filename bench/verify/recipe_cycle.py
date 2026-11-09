@@ -90,6 +90,8 @@ def main() -> None:
     result["cycle2"]["figures_rolled"] = staged.get("figures")
     result["cycle2"]["held_back"] = staged.get("held") if isinstance(staged.get("held"), int) else len(staged.get("held") or [])
     result["cycle2"]["stage_state"] = staged.get("state")
+    result["cycle2"]["restated"] = len(staged.get("restated", []))
+    result["restated_examples"] = staged.get("restated", [])
     result["cycle2"]["flags"] = [f["kind"] for f in staged.get("flags", [])]
     if staged.get("state") == "awaiting_approval":
         try:
@@ -133,7 +135,7 @@ def main() -> None:
     result["wrong_examples"] = wrong[:400]
     from oracle_groups import figures_grouped
 
-    g_before, g_after, g_official = figures_grouped(tmp / "archive" / "statements_y1.docx"), figures_grouped(root / "statements_y2.docx"), figures_grouped(y2_doc)
+    g_before, g_after, g_official = (figures_grouped(tmp / "archive" / "statements_y1.docx", True), figures_grouped(root / "statements_y2.docx", True), figures_grouped(y2_doc, True))
     grouped = collections.Counter()
     grouped_wrong = []
     for k, v in g_after.items():
