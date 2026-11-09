@@ -31,7 +31,7 @@ import cycles  # noqa: E402
 from workroom.workroom_core.service import Service  # noqa: E402
 
 NOUS = HERE.parents[2]
-HOME = NOUS / ".hermes-test"
+HOME = Path(os.environ.get("WORKROOM_AGENT_HOME", str(NOUS / ".hermes-test")))
 FRED = NOUS / "research" / "corpus" / "fred"
 
 PROMPTS = {
@@ -77,7 +77,7 @@ def main() -> None:
     before = digest(root)
     toolsets = "workroom_ro" if scenario == "calc" else "workroom"
     env = {**os.environ, "HERMES_HOME": str(HOME), "PYTHONIOENCODING": "utf-8"}
-    cmd = [str(HOME / "bin" / "hermes.exe"), "chat", "-q", PROMPTS[scenario].format(root=root), "--provider", provider, "-m", model, "-t", toolsets,
+    cmd = [str(NOUS / ".hermes-test" / "bin" / "hermes.exe"), "chat", "-q", PROMPTS[scenario].format(root=root), "--provider", provider, "-m", model, "-t", toolsets,
            "--format", "stream-json", "--max-turns", "16", "--accept-hooks", "--yolo"]
     if provider == "custom":
         cmd += ["--base-url", base_url, "--api-key", "local"]

@@ -147,3 +147,16 @@ def test_a_dash_with_a_space_after_it_is_punctuation_and_a_rewritten_minus_keeps
 def test_braced_values_and_citation_numbers_are_not_quantities() -> None:
     assert parse_numbers("Originally HSV: {0,0,76}") == []
     assert [m.raw for m in parse_numbers("see [12] and [3, 4] for 5 items")] == ["5"]
+
+
+def test_indian_digit_grouping_is_one_number_and_is_written_back_the_same_way() -> None:
+    got = [(m.raw, m.value) for m in parse_numbers("Rs 5,00,000 and 12,34,567.5 today")]
+    assert got == [("5,00,000", 500000.0), ("12,34,567.5", 1234567.5)]
+    m = parse_numbers("Rs 5,00,000")[0]
+    assert format_like(m, 1234567.0, "exact") == "12,34,567" and format_like(m, 900000.0, "exact") == "9,00,000" and format_like(m, 40000.0, "exact") == "40,000"
+    assert [x.raw for x in parse_numbers("1,234,567 or 12,345 or 123,456")] == ["1,234,567", "12,345", "123,456"]
+
+
+def test_a_decimal_comma_is_not_edited_in_pieces() -> None:
+    assert parse_numbers("Done 189,45 rub and 3,5 times and 1.234,56") == []
+    assert [m.raw for m in parse_numbers("12, 45 items")] == ["12", "45"]

@@ -16,7 +16,7 @@ _NUMBER = re.compile(
     (?P<neg_open>\()?
     (?P<sign>[-–]|−\s?)?
     (?P<cur>[$€£¥₹])?\s?
-    (?P<num>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?|\.\d+)
+    (?P<num>\d{1,2}(?:,\d{2})+,\d{3}(?:\.\d+)?|\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?|\.\d+)
     \s?(?P<scale>(?:thousand|millions?|billions?|trillion|bn|mm|mn|k|m|b|t)\b)?
     \s?(?P<pct>%|pp\b|bps\b|bp\b)?
     (?P<neg_close>\))?
@@ -52,6 +52,13 @@ def _part_of_longer_token(text: str, start: int, end: int) -> bool:
     nxt = text[end] if end < len(text) else ""
     nxt2 = text[end + 1] if end + 1 < len(text) else ""
     if text[start] == "." and prev.isdigit():
+        return True
+    tail = text[end:end + 4]
+    if nxt == "," and nxt2.isdigit() and not (len(tail) >= 4 and tail[2].isdigit() and tail[3].isdigit()):
+        digits_after = len(tail) - 1 - len(tail[1:].lstrip("0123456789"))
+        if digits_after in (1, 2) and not tail[1 + digits_after:2 + digits_after].isdigit():
+            return True  # 189,45: a decimal comma, which Workroom does not read as a quantity
+    if prev == "," and prev2.isdigit() and 1 <= len(text[start:end]) <= 2 and text[start:end].isdigit():
         return True
     if text[end:end + 2].lower() in ("st", "nd", "rd", "th") and not text[end + 2:end + 3].isalpha():
         return True  # an ordinal: 30th, 3rd
@@ -167,6 +174,20 @@ def display_round(value: float, decimals: int):
         return Decimal(repr(float(value))).quantize(Decimal(1).scaleb(-decimals), rounding=ROUND_HALF_UP)
 
 
+def _indian(integer_text: str) -> str:
+    """12345678 -> 1,23,45,678: the last three digits, then groups of two."""
+    if len(integer_text) <= 3:
+        return integer_text
+    head, last = integer_text[:-3], integer_text[-3:]
+    groups = []
+    while len(head) > 2:
+        groups.insert(0, head[-2:])
+        head = head[:-2]
+    if head:
+        groups.insert(0, head)
+    return ",".join(groups + [last])
+
+
 def format_like(old: NumberMention, new_source_value: float, transform: str) -> str:
     """Write ``new_source_value`` the way ``old`` was written: same affixes, decimals, separators and sign style.
 
@@ -181,6 +202,9 @@ def format_like(old: NumberMention, new_source_value: float, transform: str) -> 
     rounded = display_round(abs(shown), old.decimals)
     use_commas = "," in old.raw
     body = f"{rounded:,.{old.decimals}f}" if use_commas else f"{rounded:.{old.decimals}f}"
+    if use_commas and re.search(r"\d{1,2}(?:,\d{2})+,\d{3}", old.raw):
+        whole, _, frac = f"{rounded:.{old.decimals}f}".partition(".")
+        body = _indian(whole) + ("." + frac if frac else "")
     m = _NUM_IN_RAW.search(old.raw)
     prefix = old.raw[: m.start()].replace("(", "").replace("-", "").replace("−", "").replace("–", "").replace("+", "")
     suffix = old.raw[m.end():].replace(")", "")

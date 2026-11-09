@@ -139,7 +139,11 @@ def check_step(before: list[str], after: list[str], pairs: list[tuple[str, str]]
 
 def run_doc(doc: Path, word) -> dict:
     row: dict = {"file": doc.name}
-    paras = ft.paragraphs_of(doc)
+    try:
+        paras = ft.paragraphs_of(doc)
+    except Exception as exc:  # noqa: BLE001
+        row.update(status="skipped", reason=f"independent reader: {type(exc).__name__}")
+        return row
     seeds = ft.seeds_of(paras, 30)
     # a retyped and a reworded figure need distinct, plain, labelled seeds
     if len(seeds) < 10:
