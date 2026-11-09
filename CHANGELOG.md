@@ -8,6 +8,8 @@ Added
 - Coincidences: short numbers that equal a cell only by chance are listed apart instead of being asked about.
 - Table alignment: a column of a report table that agrees, row by row, with one column of one source sheet is linked as a whole, with the same checks on every cell; on a real report this took the questions from 244 to 129.
 - Reading rules: section and note numbers, numbered headings and Notes columns are not figures; a figure a thousand times away from its cell needs a named unit; dashes and unit marks are not headings.
+- A link is asked about, not accepted, when the text and the cell's headings use opposite words (opening and closing, assets and liabilities, receipts and payments and similar).
+- A column of dotted note numbers is a column of references even when its Notes heading is in another part of a split table.
 - Word files with more than one body element are refused instead of edited.
 - The shell guard reads the script a command runs.
 

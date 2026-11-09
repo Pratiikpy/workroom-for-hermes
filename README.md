@@ -101,7 +101,7 @@ That is a guarantee about Workroom's tools and its editor, and it stops there. A
 |---|---|---|
 | Does an update touch only what it should? | Untouched parts stayed byte-identical in 250 of 250 public Word and PowerPoint packages; a release of 10 changed cells on a real government report rewrote exactly the 20 places it should and nothing else | public files and one independent report; Windows |
 | Does the real software agree? | Word, Excel and PowerPoint open and read back every released file; Microsoft's Open XML validator reports no new error | Windows only |
-| Are automatic links right? | 0 wrong in the 70 links read by hand on the independent report (95% upper bound about 4%) | one pair, one run; 156 other links were checked mechanically, not read |
+| Are automatic links right? | Two independent reports from one agency: 0 wrong in 70 read by hand on the first; on the second (last year's report against this year's workbook) 6 wrong by label and 3 unclear of 181, all of which the reader now guards against or asks about | the guards were written after seeing those results, so they are not yet tested blind; the links not read by hand were checked mechanically only |
 | Does it recover? | 16 of 16 injected crash points recover; restore is byte for byte | simulated process death, not a power cut |
 | Can the agent publish? | No Workroom tool approves or publishes; capable hosted models refused, ignored a planted instruction and left files unchanged | one run each; a shell guard was bypassed once and hardened, see [Limits](docs/LIMITS.md) |
 

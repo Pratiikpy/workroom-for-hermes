@@ -209,3 +209,25 @@ def test_a_formatted_heading_number_and_a_notes_column_are_not_figures() -> None
     assert any(n.value == 4.2 and n.scale == 1e6 for n in nums), "a number that reads as an amount keeps its place even when the paragraph starts with it"
     assert "224,609" in raws and "2,238,270" in raws
     assert raws.count("4.2") == 0, "the notes column's 4.2 is a reference"
+
+
+def test_a_column_of_dotted_note_numbers_is_not_figures_even_without_a_notes_heading() -> None:
+    from docx import Document
+
+    d = Document()
+    t = d.add_table(rows=4, cols=3)
+    rows = [["Employee benefits", "3.2.2", "2,517,624"], ["Payables", "5.2", "2,118,447"], ["Borrowings", "6.1", "34,693"], ["Total liabilities", "", "5,825,576"]]
+    for r, row in enumerate(rows):
+        for c, v in enumerate(row):
+            t.cell(r, c).text = v
+    buf = io.BytesIO()
+    d.save(buf)
+    raws = [m.number.raw for m in Doc(buf.getvalue()).mentions()]
+    assert not any(x in raws for x in ("3.2.2", "5.2", "6.1")) and "2,517,624" in raws and "5,825,576" in raws
+    two = Document()
+    s = two.add_table(rows=2, cols=2)
+    s.cell(0, 0).text, s.cell(0, 1).text = "Growth", "5.2"
+    s.cell(1, 0).text, s.cell(1, 1).text = "Margin", "6.1"
+    buf2 = io.BytesIO()
+    two.save(buf2)
+    assert [m.number.raw for m in Doc(buf2.getvalue()).mentions()] == ["5.2", "6.1"], "two cells are not a column of references"

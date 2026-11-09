@@ -35,6 +35,17 @@ def _cell_text(tr: etree._Element, index: int) -> str:
     return "".join(_text_of(r, WORD) for q in cells[index].iter(_w("p")) for seg in _text_runs(q, WORD) for r in seg) if index < len(cells) else ""
 
 
+_DOTTED_REFERENCE = re.compile(r"\d{1,2}\.\d{1,2}(?:\.\d{1,2})?")
+
+
+def _reference_column(rows: list[etree._Element], index: int) -> bool:
+    """A column whose every filled cell is a dotted number such as 5.2 or 3.2.2, in at least three rows, holds note references, whatever its heading says (a long table is
+    often split across pages and the part that carries the Notes heading is somewhere else)."""
+    texts = [_cell_text(r, index).strip() for r in rows]
+    filled = [t for t in texts if t]
+    return len(filled) >= 3 and all(_DOTTED_REFERENCE.fullmatch(t) for t in filled)
+
+
 def _w(tag: str) -> str:
     return "{%s}%s" % (W_NS, tag)
 
@@ -109,7 +120,7 @@ class Doc:
                 first_row = [x for x in rows[0].iter(_w("tc")) if next(x.iterancestors(_w("tr"))) is rows[0]]
                 col_head = "".join(self._plain(q) for q in first_row[ci].iter(_w("p"))) if ri > 0 and ci < len(first_row) else ""
                 row_head = "".join(self._plain(q) for q in cells[0].iter(_w("p"))) if ci > 0 else ""
-                note_col = any(_cell_text(rows[k], ci).strip().lower() in ("note", "notes") for k in range(min(4, len(rows))))
+                note_col = any(_cell_text(rows[k], ci).strip().lower() in ("note", "notes") for k in range(min(4, len(rows)))) or _reference_column(rows, ci)
             else:
                 cell_rc = None
                 row_head = col_head = ""

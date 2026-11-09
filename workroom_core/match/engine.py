@@ -221,6 +221,24 @@ def _significant_digits(raw: str) -> int:
     return len(digits)
 
 
+_OPPOSITES = tuple(
+    (tuple(tokens(a))[0], tuple(tokens(b))[0])
+    for a, b in (("opening", "closing"), ("receipts", "payments"), ("assets", "liabilities"), ("income", "expenses"), ("increase", "decrease"), ("gain", "loss"), ("debit", "credit"),
+                 ("current", "noncurrent"), ("inflow", "outflow"), ("revenue", "cost"), ("profit", "loss"), ("surplus", "deficit"))
+)
+
+
+def _opposite_words(context: set[str], cell: set[str]) -> tuple[str, str] | None:
+    """A pair of opposite words, one in the text and the other in the cell's headings, with neither word on the other side. The same value under
+    \"closing balance\" in the report and \"opening balance\" in the workbook is an accounting identity, not a match."""
+    for a, b in _OPPOSITES:
+        if a in context and b in cell and a not in cell and b not in context:
+            return a, b
+        if b in context and a in cell and b not in cell and a not in context:
+            return b, a
+    return None
+
+
 def is_coincidence(label_score: float, raw: str) -> bool:
     """A candidate that rests on nothing but an equal value: the text names no part of the cell and the number is short enough to equal some cell by chance
     (or by a power of a thousand). Such a candidate stays on offer, but it is not a question the owner needs to answer."""
@@ -271,7 +289,10 @@ def match_mentions(mentions: list[Mention], index: SourceIndex, top: int = 5) ->
         # a label made only of numbers ("Item 17", "2025") that happens to equal a number elsewhere in the text is not evidence; some word must agree
         shared = set(tokens(" ".join(best.cell.row_labels + best.cell.col_labels + (best.cell.sheet,)))) & ctx_tokens
         no_word = len(index.cells) >= 20 and not any(t[0].isalpha() and index.idf.get(t, 1.0) > 1.2 for t in shared)  # in a workbook of any size, a heading nearly every cell shares ("Value", "Amount") names nothing
-        if best.transform in _IMPLICIT_SCALES and short:
+        opposite = _opposite_words(ctx_tokens, set(tokens(" ".join(best.cell.row_labels + best.cell.col_labels))))
+        if opposite:
+            decision, reason = "confirm", f"the text says \"{opposite[0]}\" and the cell is labelled \"{opposite[1]}\": the same value, opposite words"
+        elif best.transform in _IMPLICIT_SCALES and short:
             decision, reason = "confirm", "a short number fits many cells once scaled, so it needs a person"
         elif best.transform in _IMPLICIT_SCALES and not _scale_is_named(best.transform, ctx_text, best.cell):
             factor = {"thousands": "1,000", "millions": "1,000,000", "billions": "1,000,000,000"}[best.transform]

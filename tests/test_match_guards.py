@@ -80,3 +80,13 @@ def test_a_named_unit_must_be_the_unit_that_explains_the_difference() -> None:
 def test_a_digit_run_inside_a_longer_number_is_not_the_thousands_marker() -> None:
     r = decide("Q2 revenue was 4,100", "4,100", [cell("B2", 4_100_000.0, "Revenue 2,000")])
     assert r.decision == "confirm"
+
+
+def test_the_same_value_under_opposite_words_is_asked_about_not_accepted() -> None:
+    """Closing balance this year is opening balance next year: an identity of values, not the same figure."""
+    opening = [cell("B2", 169044.0, "Opening balance", period="2020")]
+    r = decide("Closing balance 169,044 in 2020", "169,044", opening)
+    assert r.decision == "confirm" and "opposite words" in r.reason
+    assert decide("Opening balance 169,044 in 2020", "169,044", opening).decision == "accept"
+    assert decide("Total assets 169,044 in 2020", "169,044", [cell("B2", 169044.0, "Total liabilities", period="2020")]).decision == "confirm"
+    assert decide("Closing balance 169,044 in 2020", "169,044", [cell("B2", 169044.0, "Closing balance", period="2020")]).decision == "accept"
