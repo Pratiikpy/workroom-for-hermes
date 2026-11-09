@@ -109,6 +109,7 @@ def test_a_short_number_does_not_borrow_the_workbooks_unit_to_become_a_candidate
 def test_a_short_number_with_little_behind_it_is_listed_apart_not_asked() -> None:
     assert is_coincidence(0.0, "25") and is_coincidence(0.29, "25")
     assert not is_coincidence(0.32, "25") and not is_coincidence(0.2, "180,599")
+    assert not is_coincidence(0.0, "25", in_table=True)  # a figure in a table cell is a claim about its row, never set aside as chance
 
 
 def test_a_dated_balance_label_is_a_point_that_steps_by_a_year() -> None:

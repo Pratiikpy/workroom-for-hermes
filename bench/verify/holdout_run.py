@@ -28,8 +28,8 @@ SEED = 20261109
 SAMPLES = {"accept": 120, "confirm": 60, "none": 80, "coincidence": 40}
 
 
-def decide(r) -> str:
-    if r.decision == "confirm" and r.best is not None and is_coincidence(r.best.label_score, r.mention.number.raw):
+def decide(r, in_table: bool = False) -> str:
+    if r.decision == "confirm" and r.best is not None and is_coincidence(r.best.label_score, r.mention.number.raw, in_table):
         return "coincidence"
     return r.decision
 
@@ -38,7 +38,7 @@ def view(i, dm, r) -> dict:
     b, u = r.best, r.runner_up
     return {
         "i": i, "figure": dm.number.raw, "context": list(dm.context), "table": dm.table, "row_head": dm.row_head, "col_head": dm.col_head,
-        "decision": decide(r), "reason": r.reason, "section": dm.section,
+        "decision": decide(r, dm.cell is not None), "reason": r.reason, "section": dm.section,
         "candidates": [{"cell": f"{c.cell.sheet}!{c.cell.ref}", "v": c.cell.value, "ls": round(c.label_score, 2), "sec": c.in_section, "score": round(c.score, 2)} for c in r.candidates[:5]],
         "best": None if b is None else {"cell": f"{b.cell.file} {b.cell.sheet}!{b.cell.ref}", "value": b.cell.value, "row": list(b.cell.row_labels), "col": list(b.cell.col_labels),
                                         "label_score": round(b.label_score, 3), "transform": b.transform},

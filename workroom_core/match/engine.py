@@ -313,10 +313,11 @@ def _opposite_words(context: set[str], cell: set[str]) -> tuple[str, str] | None
     return None
 
 
-def is_coincidence(label_score: float, raw: str) -> bool:
+def is_coincidence(label_score: float, raw: str, in_table: bool = False) -> bool:
     """A candidate that rests on almost nothing but an equal value: the text names little of the cell and the number is short enough to equal some cell by chance
-    (or by a power of a thousand). Such a candidate stays on offer, but it is not a question the owner needs to answer."""
-    return label_score < CHANCE_LABEL and _significant_digits(raw) < CHANCE_DIGITS
+    (or by a power of a thousand). Such a candidate stays on offer, but it is not a question the owner needs to answer. A figure in a table cell is never
+    treated this way: a row of a table is a claim about its row heading, and on a second independent report a third of the short table figures set aside this way had a source."""
+    return not in_table and label_score < CHANCE_LABEL and _significant_digits(raw) < CHANCE_DIGITS
 
 
 def _near(text: str, span: tuple[int, int] | None) -> tuple[str, tuple[int, int] | None]:
