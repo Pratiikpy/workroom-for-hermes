@@ -4,7 +4,7 @@
 
 Workroom links every number in your Word, PowerPoint and Excel files to the spreadsheet cell it came from. When a source changes it shows exactly which numbers in which files are affected, updates only those, keeps your own edits, and publishes one release that you approve and can restore. Nothing is written to your files until you approve.
 
-> **Status: version 0.3.0, an early release.** What has been proven and what has not is stated plainly in [Evidence](docs/EVIDENCE.md) and [Limits](docs/LIMITS.md). The most important limit: on one real 85-page report Workroom linked about a fifth of the numbers on its own and asked about a quarter of them, so a first import of a large report still takes work.
+> **Status: version 0.3.0, an early release.** What has been proven and what has not is stated plainly in [Evidence](docs/EVIDENCE.md) and [Limits](docs/LIMITS.md). The most important limit: on one real 85-page report Workroom linked about a third of the numbers on its own and asked about about an eighth of them, so a first import of a large report still takes some work.
 
 ![The change map in Hermes Desktop: changed source cells on the left, the places in each document they reach on the right](docs/screenshots/00-hero-change-map.png)
 
@@ -109,7 +109,7 @@ Full tables, caveats and the dated record: [Evidence](docs/EVIDENCE.md).
 
 ## What it does not do yet
 
-- **Large first imports take work.** On one real report, about a fifth of the numbers linked on their own and about a quarter needed a decision. Confirming a whole table at once is planned and not built.
+- **Large first imports take some work.** On one real report, about a third of the numbers linked on their own and about an eighth needed a decision; the rest were short numbers that match a cell only by chance, or figures the workbook does not contain. A table whose column agrees with one source column row by row is now linked as a whole; tables with weaker evidence are still asked about number by number.
 - **One independent report has been measured.** Most other tests used documents and workbooks built for testing.
 - **Windows is the tested desktop.** The suite also passes on macOS and Linux; the Hermes Desktop screens and the Office checks were run on Windows only.
 - **The agent boundary covers Workroom's tools.** A shell guard stops the common ways around approval; it is a heuristic, not isolation.

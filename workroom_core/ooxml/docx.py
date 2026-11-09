@@ -89,6 +89,7 @@ class Doc:
     def _mentions_in(self, part_no: int, part: str) -> Iterator[DocMention]:
         paras = self._paragraphs(part)
         heading = ""
+        tables: list[etree._Element] = []
         for pi, p in enumerate(paras):
             style = self._style(p).lower()
             plain = self._plain(p)
@@ -102,6 +103,9 @@ class Doc:
                 cells = [x for x in tr.iter(_w("tc")) if next(x.iterancestors(_w("tr"))) is tr]
                 ri, ci = rows.index(tr), cells.index(tc)
                 cell_rc = (ri, ci)
+                if not any(t is tbl for t in tables):
+                    tables.append(tbl)
+                table_no = next(k for k, t in enumerate(tables) if t is tbl)
                 first_row = [x for x in rows[0].iter(_w("tc")) if next(x.iterancestors(_w("tr"))) is rows[0]]
                 col_head = "".join(self._plain(q) for q in first_row[ci].iter(_w("p"))) if ri > 0 and ci < len(first_row) else ""
                 row_head = "".join(self._plain(q) for q in cells[0].iter(_w("p"))) if ci > 0 else ""
@@ -110,6 +114,7 @@ class Doc:
                 cell_rc = None
                 row_head = col_head = ""
                 note_col = False
+                table_no = -1
             consumed = 0
             for seg_i, seg in enumerate(_text_runs(p, WORD)):
                 text = "".join(_text_of(r, WORD) for r in seg)
@@ -127,7 +132,7 @@ class Doc:
                     ctx = (plain,) + tuple(x for x in (heading, row_head, col_head) if x)
                     po = seg_start + nm.start
                     po = po if plain[po : po + len(nm.raw)] == nm.raw else None
-                    yield DocMention(part_no, 0, pi, seg_i, nm.start, nm, ctx, cell_rc, po, part)
+                    yield DocMention(part_no, 0, pi, seg_i, nm.start, nm, ctx, cell_rc, po, part, table_no, row_head, col_head)
 
     def _next_revision_id(self) -> int:
         if self._rev is None:

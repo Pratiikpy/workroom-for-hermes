@@ -19,6 +19,8 @@ from pathlib import Path
 
 from .build.formats import plain
 from .match.engine import Mention, MatchResult, SourceIndex, match_mentions, tokens
+from .match.tables import REASON as TABLE_ALIGNMENT
+from .match.tables import align_tables
 from .match.numbers import _TRANSFORMS, consistent_with_source, format_like, parse_numbers
 from .ooxml.package import PackageError, open_package
 from .ooxml.runs import EditError
@@ -552,6 +554,7 @@ class Project:
                 continue
             self._discover_charts(rel, deck, index, chart_ties, kept_ids)
             results = match_mentions([Mention(str(i), dm.number, dm.context, (dm.para_offset, dm.para_offset + len(dm.number.raw)) if dm.para_offset is not None else None) for i, dm in enumerate(dms)], index)
+            results = align_tables(dms, results, index)
             found += len(dms)
             by_pos = {self._tkey(t): t for t in deck_ties}
             matched: dict[int, DocMention] = {}
@@ -682,11 +685,12 @@ class Project:
                 b = res.best
                 ok, transform = consistent_with_source(dm.number, b.cell.value)
                 self.db.execute(
-                    "INSERT INTO ties (deck, slide, shape_id, para, seg, offset, cell_rc, raw, state, src_file, sheet, ref, transform, linked_value, label_score, context, slide_uid, fp_near, anchor)"
-                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO ties (deck, slide, shape_id, para, seg, offset, cell_rc, raw, state, src_file, sheet, ref, transform, linked_value, label_score, context, slide_uid, fp_near, anchor, basis)"
+                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (rel, dm.slide, dm.shape_id, dm.para, dm.seg, dm.offset, json.dumps(dm.cell), dm.number.raw,
                      "accepted" if res.decision == "accept" else "confirm", b.cell.file, b.cell.sheet, b.cell.ref, transform,
-                     b.cell.value, b.label_score, dm.context[0] if dm.context else "", dm.slide_uid, self._fp_near(dm), "exact"),
+                     b.cell.value, b.label_score, dm.context[0] if dm.context else "", dm.slide_uid, self._fp_near(dm), "exact",
+                     "aligned" if res.reason.startswith(TABLE_ALIGNMENT) else "matched"),
                 )
         present = {self._rel(p) for p in self._files(DECK_EXT)}
         missing = sorted({t.deck for t in existing if t.kind != "scene" and t.deck not in present})

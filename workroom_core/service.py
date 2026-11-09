@@ -301,7 +301,7 @@ class Service:
             "text": t.raw, "sentence": t.context, "deck": t.deck, "slide": t.slide,
             "source": {"file": t.src_file, "sheet": t.sheet, "cell": t.ref, "row": list(row_labels), "column": list(col_labels),
                        "formula": cell.formula, "value_now": current, "value_at_last_release": t.linked_value},
-            "state": t.state, "how": how, "source_changed_since_last_release": changed,
+            "state": t.state, "how": ("Workroom linked it because this whole column of the table agrees with one column of that sheet, row by row, under the same row headings, and no other column fits as well." if t.basis == "aligned" and t.state == "accepted" else how), "source_changed_since_last_release": changed,
             "displayed_as": t.transform,
             "if_source_changes": "The number in the document would be rewritten in the same style after you approve a release." if t.state in ("accepted", "confirmed") else "Nothing changes: this link is not active.",
         }

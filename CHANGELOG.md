@@ -6,6 +6,7 @@ Added
 - Change map: the Changes inbox drawn as a graph of changed source cells and the places they reach, with the finding and evidence for each place.
 - Source-health findings: a release that would mix new and old numbers because part of the workbook is missing, or that follows a cell moving by 100 times or becoming zero, must be acknowledged before approval.
 - Coincidences: short numbers that equal a cell only by chance are listed apart instead of being asked about.
+- Table alignment: a column of a report table that agrees, row by row, with one column of one source sheet is linked as a whole, with the same checks on every cell; on a real report this took the questions from 244 to 129.
 - Reading rules: section and note numbers, numbered headings and Notes columns are not figures; a figure a thousand times away from its cell needs a named unit; dashes and unit marks are not headings.
 - Word files with more than one body element are refused instead of edited.
 - The shell guard reads the script a command runs.

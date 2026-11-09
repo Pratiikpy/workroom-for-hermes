@@ -41,6 +41,9 @@ class DocMention:
     cell: tuple[int, int] | None  # (row, column) when the number sits in a table cell
     para_offset: int | None = None  # where the number starts inside the paragraph's visible text, when that can be told
     slide_uid: str = ""  # the slide's own stable id (survives inserting, deleting and reordering slides); the part or sheet name for Word and Excel
+    table: int = -1  # which table of a Word document the number sits in (PowerPoint tables are told apart by shape_id)
+    row_head: str = ""  # the text of the first cell of the row, for a number in a table cell
+    col_head: str = ""  # the text of the first row's cell above, for a number in a table cell
 
 
 @dataclass(frozen=True)
@@ -175,7 +178,8 @@ class Deck:
                         continue
                     po = consumed + nm.start
                     po = po if para_text[po : po + len(nm.raw)] == nm.raw else None
-                    yield DocMention(si, sid, pi, seg_i, nm.start, nm, (para_text,) + tuple(x for x in extra if x), cell_rc, po, getattr(self, "_uid", ""))
+                    rh, ch = (extra[2], extra[3]) if cell_rc is not None and len(extra) == 4 else ("", "")
+                    yield DocMention(si, sid, pi, seg_i, nm.start, nm, (para_text,) + tuple(x for x in extra if x), cell_rc, po, getattr(self, "_uid", ""), -1, rh, ch)
                 consumed += len(text)
 
     def _target_paragraph(self, dm: DocMention) -> etree._Element:
