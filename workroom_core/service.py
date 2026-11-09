@@ -18,6 +18,7 @@ from .controller.approvals import ApprovalError, sign
 from .build.formats import plain
 from .controller.release import Controller, NotReady, ReleaseError, StaleRelease
 from . import recipe as recipe_mod
+from . import review as review_mod
 from .match.engine import is_coincidence
 from .project import Plan, Project, is_scene, open_document
 from .store.manifest import MANIFEST_NAME, Anchor, Manifest, ManifestError
@@ -891,6 +892,59 @@ class Service:
         proj.discover()
         after = sum(1 for t in proj.ties() if t.state in ("accepted", "confirmed"))
         return {"linked_more": after - before, "still_open": len(proj.column_questions())}
+
+    # ---- the review room: the documents as drawn, with their figures marked ----
+    def _reviewer(self, pid: str, proj: Project):
+        pid = self._resolve(pid)
+        return review_mod.Reviewer(proj, self.data_dir / "projects" / pid / "render")
+
+    def _review_plan(self, proj: Project):
+        """The update plan, kept while nothing it was built from has changed, so drawing several pages does not plan the update again each time."""
+        files = sorted(p for p in proj.root.rglob("*") if p.is_file() and p.suffix.lower() in (".docx", ".pptx", ".xlsx"))
+        token = hashlib.sha256(json.dumps([(str(p), p.stat().st_mtime_ns, p.stat().st_size) for p in files] + [proj.db.execute("SELECT COUNT(*), MAX(id) FROM ties").fetchone()], default=str).encode()).hexdigest()
+        cache = getattr(self, "_review_plans", None)
+        if cache is None:
+            cache = self._review_plans = {}
+        key = str(proj.root)
+        hit = cache.get(key)
+        if hit and hit[0] == token:
+            return hit[1]
+        plan = proj.plan_refresh()
+        cache[key] = (token, plan)
+        return plan
+
+    def _review_deck(self, proj: Project, deck: str) -> str:
+        from .project import DECK_EXT
+
+        known = {proj._rel(p) for p in proj._files(DECK_EXT)}
+        if deck not in known:
+            raise ServiceError("that document is not in the project")
+        return deck
+
+    @_closing
+    def review_overview(self, pid: str) -> dict[str, Any]:
+        proj, _ = self._open(pid)
+        return self._reviewer(pid, proj).overview(self._review_plan(proj))
+
+    @_closing
+    def review_pages(self, pid: str, deck: str) -> dict[str, Any]:
+        proj, _ = self._open(pid)
+        return self._reviewer(pid, proj).pages_with_marks(self._review_deck(proj, deck), self._review_plan(proj))
+
+    @_closing
+    def review_page(self, pid: str, deck: str, side: str, page: int) -> dict[str, Any]:
+        if side not in ("before", "after"):
+            raise ServiceError("side is before or after")
+        proj, _ = self._open(pid)
+        try:
+            return self._reviewer(pid, proj).page(self._review_deck(proj, deck), side, int(page), self._review_plan(proj))
+        except ValueError as exc:
+            raise ServiceError(str(exc)) from exc
+
+    @_closing
+    def review_structural(self, pid: str, deck: str) -> dict[str, Any]:
+        proj, _ = self._open(pid)
+        return self._reviewer(pid, proj).structural(self._review_deck(proj, deck), self._review_plan(proj))
 
     # ---- the reporting recipe: a model report whose links a copy inherits ----
     def _recipe_dir(self, pid: str) -> Path:

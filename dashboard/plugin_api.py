@@ -169,6 +169,33 @@ async def instruction_apply(body: InstructionBody) -> dict:
     return _guard(lambda: _service().apply_instruction_proposal(body.project, body.proposal))
 
 
+class ReviewBody(BaseModel):
+    project: str
+    deck: str = ""
+    side: str = "before"
+    page: int = 1
+
+
+@router.post("/review")
+async def review(body: ReviewBody) -> dict:
+    return _guard(lambda: _service().review_overview(body.project))
+
+
+@router.post("/review-pages")
+async def review_pages(body: ReviewBody) -> dict:
+    return _guard(lambda: _service().review_pages(body.project, body.deck))
+
+
+@router.post("/review-page")
+async def review_page(body: ReviewBody) -> dict:
+    return _guard(lambda: _service().review_page(body.project, body.deck, body.side, body.page))
+
+
+@router.post("/review-structural")
+async def review_structural(body: ReviewBody) -> dict:
+    return _guard(lambda: _service().review_structural(body.project, body.deck))
+
+
 class ColumnBody(BaseModel):
     project: str
     signature: str = ""

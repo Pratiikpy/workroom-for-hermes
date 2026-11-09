@@ -10,6 +10,8 @@ python_dependencies:
   - "lxml>=5.0,<7"
   - "python-pptx>=1.0,<2"
   - "python-docx>=1.1,<2"
+  - "pypdfium2>=4.30,<6"
+  - "Pillow>=10"
 provides_tools:
   - workroom_status
   - workroom_add_project

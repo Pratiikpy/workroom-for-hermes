@@ -493,6 +493,143 @@ function ReleaseCard({ ctx, attrs }) {
         h('span', { style: { ...css.muted, fontSize: 11 } }, `Applies to exactly this release (${view.digest.slice(0, 12)}).`)) : null) : null)
 }
 
+const MARKS = {
+  changes: { color: '#2563eb', name: 'changes' },
+  linked: { color: '#16a34a', name: 'linked' },
+  protected: { color: '#d97706', name: 'your edit, protected' },
+  asked: { color: '#9333ea', name: 'needs you' },
+  blocked: { color: '#dc2626', name: 'blocked' }
+}
+
+function markLabel(m, side) {
+  if (m.kind === 'changes') return side === 'after' ? `${m.text}, changed from ${m.old_text || 'the old figure'}` : `${m.text}, will change to ${m.new_text}`
+  return `${m.text}, ${MARKS[m.kind] ? MARKS[m.kind].name : m.kind}`
+}
+
+function ReviewRoom({ api, pid }) {
+  const [over, setOver] = useState(null)
+  const [deck, setDeck] = useState('')
+  const [side, setSide] = useState('before')
+  const [pages, setPages] = useState(null)
+  const [page, setPage] = useState(1)
+  const [data, setData] = useState(null)
+  const [structural, setStructural] = useState(null)
+  const [sel, setSel] = useState(null)
+  const [why, setWhy] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const [shown, setShown] = useState({ changes: true, linked: true, protected: true, asked: true, blocked: true })
+  const failed = (err) => { setError(String(err && err.message ? err.message : err)); setBusy(false) }
+
+  const open = () => {
+    setBusy(true); setError(null)
+    api('/review', { project: pid }).then(o => {
+      setOver(o); setBusy(false)
+      const first = o.documents.find(d => d.counts.changes) || o.documents[0]
+      if (first) setDeck(first.deck)
+    }).catch(failed)
+  }
+
+  useEffect(() => { setOver(null); setDeck(''); setPages(null); setData(null); setStructural(null); setSel(null); setWhy(null) }, [pid])
+
+  useEffect(() => {
+    if (!deck || !over) return
+    const doc = over.documents.find(d => d.deck === deck)
+    setPages(null); setData(null); setStructural(null); setSel(null); setWhy(null); setError(null)
+    if (!doc) return
+    setBusy(true)
+    if (!doc.can_draw) { api('/review-structural', { project: pid, deck }).then(s => { setStructural(s); setBusy(false) }).catch(failed); return }
+    api('/review-pages', { project: pid, deck }).then(p => {
+      setPages(p)
+      const first = p.pages && p.pages.length ? (p.pages.find(x => x.marks.changes) || p.pages[0]).page : 1
+      setPage(first); setSide(doc.changes_in_plan ? 'after' : 'before')
+      if (!p.drawn) setBusy(false)
+    }).catch(failed)
+  }, [deck, over])
+
+  useEffect(() => {
+    if (!pages || !pages.drawn || !deck) return
+    setBusy(true); setSel(null); setWhy(null)
+    api('/review-page', { project: pid, deck, side, page }).then(d => { setData(d); setBusy(false) }).catch(failed)
+  }, [pages, side, page])
+
+  const choose = (m) => {
+    setSel(m); setWhy(null)
+    api('/explain', { project: pid, tie_id: m.tie_id }).then(setWhy).catch(failed)
+  }
+
+  const ask = (m) => {
+    const text = `Where does the figure ${m.text} on page ${m.page} of ${deck} come from? Use workroom_explain_figure on link ${m.tie_id} in project ${pid} and tell me in plain words.`
+    Promise.resolve(host.composer.insertText(null, text, { mode: 'block' })).then(ok => { if (!ok) setError('Could not reach a chat. Open one and try again.') })
+  }
+
+  const doc = over && over.documents.find(d => d.deck === deck)
+  const total = pages && pages.total ? pages.total : 1
+  const marks = data && data.marks ? data.marks.filter(m => shown[m.kind]) : []
+  const counts = {}
+  ;(data && data.marks ? data.marks : []).forEach(m => { counts[m.kind] = (counts[m.kind] || 0) + 1 })
+  const changedPages = pages && pages.pages ? pages.pages.filter(p => p.marks.changes) : []
+
+  if (!over) return h('section', { style: css.card, 'aria-label': 'Review room' },
+    h('h2', { style: css.h2 }, 'Review the documents'),
+    h('p', { style: { ...css.muted, margin: '0 0 8px' } }, 'See your report or deck as it is drawn, with every linked figure marked on its page, before and after the release. Nothing is changed by looking.'),
+    btn('Open the review room', open, { disabled: busy, primary: true }),
+    error ? h('div', { role: 'alert', style: { color: 'var(--ui-red, #dc2626)', marginTop: 8 } }, error) : null)
+
+  return h('section', { style: css.card, 'aria-label': 'Review room', 'aria-busy': busy },
+    h('h2', { style: css.h2 }, 'Review the documents'),
+    over.blocked && over.blocked.length ? h('div', { role: 'alert', style: { ...css.card, borderColor: 'var(--ui-red, #dc2626)', marginBottom: 8 } },
+      h('div', { style: { fontWeight: 600 } }, `${over.blocked.length} figure${over.blocked.length === 1 ? '' : 's'} held back`),
+      h('div', { style: { ...css.muted, fontSize: 12 } }, over.blocked[0])) : null,
+    h('div', { style: { ...css.row, marginBottom: 8 } },
+      h('label', { htmlFor: 'wr-review-doc', style: css.muted }, 'Document'),
+      h('select', { id: 'wr-review-doc', value: deck, onChange: e => setDeck(e.target.value), style: { ...css.input, flex: 'none', minWidth: 200 } },
+        over.documents.map(d => h('option', { key: d.deck, value: d.deck }, `${d.deck} (${d.counts.changes} change${d.counts.changes === 1 ? '' : 's'})`))),
+      h('div', { role: 'group', 'aria-label': 'Which version of the page', style: css.row },
+        ['before', 'after'].map(s => h('button', { key: s, type: 'button', 'aria-pressed': side === s, onClick: () => setSide(s), disabled: !pages || !pages.drawn,
+          style: { ...css.btn, ...(side === s ? css.primary : {}) } }, s === 'before' ? 'Now' : 'After the release'))),
+      busy ? h('span', { style: css.muted }, 'Drawing the pages…') : null),
+    error ? h('div', { role: 'alert', style: { color: 'var(--ui-red, #dc2626)', marginBottom: 8 } }, error) : null,
+    structural ? h('div', null,
+      h('p', { style: { ...css.muted, margin: '0 0 6px' } }, structural.label),
+      h('ul', { style: { margin: 0, paddingLeft: 18 } }, structural.rows.slice(0, 60).map(r => h('li', { key: r.tie_id },
+        `“${r.sentence}” `, h('strong', null, r.text), r.new_text ? ` → ${r.new_text}` : '', h('span', { style: css.muted }, ` (${MARKS[r.kind] ? MARKS[r.kind].name : r.kind})`))))) : null,
+    pages && !pages.drawn ? h('p', { style: css.muted }, 'Office could not draw this document here, so there is nothing to show.') : null,
+    data && data.drawn ? h('div', { style: { display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' } },
+      h('div', { style: { flex: '1 1 420px', minWidth: 300, maxWidth: 760 } },
+        h('div', { style: { ...css.row, justifyContent: 'space-between', marginBottom: 6 } },
+          h('div', { style: css.row },
+            btn('Previous page', () => setPage(Math.max(1, page - 1)), { disabled: busy || page <= 1 }),
+            h('span', { 'aria-live': 'polite' }, `Page ${data.page} of ${total}`),
+            btn('Next page', () => setPage(Math.min(total, page + 1)), { disabled: busy || page >= total })),
+          changedPages.length ? h('div', { style: css.row },
+            h('span', { style: { ...css.muted, fontSize: 12 } }, 'Pages with changes'),
+            changedPages.slice(0, 8).map(p => h('button', { key: p.page, type: 'button', onClick: () => setPage(p.page), 'aria-current': p.page === page, style: { ...css.btn, padding: '2px 8px', ...(p.page === page ? css.primary : {}) } }, String(p.page)))) : null),
+        h('div', { style: { ...css.row, marginBottom: 6 } }, Object.keys(MARKS).filter(k => counts[k]).map(k => h('button', {
+          key: k, type: 'button', 'aria-pressed': shown[k], onClick: () => setShown({ ...shown, [k]: !shown[k] }),
+          style: { ...css.chip, background: shown[k] ? MARKS[k].color + '22' : 'transparent', borderColor: MARKS[k].color, color: 'inherit', cursor: 'pointer', opacity: shown[k] ? 1 : 0.5 } }, `${counts[k]} ${MARKS[k].name}`))),
+        h('div', { style: { position: 'relative', lineHeight: 0, border: '1px solid var(--ui-stroke-secondary, #8884)', borderRadius: 6, overflow: 'hidden', background: '#fff' } },
+          h('img', { src: 'data:image/png;base64,' + data.png, alt: `Page ${data.page} of ${deck}, drawn by ${data.drawn_by}. The marked figures are listed below the page.`, style: { width: '100%', display: 'block' } }),
+          marks.map((m, i) => h('button', {
+            key: i, type: 'button', 'aria-label': markLabel(m, side), onClick: () => choose(m),
+            style: { position: 'absolute', left: `${m.x * 100 - 0.4}%`, top: `${m.y * 100 - 0.25}%`, width: `${m.w * 100 + 0.8}%`, height: `${m.h * 100 + 0.5}%`, padding: 0, cursor: 'pointer',
+              border: `2px solid ${MARKS[m.kind].color}`, borderRadius: 3, background: (sel && sel.tie_id === m.tie_id ? MARKS[m.kind].color + '55' : MARKS[m.kind].color + '22') } }))),
+        h('div', { style: { ...css.muted, fontSize: 11, marginTop: 4 } }, `Drawn by ${data.drawn_by}. Marks come from your links and are placed by matching the figures to the page text.`)),
+      h('div', { style: { flex: '1 1 260px', minWidth: 240 }, role: 'region', 'aria-label': 'Selected figure' },
+        sel ? h('div', { style: css.card },
+          h('div', { style: { fontWeight: 600 } }, sel.kind === 'changes' ? `${sel.old_text || sel.text} → ${sel.new_text}` : sel.text),
+          h('div', { style: { ...css.muted, margin: '2px 0 6px' } }, `${MARKS[sel.kind].name}${sel.label ? ' · “' + sel.label.slice(0, 90) + '”' : ''}`),
+          why ? h('div', { style: { fontSize: 12 } },
+            h('div', null, `Source: ${why.source.file} · ${why.source.sheet} · ${why.source.cell}`),
+            h('div', { style: css.muted }, [...(why.source.row || []), ...(why.source.column || [])].join(' / ')),
+            h('div', null, `Value now ${num(why.source.value_now)}; at the last release ${num(why.source.value_at_last_release)}`),
+            h('p', { style: { margin: '6px 0' } }, why.how),
+            h('p', { style: { ...css.muted, margin: '0 0 6px' } }, why.if_source_changes)) : h('div', { style: css.muted }, 'Reading where it came from…'),
+          btn('Ask Hermes about this figure', () => ask(sel), { disabled: busy })) : h('p', { style: { ...css.muted, margin: 0 } }, 'Choose a marked figure on the page to see where it comes from.'),
+        h('ul', { style: { margin: '10px 0 0', paddingLeft: 18, fontSize: 12 }, 'aria-label': 'Figures marked on this page' }, marks.slice(0, 40).map((m, i) => h('li', { key: i },
+          h('button', { type: 'button', onClick: () => choose(m), style: { all: 'unset', cursor: 'pointer', textDecoration: 'underline', color: 'inherit' } }, markLabel(m, side))))))) : null)
+}
+
 function WorkroomPage({ ctx }) {
   const api = useCallback((path, body) => ctx.rest(path, body === undefined ? undefined : { method: 'POST', body }), [ctx])
   const [projects, setProjects] = useState([])
@@ -673,6 +810,7 @@ function WorkroomPage({ ctx }) {
           h('summary', { style: { ...css.muted, cursor: 'pointer' } }, 'Moving to the next period?'),
           h('p', { style: { ...css.muted, margin: '6px 0 8px' } }, 'When the workbook has the next period, Workroom can move every linked number to it and advance the period words beside them (Q3 2026 becomes Q4 2026). You approve it once, and Restore undoes the whole move. It refuses, naming each number, if any has no value for the next period.'),
           btn('Roll forward one period', rollForward, { disabled: busy }))) : null) : null,
+    pid && found ? h(ReviewRoom, { api, pid }) : null,
     release ? h('section', { style: { ...css.card, borderColor: 'var(--ui-accent, #3b82f6)' }, 'aria-label': 'Release' },
       h('h2', { style: css.h2 }, '3. Approve the release'),
       release.state === 'blocked'
