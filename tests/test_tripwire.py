@@ -20,11 +20,11 @@ def deck(text: str) -> bytes:
     return buf.getvalue()
 
 
-def net(root: Path, svc, pid, published: bool = False):
+def net(root: Path, svc, pid, published: bool = False, images: list | None = None):
     kept: list[tuple[str, str, bytes]] = []
     notes: list[tuple[str, str]] = []
-    before, after = make_tripwire(lambda: [{"project": pid, "folder": str(root)}], lambda p, r, d: kept.append((p, r, d)), lambda p, t: published,
-                                  lambda p, r, o: notes.append((r, o)))
+    before, after = make_tripwire(lambda: [{"project": pid, "folder": str(root)}], lambda p: {"protected": [".env", "workroom.md"]}, lambda p, r, d: kept.append((p, r, d)),
+                                  lambda p, r, d: images.append((r, d)) if images is not None else None, lambda p, t: published, lambda p, r, o: notes.append((r, o)))
     return before, after, kept, notes
 
 
@@ -88,7 +88,8 @@ def test_a_real_python_process_saving_the_deck_is_caught_end_to_end_and_reaches_
     root, svc, pid = project(tmp_path)
     original = deck("Q1 2025 briefing")
     (root / "briefing.pptx").write_bytes(original)
-    before, after = make_tripwire(lambda: svc.projects(), svc.tripwire_keep, lambda p, t: svc.tripwire_published_since(p, t), svc.tripwire_note)
+    before, after = make_tripwire(lambda: svc.projects(), svc.tripwire_policy, svc.tripwire_keep, svc.tripwire_before_image, lambda p, t: svc.tripwire_published_since(p, t),
+                                  svc.tripwire_note)
     before(tool_name="terminal", args={}, **KW)
     script = "from pptx import Presentation\np = Presentation('briefing.pptx')\np.slides[0].shapes.title.text = 'Q2'\np.save('briefing.pptx')\n"
     subprocess.run([sys.executable, "-c", script], cwd=str(root), check=True, timeout=60)
@@ -100,3 +101,54 @@ def test_a_real_python_process_saving_the_deck_is_caught_end_to_end_and_reaches_
     assert any(i["kind"] == "bypass" and "briefing.pptx" in i["title"] for i in svc.attention()["items"])
     svc.tripwire_dismiss(pid)
     assert not any(i["kind"] == "bypass" for i in svc.attention()["items"]) and kept[0].exists()
+
+
+def test_protected_files_that_a_tool_moves_renames_or_deletes_come_back_and_the_moved_copy_is_kept_aside(tmp_path: Path) -> None:
+    root, svc, pid = project(tmp_path)
+    (root / ".env").write_text("TOKEN=abc\n")
+    (root / "workroom.md").write_text("never delete invoices\n")
+    (root / "notes.txt").write_text("ordinary")
+    before, after, kept, notes = net(root, svc, pid)
+    before(tool_name="terminal", args={}, **KW)
+    (root / "config").mkdir()
+    (root / ".env").rename(root / "config" / "2026-11-10_.env")  # moved and renamed, as a tidy-up script would
+    (root / "workroom.md").unlink()
+    out = after(tool_name="terminal", args={}, result="ok", **KW)
+    assert (root / ".env").read_text() == "TOKEN=abc\n" and (root / "workroom.md").read_text() == "never delete invoices\n"
+    assert not (root / "config" / "2026-11-10_.env").exists()  # the moved copy was taken out and kept aside
+    assert ".env" in out and "workroom.md" in out and any(k[1] == "config/2026-11-10_.env" for k in kept)
+
+
+def test_ordinary_files_a_tool_changes_get_a_before_image_without_being_reverted(tmp_path: Path) -> None:
+    root, svc, pid = project(tmp_path)
+    (root / "a.txt").write_text("one")
+    (root / "b.txt").write_text("two")
+    (root / "c.txt").write_text("three")
+    images: list = []
+    before, after, kept, notes = net(root, svc, pid, images=images)
+    before(tool_name="terminal", args={}, **KW)
+    (root / "a.txt").unlink()  # removed
+    (root / "b.txt").write_text("two, edited")  # edited
+    out = after(tool_name="terminal", args={}, result="ok", **KW)
+    assert out is None and not (root / "a.txt").exists() and (root / "b.txt").read_text() == "two, edited"  # the owner's task was done, not undone
+    assert sorted(r for r, _ in images) == ["a.txt", "b.txt"] and dict(images)["a.txt"] == b"one"
+
+
+def test_the_service_keeps_those_before_images_where_restore_finds_them(tmp_path: Path) -> None:
+    root, svc, pid = project(tmp_path)
+    (root / "report.md").write_text("original text")
+    before, after = make_tripwire(lambda: svc.projects(), svc.tripwire_policy, svc.tripwire_keep, svc.tripwire_before_image, lambda p, t: False, svc.tripwire_note)
+    before(tool_name="terminal", args={}, **KW)
+    (root / "report.md").unlink()
+    after(tool_name="terminal", args={}, result="ok", **KW)
+    snap = next(x for x in svc.snapshots(pid) if x["path"] == "report.md")
+    assert snap["now"] == "missing"
+    svc.snapshot_restore(pid, snap["id"])
+    assert (root / "report.md").read_text() == "original text"
+
+
+def test_a_command_that_changes_folder_first_is_read_against_that_folder() -> None:
+    from workroom.adapters.snapshotter import _base_folder, shell_targets
+
+    cmd = 'cd "C:/Users/x/proj" && rm "a (1).pdf" && mv ".env" cfg/'
+    assert Path(_base_folder({"command": cmd}, {})).as_posix().lower().endswith("users/x/proj") and ".env" in shell_targets(cmd)

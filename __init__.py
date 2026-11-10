@@ -82,7 +82,8 @@ def register(ctx):
 
     from .adapters.tripwire import make_tripwire
 
-    trip_before, trip_after = make_tripwire(lambda: tools.service().projects(), lambda pid, rel, data: tools.service().tripwire_keep(pid, rel, data),
+    trip_before, trip_after = make_tripwire(lambda: tools.service().projects(), lambda pid: tools.service().tripwire_policy(pid), lambda pid, rel, data: tools.service().tripwire_keep(pid, rel, data),
+                                            lambda pid, rel, data: tools.service().tripwire_before_image(pid, rel, data),
                                             lambda pid, since: tools.service().tripwire_published_since(pid, since), lambda pid, rel, out: tools.service().tripwire_note(pid, rel, out))
     ctx.register_hook("pre_tool_call", trip_before)
     ctx.register_hook("transform_tool_result", trip_after)

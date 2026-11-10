@@ -62,6 +62,20 @@ class SnapshotStore:
             os.replace(tmp, obj)
         return self._row(tool, rel, sha, size, "saved")
 
+    def take_bytes(self, rel: str, data: bytes, tool: str) -> int | None:
+        """Record a before-image from bytes already in hand (what a file held before a tool changed it). Skipped when the newest image of that path is the same
+        content and under two minutes old, so a file the pre-call snapshotter already kept is not listed twice."""
+        sha = hashlib.sha256(data).hexdigest()
+        last = self.db.execute("SELECT sha, at FROM snaps WHERE path=? ORDER BY id DESC LIMIT 1", (rel,)).fetchone()
+        if last is not None and last["sha"] == sha and time.time() - last["at"] < 120:
+            return None
+        obj = self.dir / "objects" / sha
+        if not obj.exists():
+            tmp = obj.with_suffix(".tmp")
+            tmp.write_bytes(data)
+            os.replace(tmp, obj)
+        return self._row(tool, rel, sha, len(data), "saved")
+
     def _row(self, tool: str, rel: str, sha: str | None, size: int, state: str) -> int:
         with self.db:
             cur = self.db.execute("INSERT INTO snaps (at, tool, path, sha, size, state) VALUES (?,?,?,?,?,?)", (time.time(), tool, rel, sha, size, state))

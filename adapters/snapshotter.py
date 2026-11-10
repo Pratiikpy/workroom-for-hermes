@@ -73,10 +73,25 @@ def shell_targets(text: str) -> list[str]:
 def _base_folder(args: dict[str, Any], kwargs: dict[str, Any]) -> str:
     """The folder relative paths in this call are read from: the tool's own workdir, else the session's folder. Empty when unknown."""
     given = next((str(args[k]) for k in ("workdir", "cwd", "working_dir", "directory") if isinstance(args.get(k), str) and args[k].strip()), "")
-    if given:
-        return given
-    here = session_folder(kwargs)
-    return str(here) if here else ""
+    if not given:
+        here = session_folder(kwargs)
+        given = str(here) if here else ""
+    return _after_cd(_shell_text(args), given)
+
+
+_CD = re.compile(r"(?:^|[;&|\n])\s*(?:cd|pushd|Set-Location)\s+(?:/d\s+)?(\"[^\"]+\"|'[^']+'|[^\s;&|]+)", re.I)
+
+
+def _after_cd(text: str, base: str) -> str:
+    """The folder a command works in once its own leading ``cd`` has run: a model writes ``cd <folder> && mv a b`` and the paths after it are relative to that folder."""
+    m = _CD.search(text or "")
+    if not m:
+        return base
+    target = Path(m.group(1).strip("\"'")).expanduser()
+    try:
+        return str((Path(base) / target).resolve() if not target.is_absolute() and base else target.resolve())
+    except OSError:
+        return base
 
 
 def make_snapshotter(projects: Callable[[], list[dict[str, Any]]], take: Callable[[str, str, str], None]):

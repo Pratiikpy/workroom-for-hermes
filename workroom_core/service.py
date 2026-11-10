@@ -1109,6 +1109,12 @@ class Service:
         except Exception:  # noqa: BLE001  when the journal cannot be read, assume the owner published and leave the files alone
             return True
 
+    def tripwire_before_image(self, pid: str, rel: str, data: bytes) -> None:
+        self._with_snaps(pid, lambda st: st.take_bytes(rel, data, "shell"))
+
+    def tripwire_policy(self, pid: str) -> dict[str, Any]:
+        return self.room_policy(pid)
+
     def tripwire_keep(self, pid: str, rel: str, data: bytes) -> None:
         pid = self._resolve(pid)
         folder = self.data_dir / "projects" / pid / "rejected"
