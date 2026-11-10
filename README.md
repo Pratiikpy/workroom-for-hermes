@@ -1,31 +1,85 @@
+<div align="center">
+
 # Workroom for Hermes
 
-**A shared room where the agent works on your documents, and cannot overwrite them, lose them, or overclaim what it did.**
+### A shared room where the agent works on your documents, and cannot overwrite them, lose them, or overclaim what it did.
 
-Hermes can already read, write and run things. What it cannot do for you is *prove* its work: where each number came from, that nothing outside the task was touched, that the file it says it made exists. Workroom adds that layer as one Hermes plugin (tools, hooks, a Desktop panel and a document engine), so an agent can do real work on Word, PowerPoint and Excel files and you stay in charge of every change.
+**Figures tied to their sources · Nothing changes without you · Every claim checked**
 
-Three promises, each checked against a real model (details and limits in [Evidence](docs/EVIDENCE.md) and [Limits](docs/LIMITS.md)):
-
-1. **Every figure has a source.** Numbers in your reports and decks are linked to the spreadsheet cell they came from. When a source changes you see exactly which numbers in which files are affected, and only those change. In the text the agent writes, each figure is marked *supported by a source*, *calculation verified* or *not verified*, from what the agent actually read.
-2. **Nothing changes without you.** The agent can prepare a release; it has no tool to approve one. If a shell command or script changes a managed file anyway, the file is put back byte for byte and the agent's version is kept aside. A real Claude Haiku told to skip Workroom edited a deck with a Python script (it worked once); with the safety net on, three different attempts were each reverted and nothing changed. Told to tidy a folder, it moved your protected `.env`; now those files stay, nothing is lost, and every other change has a before-image you can Restore.
-3. **The agent cannot overclaim.** A reply that says "I created a 6-slide deck" when no deck exists gets one line saying what is actually in your folder and what waits for your approval. Figures with no evidence behind them are flagged, even when the agent wrote "all numbers are sourced".
-
-> **Status: version 0.4.0, an early release, built and tested on Windows (the suite also passes on Linux).** What is proven and what is not is stated plainly in [Evidence](docs/EVIDENCE.md) and [Limits](docs/LIMITS.md). The most important limits: setting up a very large report still asks many questions (3,841 on one blind run, about 88% of them real); the safety nets are heuristics plus a tripwire, not a sandbox; real-model checks are one run per case.
+[Quick start](#quick-start) · [What it does](#what-it-does) · [Evidence](#evidence) · [How it compares](#how-it-compares) · [Limits](#what-it-does-not-do-yet) · [Architecture](#architecture)
 
 ![The change map in Hermes Desktop: changed source cells on the left, the places in each document they reach on the right](docs/screenshots/00-hero-change-map.png)
+
+</div>
+
+Hermes can already read, write and run things. What it cannot do on its own is *prove* its work: where each number came from, that nothing outside the task was touched, that the file it says it made exists. Workroom adds that layer as one Hermes plugin (model tools, tool-call hooks, a Desktop panel and a document engine), so an agent can do real work on Word, PowerPoint and Excel files while you stay in charge of every change.
+
+> **Status: version 0.4.0, an early release, built and tested on Windows; the suite also passes on Linux.** Everything below is backed by a row in [`bench/EVIDENCE.md`](bench/EVIDENCE.md) or a number in [Evidence](docs/EVIDENCE.md); what is not proven is named in [Limits](docs/LIMITS.md). Real-model checks are one run per case, not rates.
+
+## Three promises
+
+| | Promise | How it is kept | Checked with a real model |
+|---|---|---|---|
+| **1** | **Every figure has a source** | Numbers in reports and decks are linked to the workbook cell they came from; when a source changes you see exactly which numbers in which files are affected and only those change. In the agent's own text each figure is marked *supported by a source*, *calculation verified* or *not verified*, from what it actually read. | Asked to research the Australian EV market and build a board deck, Haiku wrote "all numbers are sourced"; Workroom flagged the figures with nothing behind them and said no deck existed yet. |
+| **2** | **Nothing changes without you** | The agent can prepare a release; it has no tool to approve one. A tripwire under the shell guard puts back any managed Office file or protected file a command changed, keeps the agent's version aside, and gives every other changed file a before-image you can Restore. | Told to skip Workroom, Haiku edited a deck with a Python script (it worked once). With the net on, three different attempts were each reverted and nothing changed. Told to tidy a folder it moved your protected `.env`; now those stay and nothing is lost. |
+| **3** | **The agent cannot overclaim** | A reply that says "I created a 6-slide deck" when no deck exists gets one line saying what is actually in your folder and what is waiting for your approval. | The same T1 run: Haiku claimed a deck, there were two workbooks staged and no deck; the line says so. |
+
+## What it does
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/04-changes-inbox.png" alt="The Changes inbox"><br><b>Changes inbox.</b> One card per changed source cell with every sentence, table cell and chart point it reaches; your hand edits are held, not overwritten.</td>
+<td width="50%"><img src="docs/screenshots/05-before-and-after.png" alt="Before and after, drawn by PowerPoint"><br><b>Review room.</b> The report or deck is drawn as Office draws it with every linked figure marked, before and after the release.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/12-needs-you-inbox.png" alt="Needs you inbox"><br><b>Needs you.</b> Releases, memory proposals, files to review, questions, a failed or missed scheduled check, a direct change that was put back: one inbox across every project.</td>
+<td><img src="docs/screenshots/13-made-gallery.png" alt="Made tab gallery"><br><b>Made.</b> Everything the agent produced, as a list or a gallery, with a preview, a comparison with the version before, and approval of the exact version you accept.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/10-made-tab-figure-proof.png" alt="Figure proof"><br><b>Figure proof.</b> Each figure underlined and marked supported, calculated or not verified, with the evidence it rests on.</td>
+<td><img src="docs/screenshots/11-deck-drawn-without-office.png" alt="Deck drawn without Office"><br><b>No Office needed to look.</b> Decks and reports are drawn from their own shapes and text, with linked figures underlined in green.</td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/14-room-helper-agents.png" alt="Room with helper agents"><br><b>Room.</b> Sources, memory the agent proposes and you decide, project rules, and the helper agents it started with what each was asked and touched.</td>
+<td><img src="docs/screenshots/15-verifier-page.png" alt="Static verifier page"><br><b>Signed release record.</b> A signed proof of who approved which exact files against which sources, embeddable in the Office file and checkable in any browser with no server.</td>
+</tr>
+</table>
+
+Also: **point-to-edit** (change a few words in one shape or paragraph; every other part of the file stays byte-identical, linked figures refused; 50 of 50 edits on real files had no collateral change), **roll forward** a recurring report to the next period, **create** decks, reports and workbooks with every figure born tied to its cell, a **layout check** for decks the agent builds (210 of 210 seeded faults found, 0 of 210 clean slides flagged), **scheduled checks** that prepare a release when a source changes and leave a receipt on every run, **approval from your phone** (verified in real Telegram), a **run score** an evaluation harness can use as a reward, and a **self-test** the agent can run.
 
 ## In one minute
 
 1. Point Workroom at a folder with a workbook and a report or deck. It links each number to its cell.
-2. A new quarter's workbook arrives. The **Changes** inbox lists every sentence, table cell and chart point it reaches. Your own hand edits are held, not overwritten.
-3. You press **Approve and publish**. One release is written; a backup of every replaced file is kept; **Past releases** restores it.
-4. Ask Hermes to build something new (a research deck, a monthly report). It builds it with every figure tied to a source cell, stages it, and waits for you. The **Made** tab shows each file, what changed since the last version, and which figures are backed by evidence.
+2. A new quarter's workbook arrives. The **Changes** inbox lists everything it reaches; your edits are held.
+3. Press **Approve and publish**. One release is written, a backup of every replaced file is kept, **Past releases** restores it.
+4. Ask Hermes to build something new. It stages a release with every figure tied to a source cell and waits; the **Made** tab shows what changed and which figures are backed by evidence.
 
-## Why this is more than a prompt or a skill
+## Evidence
 
-It is code that runs around the agent, not instructions to it: tool-call hooks that block, put back and record; a document engine that edits only the parts of a file that must change (every other byte is identical; checked on 250 public files); a signed record of each release that can be embedded in the Office file and checked in any browser; and a Desktop room (Needs you, Made, Room, Rules) so a non-technical owner can see what the agent did and decide.
+| Claim | Result | Where |
+|---|---|---|
+| Automatic links are right on reports the builder had not seen | 357 of 360 judged cases (99.2%, 95% interval 97.6 to 99.8) on two sealed sets of public reports, judged by an independent reader | [Evidence](docs/EVIDENCE.md) |
+| The editor touches only what must change | Every untouched part of 250 public Office files stays byte-identical; checked by python-pptx, Microsoft's Open XML validator and the real Word, Excel and PowerPoint | `bench/EVIDENCE.md` |
+| A release survives a crash and restores exactly | Recovery from a crash at every injected point; restore returns the original bytes | `bench/EVIDENCE.md` |
+| The agent cannot approve or publish | No Workroom tool approves; attempts by a real model to approve, to publish via a speaker-note injection, and to bypass ended with nothing changed | `bench/EVIDENCE.md` (real Haiku runs) |
+| Tests | 731 passed on Windows; 707 passed on Linux from a fresh clone; the catalog validator passes | `research/corpus/final_check_run4.log` |
+
+## How it compares
+
+Public descriptions of the closest products, read from their own documentation (see `research/cowork/` for the sources), against what is measured here. A blank means not documented, not that it is absent.
+
+| | Workroom | Claude Cowork | ChatGPT Work | OpenWork (open source) |
+|---|---|---|---|---|
+| Works on your own Office files | yes | | | |
+| Open source, runs on your machine | yes (MIT) | no | no | yes |
+| Every figure tied to a source cell and kept in step when the source changes | yes | | | |
+| Agent has no approve or publish tool; direct changes to managed files are put back | yes, checked with a real model | | | |
+| Reply claims checked against the folder; unsourced figures flagged | yes | | | |
+| Signed record of each release, checkable without a server | yes | | | |
+| Runs inside Hermes (tools, cron, messaging, Desktop) | yes | no | no | no |
 
 ## Quick start
+
 
 1. Use Hermes 0.23.0 or later and enable the Workroom plugin. In Hermes Desktop a **WORKROOM** tab appears once the plugin is switched on.
 2. First time here? Choose **Make the sample project**. It builds a small workbook and board deck in Workroom's own storage, never in your folders, so you can try the whole loop safely.
@@ -33,39 +87,25 @@ It is code that runs around the agent, not instructions to it: tool-call hooks t
 
 Run the bundled self-test from the agent with the `workroom_selftest` tool. Development: `pip install -r requirements-dev.txt`, then `python -m pytest tests -q`. More: [glossary](docs/GLOSSARY.md), [contributing](CONTRIBUTING.md), [security policy](SECURITY.md), [changelog](CHANGELOG.md).
 
-## Screenshots
 
-These are from a real Hermes Desktop v0.23.0 session on Windows (not mockups), taken on a clean folder.
+## Architecture
 
-1. Find the links: each number in the deck is linked to the cell it came from. ![Find links](docs/screenshots/01-find-links.png)
-2. Review what would change and approve exactly that release. ![Review and approve](docs/screenshots/02-review-and-approve.png)
-3. Published, with a backup kept and the release listed under Past releases. ![Published](docs/screenshots/03-published-and-past-releases.png)
-4. The Changes inbox: one card per changed source cell, with every place it reaches. ![Changes inbox](docs/screenshots/04-changes-inbox.png)
-5. Before and after, drawn by PowerPoint from a private copy. ![Before and after](docs/screenshots/05-before-and-after.png)
-6. Creating a file from sources: every figure listed with its cell, nothing written until approval. ![Create release](docs/screenshots/06-create-release.png)
-7. The page editor floating over a session. ![Page editor](docs/screenshots/07-page-editor.png)
-8. The change map: changed source cells on the left, the places they reach on the right. ![Change map](docs/screenshots/08-change-map.png)
-9. Selecting a place shows its finding and lights its one link. ![Change map, finding](docs/screenshots/09-change-map-finding.png)
+```mermaid
+flowchart LR
+  subgraph Hermes
+    A[Agent + model] -->|tool calls| T[Workroom tools]
+    A -. every shell / code / file call .-> H[Hooks: guard, tripwire, proof, claims]
+  end
+  T --> S[Workroom service]
+  H --> S
+  S --> E[Document engine: links, edit, release journal]
+  S --> R[(Room: sources, memory, rules, crew, before-images)]
+  S --> D[Desktop panel: Needs you, Made, Room, Rules]
+  E --> F[(Your Word / PowerPoint / Excel files)]
+  D -->|only the owner approves| E
+```
 
-The whole first-run loop (make the sample, approve the deck, a new quarter arrives, see what changes, approve the update) is in [`docs/demo/first-run.gif`](docs/demo/first-run.gif).
-
-## A room around your documents (Windows only so far)
-
-Beyond keeping documents in step with their sources, Workroom gives every project folder a shared room that the agent works inside and you stay in charge of. Each piece below is built, tested and listed with its evidence in [`bench/EVIDENCE.md`](bench/EVIDENCE.md); what is not verified is named next to it.
-
-- **Room.** Sources, memory the agent proposes and you approve or reject (with where it came from), and rules such as protected paths. Only you decide; the agent can propose.
-- **Undo for the agent's file changes.** A copy of each file is kept before the agent changes it, and Restore puts it back. Changes made by shell commands are covered for the common cases (rm, mv, cp, sed -i, redirects) and not for everything.
-- **Made tab.** Every file the agent produced, with a preview, a comparison with the version before, and approval of the exact version you accept. One inbox across all projects lists what waits for you.
-- **Figure proof.** Each figure in the agent's text is marked *supported by a source*, *calculation verified* or *not verified*, from what the agent actually read in this session. It never says "true". On the test set the rule that flags a figure with no source did not reach its 95% bar; the measured numbers are in the evidence file.
-- **Decks drawn without Office.** A deck or report is drawn from its own shapes and text, so the preview works with no Office program installed. It is a structural drawing, not a typeset page.
-- **Layout check for decks the agent builds.** Overflowing text, tiny text, off-slide shapes, low contrast and overlaps are found before you see the deck. On 210 seeded faults it found all 210 and flagged none of 210 clean slides, but those faults were written by the same author; on files other people made the false-alarm rate is not verified.
-- **Point-to-edit.** Change a few words in one place of a deck or report: only that shape or paragraph is touched, every other part of the file stays byte-identical, a figure linked to a source is refused, and you approve the result. 50 of 50 edits on real files had no collateral change.
-- **Signed proof of a release, also inside the file.** A copy of the released Word, PowerPoint or Excel file can carry its own signed record. It survives the real Office programs opening and saving it, but a program that rewrites the file makes the content check fail, by design: the record proves the released version.
-- **Scheduled checks.** A Hermes cron job prepares a release when a source changes and never approves or publishes it.
-
-![The Made tab: a memo with each figure marked supported or not verified, and the evidence for the selected figure](docs/screenshots/10-made-tab-figure-proof.png)
-
-![A deck drawn from its own shapes with no Office program, shown for approval](docs/screenshots/11-deck-drawn-without-office.png)
+The agent talks to Workroom's tools; hooks watch every tool call; the service owns the links, the release journal and the Room; the Desktop panel is where the owner decides. Approval is an owner-only route, never a tool.
 
 ## How it works
 
