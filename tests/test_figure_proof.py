@@ -155,3 +155,23 @@ def test_the_deliverables_list_carries_the_proof_and_each_figure_says_where_it_c
     assert src["ref"] == "https://example.org/q3" and "4,210" in src["excerpt"]
     brief.write_text("changed by hand")
     assert next(d for d in svc.deliverables(pid) if d["path"] == "brief.md")["proof"]["stale"]
+
+
+def test_a_web_search_result_in_its_real_shape_becomes_evidence_that_supports_a_figure(tmp_path) -> None:
+    """The real agent run lost every web search: the result is JSON whose snippets sit in one repr line, which the line reader skipped as page-sized."""
+    import json
+
+    from workroom.workroom_core.figure_proof import EvidenceStore, check_text, result_text
+
+    snippet = "Australia's electric vehicle market reached new highs in 2025, with annual sales rising 38 per cent. " + "Filler sentence about the market. " * 40
+    result = json.dumps({"success": True, "data": {"web": [{"url": "https://example.org/ev", "title": "EV sales 2025", "description": snippet + "Total EV sales were 157,000 vehicles in 2025."}]}})
+    text = result_text(result)
+    assert max(len(line) for line in text.split(chr(10))) <= 700 and "157,000" in text
+    st = EvidenceStore(tmp_path / "e.db")
+    try:
+        assert st.add("s1", "web_search", "Australia EV sales 2025", text) is not None
+        proofs = check_text("Total EV sales were 157,000 vehicles in 2025, up 38%.", st.items("s1"))
+    finally:
+        st.close()
+    states = {p.raw: p.state for p in proofs}
+    assert states.get("157,000") == "sourced" and states.get("38%") != "unsourced"  # "38 per cent" in the source is the same value written differently: not called fabricated

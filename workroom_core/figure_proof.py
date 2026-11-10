@@ -377,16 +377,50 @@ def evidence_text_of_file(path: Path) -> str:
     return ""
 
 
+def _flatten(value: Any, out: list[str], key: str = "", depth: int = 0) -> None:
+    """One line per string or number of a structured tool result, with its key in front, so a search result's snippets are read as lines of text the way they would be on a page."""
+    if depth > 8 or len(out) > 20000:
+        return
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if k in ("success", "status", "ok") and depth == 0:
+                continue
+            _flatten(v, out, str(k), depth + 1)
+    elif isinstance(value, (list, tuple)):
+        for v in value:
+            _flatten(v, out, key, depth + 1)
+    elif value is not None:
+        text = str(value)
+        for line in text.splitlines() or [""]:
+            if line.strip():
+                out.append(f"{key}: {line}" if key and not line.startswith(key) else line)
+
+
+def _split_long(text: str, limit: int = 600) -> str:
+    """Break very long lines at sentence ends so each figure keeps its own neighbourhood, and the line-by-line reader never meets a page-sized line."""
+    out = []
+    for line in text.split(chr(10)):
+        while len(line) > limit:
+            cut = max(line.rfind(". ", 0, limit), line.rfind("; ", 0, limit), line.rfind(", ", 0, limit))
+            cut = cut + 1 if cut > limit // 3 else limit
+            out.append(line[:cut])
+            line = line[cut:].lstrip()
+        out.append(line)
+    return chr(10).join(out)
+
+
 def result_text(result: Any) -> str:
     if isinstance(result, str):
         try:
             parsed = json.loads(result)
         except (ValueError, TypeError):
-            return result
+            return _split_long(result)
         result = parsed
-    if isinstance(result, dict):
-        return "\n".join(str(v) for k, v in result.items() if k not in ("success", "status", "ok") and v is not None)
-    return json.dumps(result, ensure_ascii=False, default=str) if result is not None else ""
+    if isinstance(result, (dict, list)):
+        lines: list[str] = []
+        _flatten(result, lines)
+        return _split_long(chr(10).join(lines))
+    return _split_long(json.dumps(result, ensure_ascii=False, default=str)) if result is not None else ""
 
 
 def check_file(store: EvidenceStore, session: str, path: Path) -> dict[str, Any] | None:

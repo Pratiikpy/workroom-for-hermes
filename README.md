@@ -1,12 +1,29 @@
 # Workroom for Hermes
 
-**Keep your reports and decks in step with the numbers behind them.**
+**A shared room where the agent works on your documents, and cannot overwrite them, lose them, or overclaim what it did.**
 
-Workroom links every number in your Word, PowerPoint and Excel files to the spreadsheet cell it came from. When a source changes it shows exactly which numbers in which files are affected, updates only those, keeps your own edits, and publishes one release that you approve and can restore. Nothing is written to your files until you approve.
+Hermes can already read, write and run things. What it cannot do for you is *prove* its work: where each number came from, that nothing outside the task was touched, that the file it says it made exists. Workroom adds that layer as one Hermes plugin (tools, hooks, a Desktop panel and a document engine), so an agent can do real work on Word, PowerPoint and Excel files and you stay in charge of every change.
 
-> **Status: version 0.4.0, an early release.** What has been proven and what has not is stated plainly in [Evidence](docs/EVIDENCE.md) and [Limits](docs/LIMITS.md). The most important limit: on reports it had not seen, the links Workroom makes by itself were right in 357 of 360 judged cases, but the first import of a large report still asks a great many questions (3,841 on one blind run, about 88% of them real), so setting up a big report still takes real work.
+Three promises, each checked against a real model (details and limits in [Evidence](docs/EVIDENCE.md) and [Limits](docs/LIMITS.md)):
+
+1. **Every figure has a source.** Numbers in your reports and decks are linked to the spreadsheet cell they came from. When a source changes you see exactly which numbers in which files are affected, and only those change. In the text the agent writes, each figure is marked *supported by a source*, *calculation verified* or *not verified*, from what the agent actually read.
+2. **Nothing changes without you.** The agent can prepare a release; it has no tool to approve one. If a shell command or script changes a managed file anyway, the file is put back byte for byte and the agent's version is kept aside. A real Claude Haiku told to skip Workroom edited a deck with a Python script (it worked once); with the safety net on, three different attempts were each reverted and nothing changed. Told to tidy a folder, it moved your protected `.env`; now those files stay, nothing is lost, and every other change has a before-image you can Restore.
+3. **The agent cannot overclaim.** A reply that says "I created a 6-slide deck" when no deck exists gets one line saying what is actually in your folder and what waits for your approval. Figures with no evidence behind them are flagged, even when the agent wrote "all numbers are sourced".
+
+> **Status: version 0.4.0, an early release, built and tested on Windows (the suite also passes on Linux).** What is proven and what is not is stated plainly in [Evidence](docs/EVIDENCE.md) and [Limits](docs/LIMITS.md). The most important limits: setting up a very large report still asks many questions (3,841 on one blind run, about 88% of them real); the safety nets are heuristics plus a tripwire, not a sandbox; real-model checks are one run per case.
 
 ![The change map in Hermes Desktop: changed source cells on the left, the places in each document they reach on the right](docs/screenshots/00-hero-change-map.png)
+
+## In one minute
+
+1. Point Workroom at a folder with a workbook and a report or deck. It links each number to its cell.
+2. A new quarter's workbook arrives. The **Changes** inbox lists every sentence, table cell and chart point it reaches. Your own hand edits are held, not overwritten.
+3. You press **Approve and publish**. One release is written; a backup of every replaced file is kept; **Past releases** restores it.
+4. Ask Hermes to build something new (a research deck, a monthly report). It builds it with every figure tied to a source cell, stages it, and waits for you. The **Made** tab shows each file, what changed since the last version, and which figures are backed by evidence.
+
+## Why this is more than a prompt or a skill
+
+It is code that runs around the agent, not instructions to it: tool-call hooks that block, put back and record; a document engine that edits only the parts of a file that must change (every other byte is identical; checked on 250 public files); a signed record of each release that can be embedded in the Office file and checked in any browser; and a Desktop room (Needs you, Made, Room, Rules) so a non-technical owner can see what the agent did and decide.
 
 ## Quick start
 
