@@ -84,7 +84,7 @@ def test_the_hooks_capture_reading_check_the_written_file_and_ask_once(tmp_path:
     from workroom.adapters.proof_hooks import make_proof_hooks
 
     db = tmp_path / "ev.db"
-    capture, owner, written, verify = make_proof_hooks(lambda: EvidenceStore(db))
+    capture, owner, written, verify, _reply = make_proof_hooks(lambda: EvidenceStore(db))
     folder = tmp_path / "work"
     folder.mkdir()
     capture(tool_name="web_extract", args={"url": "https://example.org/q3"}, result='{"content": "Revenue was $4,210 million in Q3."}', session_id="s9")
@@ -110,7 +110,7 @@ def test_a_workbook_read_with_read_file_counts_as_evidence(tmp_path: Path) -> No
     from workroom.adapters.proof_hooks import make_proof_hooks
 
     db = tmp_path / "ev.db"
-    capture, _owner, written, _verify = make_proof_hooks(lambda: EvidenceStore(db))
+    capture, _owner, written, _verify, _reply = make_proof_hooks(lambda: EvidenceStore(db))
     book = tmp_path / "results.xlsx"
     with Workbook(str(book)) as wb:
         ws = wb.add_worksheet("Results")
@@ -120,3 +120,16 @@ def test_a_workbook_read_with_read_file_counts_as_evidence(tmp_path: Path) -> No
     out = tmp_path / "summary.md"
     out.write_text("Q3 revenue was 4,210.5.")
     assert "all 1 figures trace" in written(tool_name="write_file", args={"path": str(out)}, result="{}", session_id="s2")
+
+
+def test_a_reply_with_an_unsourced_figure_gets_one_line_and_is_otherwise_unchanged(tmp_path: Path) -> None:
+    from workroom.adapters.proof_hooks import make_proof_hooks
+
+    db = tmp_path / "ev.db"
+    capture, _owner, _written, _verify, reply = make_proof_hooks(lambda: EvidenceStore(db))
+    capture(tool_name="web_extract", args={"url": "https://example.org"}, result='{"content": "Revenue for Q3 was $4,210 million."}', session_id="s3")
+    text = "Revenue for Q3 was $4,210 million and the market grows 37.5% a year."
+    out = reply(response_text=text, session_id="s3")
+    assert out.startswith(text) and "37.5%" in out.split(text, 1)[1] and "$4,210" not in out.split(text, 1)[1]
+    assert reply(response_text="Here are 3 options.", session_id="s3") is None  # small counts are not flagged
+    assert reply(response_text="Revenue for Q3 was $4,210 million.", session_id="s3") is None

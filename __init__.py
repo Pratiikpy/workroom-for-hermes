@@ -50,6 +50,9 @@ def register(ctx):
         return svc
 
     from .adapters.guard import make_guard
+    from .adapters import session_cwd
+
+    session_cwd.use(getattr(ctx, "session_cwd", None))
 
     ctx.register_hook("pre_tool_call", make_guard(lambda: [p["folder"] for p in tools.service().projects()]))
     from .adapters.workspace_guard import make_workspace_guard
@@ -61,11 +64,13 @@ def register(ctx):
     from .adapters.proof_hooks import make_proof_hooks
     from .workroom_core.figure_proof import EvidenceStore
 
-    capture, owner_said, written, verify = make_proof_hooks(lambda: EvidenceStore(tools.service().data_dir / "evidence.db"))
+    capture, owner_said, written, verify, reply = make_proof_hooks(lambda: EvidenceStore(tools.service().data_dir / "evidence.db"))
     ctx.register_hook("post_tool_call", capture)
     ctx.register_hook("pre_llm_call", owner_said)
     ctx.register_hook("transform_tool_result", written)
     ctx.register_hook("pre_verify", verify)
+    if ctx.get_config("proof_chat_line", True) is not False:
+        ctx.register_hook("transform_llm_output", reply)
     from .adapters.room_context import make_room_context
 
     ctx.register_hook("pre_llm_call", make_room_context(lambda: tools.service().projects(), lambda pid: tools.service().room_read(pid)))

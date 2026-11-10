@@ -117,4 +117,26 @@ def make_proof_hooks(store: Callable[[], Any]):
             return None
         return None
 
-    return capture, owner, written, verify
+    def reply(response_text: str = "", session_id: str = "", **_: Any):
+        """One line under a reply whose figures have no source in what was read this session. The reply itself is never changed."""
+        try:
+            if not session_id or not isinstance(response_text, str) or not response_text.strip():
+                return None
+            from ..workroom_core.figure_proof import check_text
+
+            st = store()
+            try:
+                items = st.items(str(session_id))
+            finally:
+                st.close()
+            loose = [p for p in check_text(response_text, items) if p.state == "unsourced" and not p.weak]
+            if not loose:
+                return None
+            names = ", ".join(dict.fromkeys(p.raw for p in loose))
+            n = len(loose)
+            verb = "has" if n == 1 else "have"
+            return response_text.rstrip() + "\n\n" + f"_Workroom: {n} figure{'' if n == 1 else 's'} in this reply {verb} no source in what was read this session: {names[:200]}._"
+        except Exception:  # noqa: BLE001  a reply is never lost to a proof error
+            return None
+
+    return capture, owner, written, verify, reply

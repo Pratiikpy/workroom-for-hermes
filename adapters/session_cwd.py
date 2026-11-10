@@ -1,35 +1,30 @@
 """The working folder of the Hermes session a hook is running for.
 
-Hooks do not receive it as an argument (``pre_llm_call`` gets ``session_id`` and friends, no folder; Hermes v0.23.0 ``agent/turn_context.py``), but each turn runs
-with the session's folder in a context variable (``agent.runtime_cwd.scoped_session_cwd``) and the terminal tool records it per session
-(``tools.terminal_tool.get_session_cwd``). These are internal to Hermes, so every read is guarded: when none answers, the caller gets nothing and must not guess
-(the process's own folder belongs to the backend, not to the session).
+Hooks do not receive it as an argument (``pre_llm_call`` gets ``session_id`` and friends, no folder), and ``os.getcwd()`` is the gateway's own folder, shared
+by every session. Hermes documents ``ctx.session_cwd()`` for this ("the working directory of the session the hook or tool runs for"; user guide, Plugins,
+"Plugin code inside the gateway"); ``register()`` hands it to ``use(ctx.session_cwd)``. When it answers nothing, callers get nothing and must not guess.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+_provider: Callable[[], str] | None = None
+
+
+def use(provider: Callable[[], str] | None) -> None:
+    global _provider
+    _provider = provider
+
 
 def session_folder(kwargs: dict[str, Any]) -> Path | None:
-    candidates: list[str] = []
-    for key in ("cwd", "workdir", "session_cwd"):
-        if isinstance(kwargs.get(key), str):
-            candidates.append(kwargs[key])
-    try:
-        from agent.runtime_cwd import scoped_session_cwd
-
-        candidates.append(scoped_session_cwd())
-    except Exception:  # noqa: BLE001  not running inside Hermes, or the internal moved
-        pass
-    sid = kwargs.get("session_id") or kwargs.get("task_id")
-    if sid:
+    candidates: list[str] = [kwargs[k] for k in ("cwd", "workdir", "session_cwd") if isinstance(kwargs.get(k), str)]
+    if _provider is not None:
         try:
-            from tools.terminal_tool import get_session_cwd
-
-            candidates.append(get_session_cwd(str(sid)) or "")
-        except Exception:  # noqa: BLE001
+            candidates.append(_provider() or "")
+        except Exception:  # noqa: BLE001  outside a session the documented call may raise; that means "no folder"
             pass
     for raw in candidates:
         if raw and raw.strip():
