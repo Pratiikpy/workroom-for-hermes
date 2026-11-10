@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check a Workroom release record</title>
+<style>
+  :root { --bg:#fff; --fg:#111827; --muted:#4b5563; --line:#d1d5db; --ok:#047857; --bad:#b91c1c; --card:#f9fafb; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f172a; --fg:#e5e7eb; --muted:#9ca3af; --line:#334155; --ok:#34d399; --bad:#f87171; --card:#111c33; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:1.4rem; margin:0 0 4px; }
+  p, label { color:var(--muted); }
+  textarea { width:100%; box-sizing:border-box; min-height:160px; font:12px/1.4 ui-monospace, monospace; background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:8px; }
+  button { font:inherit; padding:8px 14px; border-radius:6px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+  button.primary { background:#2563eb; color:#fff; border-color:#2563eb; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin:12px 0; }
+  .check { border:1px solid var(--line); border-radius:6px; padding:8px 12px; margin:8px 0; background:var(--card); }
+  .pass { color:var(--ok); font-weight:600; } .fail { color:var(--bad); font-weight:600; }
+  .note { font-size:.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Check a Workroom release record</h1>
+  <p>Paste the signed record you were sent, and choose the document and the source workbooks it names. Everything is checked in this page, on your computer: nothing is uploaded and no server is contacted.</p>
+  <label for="rec">Signed record (JSON)</label>
+  <textarea id="rec" spellcheck="false" aria-describedby="rec-help"></textarea>
+  <p id="rec-help" class="note">The record shows the key it was signed with. Whether you trust that key is your decision: ask the sender to read you its fingerprint.</p>
+  <div class="row">
+    <label>Files to check <input id="files" type="file" multiple></label>
+    <button id="go" class="primary" type="button">Check</button>
+  </div>
+  <div id="out" role="status" aria-live="polite"></div>
+  <p class="note"><strong>What a pass proves:</strong> the record was made by the holder of that key, and the files are byte for byte what it names. <strong>What it does not prove:</strong> that the figures are true, that the sources are right, or who holds the key.</p>
+</main>
+<script id="verifier">
+function canonical(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']'
+  return '{' + Object.keys(value).sort().map(k => JSON.stringify(k) + ':' + canonical(value[k])).join(',') + '}'
+}
+function fromBase64(text) {
+  const bin = atob(text)
+  const out = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+  return out
+}
+function toHex(buffer) {
+  return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('')
+}
+async function sha256Hex(bytes) {
+  return toHex(await crypto.subtle.digest('SHA-256', bytes))
+}
+async function fingerprint(publicRaw) {
+  return (await sha256Hex(publicRaw)).slice(0, 16)
+}
+// files: Map of file name -> Uint8Array. Returns {ok, checks:[{check,result,detail}]}.
+async function verifyRecord(envelope, files) {
+  const checks = []
+  const add = (check, ok, detail) => checks.push({ check, result: ok ? 'pass' : 'FAIL', detail })
+  let body
+  try {
+    body = envelope.payload
+    const pub = fromBase64(envelope.public_key)
+    const key = await crypto.subtle.importKey('raw', pub, { name: 'Ed25519' }, false, ['verify'])
+    const valid = await crypto.subtle.verify({ name: 'Ed25519' }, key, fromBase64(envelope.signature), new TextEncoder().encode(canonical(body)))
+    if (!valid) throw new Error('bad signature')
+    add('signature', true, 'valid for key ' + await fingerprint(pub) + '; whether you trust that key is your decision')
+  } catch (e) {
+    add('signature', false, 'the record was changed after it was signed, or it is not a Workroom record')
+    return { ok: false, checks }
+  }
+  for (const f of body.files || []) {
+    const bytes = files.get(f.file)
+    if (!bytes) add('document ' + f.file, false, 'choose this file to check it')
+    else add('document ' + f.file, (await sha256Hex(bytes)) === f.sha256, (await sha256Hex(bytes)) === f.sha256 ? 'byte for byte the released file' : 'the file differs from the released bytes')
+  }
+  for (const s of body.sources || []) {
+    const bytes = files.get(s.file)
+    if (!bytes) add('source ' + s.file, false, 'choose this file to check it')
+    else add('source ' + s.file, (await sha256Hex(bytes)) === s.sha256, (await sha256Hex(bytes)) === s.sha256 ? 'the same workbook the figures were taken from' : 'the source has changed since the release, or this is a different workbook')
+  }
+  return { ok: checks.every(c => c.result === 'pass'), checks }
+}
+if (typeof document !== 'undefined') {
+  document.getElementById('go').addEventListener('click', async () => {
+    const out = document.getElementById('out')
+    out.textContent = ''
+    let envelope
+    try { envelope = JSON.parse(document.getElementById('rec').value) } catch (e) { out.textContent = 'That is not a JSON record.'; return }
+    const files = new Map()
+    for (const f of document.getElementById('files').files) files.set(f.name, new Uint8Array(await f.arrayBuffer()))
+    let result
+    try { result = await verifyRecord(envelope, files) } catch (e) { out.textContent = 'This browser cannot check Ed25519 signatures. Use a current Chrome, Edge, Firefox or Safari.'; return }
+    const head = document.createElement('p')
+    head.className = result.ok ? 'pass' : 'fail'
+    head.textContent = result.ok ? 'Everything checks out.' : 'Something does not check out.'
+    out.appendChild(head)
+    for (const c of result.checks) {
+      const d = document.createElement('div')
+      d.className = 'check'
+      const s = document.createElement('span')
+      s.className = c.result === 'pass' ? 'pass' : 'fail'
+      s.textContent = c.result === 'pass' ? 'Pass' : 'Fail'
+      d.append(s, ' ' + c.check + ': ' + c.detail)
+      out.appendChild(d)
+    }
+  })
+}
+if (typeof module !== 'undefined') module.exports = { verifyRecord, canonical }
+</script>
+</body>
+</html>
