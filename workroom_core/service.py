@@ -1834,8 +1834,18 @@ class Service:
         if v.errors:
             from .build.spec import example_for
 
-            return {"state": "refused", "errors": [asdict(e) for e in v.errors], "notes": v.notes, "example": example_for(spec),
-                    "hint": "Fix every listed error and call again. The example is a small valid spec of the same kind; adapt its structure, not its facts."}
+            errors = [asdict(e) for e in v.errors]
+            hint = "Fix every listed error and call again. The example is a small valid spec of the same kind; adapt its structure, not its facts."
+            waiting = {Path(p).as_posix().lower(): p for p in self.staged_creations(pid)}
+            blocked_on = sorted({waiting[str(e["message"]).split("!")[0].replace(chr(92), "/").lower()] for e in errors if e["code"] == "source_missing"
+                                 and str(e["message"]).split("!")[0].replace(chr(92), "/").lower() in waiting})
+            if blocked_on:
+                for e in errors:
+                    if e["code"] == "source_missing" and str(e["message"]).split("!")[0].replace(chr(92), "/").lower() in waiting:
+                        e["message"] = f"{str(e['message']).split('!')[0]} is only prepared, not written yet: it exists only after the owner approves its release, so its cells cannot be used as sources until then"
+                hint = (f"{', '.join(blocked_on)} {'is' if len(blocked_on) == 1 else 'are'} waiting for the owner's approval. Tell the owner to approve it (in the Workroom tab, or /workroom-approve), "
+                        "then call workroom_create again for this file with the same facts; do not retype the figures into the document by hand.")
+            return {"state": "refused", "errors": errors, "notes": v.notes, "example": example_for(spec), "hint": hint}
         values = {f: next(c.value for c in cells if f"{c.file}!{c.sheet}!{c.ref}" == d["ref"]) for f, d in spec["facts"].items()}
         resolved, occurrences = resolve(spec, values)
         rel = spec["path"]
@@ -2070,7 +2080,8 @@ class Service:
             rel = created["path"]
             values = created["values"]
             if created.get("kind") == "xlsx":
-                proj.set_derived(rel, True)
+                if created["cells"]:  # a workbook that calculates from other cells is a target; one that only holds typed-in inputs is itself a source for later documents
+                    proj.set_derived(rel, True)
                 found = proj.locate_cells(rel, staged[rel], created["cells"], values)
                 proj.register_born_ties(rel, found, created["receipts"], values)
             elif created.get("kind") == "scene":
@@ -2150,6 +2161,17 @@ class Service:
             if "VERIFIED" in steps and not any(x in steps for x in ("PUBLISHED", "EXPIRED", "REFUSED_STALE", "BLOCKED", "ROLLED_BACK", "PUBLISHING")):
                 ids.append((max(r.seq for r in ctl.journal.rows(rid)), rid))
         return [self.release_view(pid, rid) for _, rid in sorted(ids, reverse=True)]
+
+    def staged_creations(self, pid: str) -> list[str]:
+        """Paths of the files that releases waiting for approval would create in this project."""
+        out: list[str] = []
+        try:
+            for r in self.awaiting(pid):
+                if r.get("created") and r.get("changes"):
+                    out.append(str(r["changes"][0]["deck"]))
+        except Exception:  # noqa: BLE001
+            return out
+        return out
 
     def latest_awaiting(self) -> tuple[str, str] | None:
         """The newest release that is waiting for approval, across all projects."""

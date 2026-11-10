@@ -1,5 +1,4 @@
 """Journey J1 at the service level: create from a spec, approve, change the source, update, restore. Real files, real releases."""
-import io
 from pathlib import Path
 
 from docx import Document
@@ -204,3 +203,18 @@ def test_an_invalid_brand_file_is_reported_and_ignored(tmp_path: Path) -> None:
     (root / "brand.json").write_text('{"accent": "red", "evil": 1}', encoding="utf-8")
     out = svc.create_from_spec(pid, SPEC)
     assert out["state"] == "awaiting_approval" and any("brand.json" in n for n in out["held"])
+
+
+def test_a_deck_that_needs_a_workbook_still_waiting_for_approval_is_told_to_wait_for_the_owner(tmp_path: Path) -> None:
+    svc, pid, root = _svc(tmp_path)
+    sheet = {"version": 1, "kind": "xlsx", "path": "sources.xlsx", "facts": {}, "sheets": [{"name": "Sources", "rows": [["Metric", "Value"], ["BEV sales", {"input": 103300}]]}]}
+    staged = svc.create_from_spec(pid, sheet)
+    assert staged["state"] == "awaiting_approval"
+    deck = {"version": 1, "kind": "pptx", "path": "board.pptx", "facts": {"bev": {"ref": "sources.xlsx!Sources!B2", "concept": "BEV sales", "period": "2025", "unit": "count"}},
+            "slides": [{"title": "EV market", "blocks": [{"type": "text", "text": "BEV sales were {bev:#,##0}."}]}]}
+    out = svc.create_from_spec(pid, deck)
+    assert out["state"] == "refused" and "waiting for the owner's approval" in out["hint"] and "sources.xlsx" in out["hint"]
+    assert any("only prepared, not written yet" in e["message"] for e in out["errors"] if e["code"] == "source_missing")
+    svc.approve_and_publish(pid, staged["release_id"], staged["digest"])  # once the owner approves, the same call works
+    again = svc.create_from_spec(pid, deck)
+    assert again["state"] == "awaiting_approval" and again["created"]["path"] == "board.pptx" if "created" in again else again["state"] == "awaiting_approval"

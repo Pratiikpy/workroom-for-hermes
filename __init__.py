@@ -76,8 +76,18 @@ def register(ctx):
     ctx.register_hook("pre_llm_call", owner_said)
     ctx.register_hook("transform_tool_result", written)
     ctx.register_hook("pre_verify", verify)
-    if ctx.get_config("proof_chat_line", True) is not False:
-        ctx.register_hook("transform_llm_output", reply)
+    from .adapters.claims import make_claim_check
+
+    claim_check = make_claim_check(lambda: tools.service().projects(), lambda pid: tools.service().staged_creations(pid))
+
+    def final_line(response_text: str = "", **kw):
+        """One transform_llm_output hook (the first non-empty answer wins): the figure line, then the claimed-file line under it."""
+        first = reply(response_text=response_text, **kw) if ctx.get_config("proof_chat_line", True) is not False else None
+        text = first or response_text
+        second = claim_check(response_text=text, **kw)
+        return second or first
+
+    ctx.register_hook("transform_llm_output", final_line)
     from .adapters.room_context import make_room_context
 
     from .adapters.tripwire import make_tripwire
