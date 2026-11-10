@@ -2,11 +2,29 @@
 
 # Workroom for Hermes
 
-### A shared room where the agent works on your documents, and cannot overwrite them, lose them, or overclaim what it did.
+### Your agent says “I made the deck.” Workroom checks the folder.
 
-**Figures tied to their sources · Nothing changes without you · Every claim checked**
+A Hermes Agent plugin: a Cowork-style room inside Hermes Desktop where the agent works on your Word, PowerPoint and Excel files.<br>
+**Every figure tied to its source · Nothing changes without you · Every claim checked**<br>
+No network, no extra model, no account. Everything stays on your disk.
 
-[Quick start](#quick-start) · [What it does](#what-it-does) · [Evidence](#evidence) · [How it compares](#how-it-compares) · [Limits](#what-it-does-not-do-yet) · [Architecture](#architecture)
+<a href="https://github.com/Pratiikpy/workroom-for-hermes/actions/workflows/ci.yml"><img src="https://github.com/Pratiikpy/workroom-for-hermes/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+<img src="https://img.shields.io/badge/tests-734%20passing-2ea043" alt="734 tests passing">
+<img src="https://img.shields.io/badge/version-0.4.0-555" alt="version 0.4.0">
+<img src="https://img.shields.io/badge/Hermes-0.23.0%2B-7c3aed" alt="Hermes 0.23.0+">
+<img src="https://img.shields.io/badge/network-none-2ea043" alt="No network">
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT licence"></a>
+
+[Install](#quick-start) · [Three promises](#three-promises) · [What it does](#what-it-does) · [Evidence](#evidence) · [More than a prompt](#more-than-a-prompt-or-a-skill) · [How it compares](#how-it-compares) · [Limits](#what-it-does-not-do-yet) · [Disclosure](#disclosure)
+
+<img src="docs/media/demo.gif" width="800" alt="Three moments from the demo: an agent edits a report; a script that saves a managed deck is put back three times; a reply that claims a deck that does not exist gets an honest line">
+
+<sub>From the 89-second demo. The terminal lines and the reply are from real Claude Haiku 4.5 runs recorded in <a href="bench/EVIDENCE.md"><code>bench/EVIDENCE.md</code></a>; the animation is drawn for the video.</sub>
+
+```
+hermes plugins install Pratiikpy/workroom-for-hermes
+hermes plugins enable workroom
+```
 
 ![The change map in Hermes Desktop: changed source cells on the left, the places in each document they reach on the right](docs/screenshots/00-hero-change-map.png)
 
@@ -64,24 +82,34 @@ Also: **point-to-edit** (change a few words in one shape or paragraph; every oth
 | The agent cannot approve or publish | No Workroom tool approves; attempts by a real model to approve, to publish via a speaker-note injection, and to bypass ended with nothing changed | `bench/EVIDENCE.md` (real Haiku runs) |
 | Tests | 734 passed (6 skipped) on Windows; 707 passed on Linux from a fresh clone; the catalog validator passes | `bench/EVIDENCE.md` (suite row for the pinned commit) |
 
+## More than a prompt or a skill
+
+A prompt can ask an agent to be careful. Workroom builds the careful path into the tools and hooks, and names what it cannot stop in [Limits](docs/LIMITS.md):
+
+- **31 model tools** to find links, preview a refresh, build and edit files as drafts, and prepare a release. None of them approves or publishes.
+- **8 hooks** on Hermes's own tool calls: a guard before a write, a safety net after it that puts managed files back, and a check on figures and claimed files in every reply.
+- **A document engine** that patches only the parts of an Office file that must change and leaves every other part byte-identical.
+- **A Desktop panel** (Needs you, Made, Room, Rules) where you review, compare and approve, plus `/workroom-approve` from a messaging app.
+- **A signed record** of each release, which can be embedded in the file and checked in any browser without a server.
+
 ## How it compares
 
-Public descriptions of the closest products, read from their own documentation, against what is measured here. A blank means not documented, not that it is absent.
+Public descriptions of the closest products, read from their own documentation, against what is measured here. "Not documented" means their public documentation does not describe it, not that it is absent.
 
 | | Workroom | Claude Cowork | ChatGPT Work | OpenWork (open source) |
 |---|---|---|---|---|
-| Works on your own Office files | yes | | | |
+| Works on your own Office files | yes | yes | not documented | yes |
 | Open source, runs on your machine | yes (MIT) | no | no | yes |
-| Every figure tied to a source cell and kept in step when the source changes | yes | | | |
-| Agent has no approve or publish tool; direct changes to managed files are put back | yes, checked with a real model | | | |
-| Reply claims checked against the folder; unsourced figures flagged | yes | | | |
-| Signed record of each release, checkable without a server | yes | | | |
+| Every figure tied to a source cell and kept in step when the source changes | yes | not documented | not documented | not documented |
+| Agent has no approve or publish tool; direct changes to managed files are put back | yes, checked with a real model | not documented | not documented | not documented |
+| Reply claims checked against the folder; unsourced figures flagged | yes | not documented | not documented | not documented |
+| Signed record of each release, checkable without a server | yes | not documented | not documented | not documented |
 | Runs inside Hermes (tools, cron, messaging, Desktop) | yes | no | no | no |
 
 ## Quick start
 
 
-1. Use Hermes 0.23.0 or later and enable the Workroom plugin. In Hermes Desktop a **WORKROOM** tab appears once the plugin is switched on.
+1. Use Hermes 0.23.0 or later. Run `hermes plugins install Pratiikpy/workroom-for-hermes`, then `hermes plugins enable workroom`. In Hermes Desktop a **WORKROOM** tab appears once the plugin is switched on.
 2. First time here? Choose **Make the sample project**. It builds a small workbook and board deck in Workroom's own storage, never in your folders, so you can try the whole loop safely.
 3. With your own files: enter a folder that holds the workbook and the report or deck, then **Find links**, **Check the sources**, **Prepare release**, and **Approve and publish**. **Past releases** restores any of them.
 
