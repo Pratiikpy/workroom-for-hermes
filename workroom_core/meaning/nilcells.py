@@ -24,6 +24,15 @@ def heading_key(labels) -> tuple:
     return tuple(re.sub(r"\s+", " ", re.sub(r"\s*\((?:[ivxlc]+|[a-z]|\d{1,2})\)\s*$", "", x.strip().lower())) for x in labels)
 
 
+_NOTE_REF = re.compile(r"\d{1,2}(?:\.\d{1,2})+[a-z]?(?:\([a-z]\))?")
+
+
+def without_note_refs(labels) -> tuple:
+    """Row headings without the note numbers a statement prints beside a line ("3.1.4"): the numbers are renumbered between years, the wording stays."""
+    kept = tuple(x for x in labels if not _NOTE_REF.fullmatch(x.strip()))
+    return kept or tuple(labels)
+
+
 def group_of(cell: SourceCell) -> tuple:
     """A cell's headings apart from any period: the two year columns of one group share it, the columns of another group do not."""
     return heading_key(x for x in (*cell.row_labels, *cell.col_labels) if parse_period(x) is None)

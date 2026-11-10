@@ -78,6 +78,21 @@ def main() -> None:
     states = collections.Counter(t["state"] for t in copy_ties)
     result["cycle2"] = {"seconds": round(time.time() - t0, 1), "copy_links_by_state": dict(states), "all_decks_accepted": second["accepted"],
                         "asked_in_project": len(second["need_confirmation"]), "listed_apart": len(second["coincidences"])}
+    account_input = None
+    if os.environ.get("REFRESH_ACCOUNT"):
+        proj_, _ctl = svc._open(pid)
+        pre_plan = proj_.plan_rollforward(1, True)
+        doc_pre = Doc((root / "statements_y2.docx").read_bytes())
+        mentions_pre = {proj_._mkey(m): m for m in doc_pre.mentions()}
+        account_input = []
+        for t in proj_.ties():
+            if t.deck != "statements_y2.docx" or t.kind != "text":
+                continue
+            m = mentions_pre.get(proj_._tkey(t))
+            account_input.append({"id": t.id, "raw": t.raw, "state": t.state, "basis": t.basis, "row_head": m.row_head if m else "", "table": m.table if m else -1,
+                                  "cell": list(m.cell) if m and m.cell else None, "why": list(pre_plan.why.get(t.id, ("", ""))),
+                                  "sheet": t.sheet, "ref": t.ref, "src_file": t.src_file, "intent": t.intent_labels or "", "src_labels": t.src_labels or ""})
+        (Path(os.environ["REFRESH_ACCOUNT"]) / "ties_before_roll.json").write_text(json.dumps(account_input, ensure_ascii=False), encoding="utf-8")
     try:
         staged = svc.stage_rollforward(pid, 1, window=True)
     except Exception as exc:  # noqa: BLE001
@@ -154,6 +169,10 @@ def main() -> None:
                                         "of_those_updated_to_the_official_figure": sum(1 for k in g_should if g_after.get(k) == g_official[k]),
                                         "of_those_left_as_last_year": sum(1 for k in g_should if g_after.get(k) == g_before[k])}
     result["grouped_wrong_examples"] = grouped_wrong[:60]
+    if account_input is not None:
+        from refresh_account import build_account
+
+        build_account(account_input, g_before, g_after, g_official, Path(os.environ["REFRESH_ACCOUNT"]))
     out.write_text(json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
     print(json.dumps({k: result[k] for k in ("cycle1", "recipe", "cycle2", "score", "score_by_group_heading")}, indent=1, ensure_ascii=False))
     if os.environ.get("KEEP_PROJECT"):

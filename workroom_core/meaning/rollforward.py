@@ -15,7 +15,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from ..match.numbers import consistent_with_source, format_like, house_of, parse_numbers
-from .nilcells import heading_key, nil_notes
+from .nilcells import heading_key as _heading_key
+from .nilcells import nil_notes, without_note_refs
 from .calc import evaluate
 from .periods import Period, describe_period, find_periods, parse_period, period_label
 from .timeline import Timeline
@@ -35,6 +36,7 @@ class RollPlan:
     notes: list[str] = field(default_factory=list)
     kept: list[str] = field(default_factory=list)
     not_rolled: list[str] = field(default_factory=list)
+    why: dict[int, tuple[str, str]] = field(default_factory=dict)  # tie id -> (code, sentence): what the roll did with each tied figure
     nil_cells: list[str] = field(default_factory=list)  # dashes that may now hold a figure
     restated: list[str] = field(default_factory=list)  # a figure for a period the report already showed, which the workbook now gives differently
     files: dict[str, bytes] = field(default_factory=dict)
@@ -56,9 +58,45 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
     ties = [t for t in project.ties() if t.state in ("accepted", "confirmed", "held") and t.kind in ("text", "derived", "chart")]
     ties = [t for t in ties if (project.root / t.deck).is_file()]  # a document that is put away keeps its links but is not part of the roll, and cannot block it
 
+    # where each tied figure sits in its document (table and row), read once: pairs a row's year columns now and checks them afterwards
+    row_of: dict[int, tuple] = {}
+    docs_seen: dict[str, Any] = {}
+    for rel in sorted({t.deck for t in ties}):
+        if rel.lower().endswith(".scene.json"):
+            continue
+        docs_seen[rel] = open_document((project.root / rel).read_bytes(), rel)
+        pre = {}
+        for d in docs_seen[rel].mentions():
+            pre[project._mkey(d)] = d
+            pre.setdefault(project._mkey(d, f"#{d.slide}"), d)
+        for t in ties:
+            if t.deck == rel and t.kind == "text":
+                d0 = pre.get(project._tkey(t))
+                if d0 is not None and d0.cell is not None:
+                    row_of[t.id] = (rel, project._table_id(d0), d0.cell[0])
+
+    def group_of(t) -> tuple:
+        """The headings of a figure's cell apart from the period one: two year columns of one group share it, the columns of another group do not."""
+        try:
+            labels = json.loads(t.intent_labels or t.src_labels or "[[], []]")
+        except ValueError:
+            return ()
+        return tuple(x for axis in labels[:2] for x in axis if parse_period(x) is None)
+
+    by_row_group: dict[tuple, list] = {}
+    for t in ties:
+        if t.id in row_of:
+            by_row_group.setdefault(row_of[t.id] + (group_of(t),), []).append(t)
+
+    def heading_key(labels) -> tuple:
+        """Headings as a set: the order a sheet prints its header rows in differs between years."""
+        return tuple(sorted(_heading_key(labels)))
+
     by_labels: dict[tuple, list] = {}
+    by_labels_loose: dict[tuple, list] = {}
     for c in index.cells:
         by_labels.setdefault((c.file, c.sheet, heading_key(c.row_labels), heading_key(c.col_labels)), []).append(c)
+        by_labels_loose.setdefault((c.file, c.sheet, heading_key(without_note_refs(c.row_labels)), heading_key(c.col_labels)), []).append(c)
 
     def intent(t):
         """(period, labels moved by ``steps``, the cell that now carries them) for a figure inherited from a model report, else None."""
@@ -78,7 +116,55 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
         except ValueError:
             return None
         hits = by_labels.get((t.src_file, t.sheet, heading_key(groups[0]), heading_key(groups[1])), [])
+        if len(hits) != 1:  # note numbers move between years ("3.1.4" one year, "3.1.5" the next): the wording of the row decides
+            loose = by_labels_loose.get((t.src_file, t.sheet, heading_key(without_note_refs(groups[0])), heading_key(groups[1])), [])
+            hits = loose if len(loose) == 1 else hits
+        if len(hits) != 1 and steps == 1:
+            pinned = anchored(t, p, rows)
+            hits = [pinned] if pinned is not None else hits
         return p, groups, (hits[0] if len(hits) == 1 else None)
+
+    def tie_period(t):
+        if not t.intent_labels:
+            return None
+        try:
+            rows_, cols_ = json.loads(t.intent_labels)
+        except ValueError:
+            return None
+        found_ = [parse_period(x) for x in (*rows_, *cols_) if parse_period(x) is not None]
+        return found_[0] if len(found_) == 1 else None
+
+    anchor_memo: dict[int, Any] = {}
+
+    def anchored(t, p, rows):
+        """The next period's cell for a figure whose headings no longer match, found by value: the report already gave the next period's figure beside it (last year's
+        current column is this year's comparative), so the cell of the new workbook that holds that very figure, under the same row wording, is the one; its partner
+        column then follows by one period. Needs a unique match; otherwise nothing is guessed."""
+        if t.id in anchor_memo:
+            return anchor_memo[t.id]
+        anchor_memo[t.id] = None
+        key = row_of.get(t.id)
+        if key is None:
+            return None
+        mates = [x for x in by_row_group.get(key + (group_of(t),), []) if x.id != t.id]
+        row_key = heading_key(without_note_refs(rows))
+        found = None
+        newer = [x for x in mates if tie_period(x) == p.shifted(1) and x.linked_value is not None]
+        older = [x for x in mates if tie_period(x) == p.shifted(-1)]
+        if newer:
+            want = newer[0].linked_value
+            cands = [c for c in index.cells if c.file == t.src_file and c.sheet == t.sheet and not c.hidden and abs(c.value - want) <= 1e-9 * max(1.0, abs(want))
+                     and (pl := tl.placed(c)) is not None and pl.period == p.shifted(1) and heading_key(without_note_refs(c.row_labels)) == row_key]
+            found = cands[0] if len(cands) == 1 else None
+        elif older:
+            try:
+                a_rows = json.loads(older[0].intent_labels)[0]
+            except (ValueError, IndexError):
+                a_rows = rows
+            partner = anchored(older[0], p.shifted(-1), a_rows)
+            found = tl.shifted(partner, 1) if partner is not None else None
+        anchor_memo[t.id] = found
+        return found
 
     def placed_of(t):
         if window and t.intent_labels and t.kind == "text":
@@ -109,22 +195,27 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
         where = f"{t.deck} slide {t.slide}"
         if t.state == "held":
             plan.not_rolled.append(f"{where}: '{t.raw}' was changed by hand and stays as it is")
+            plan.why[t.id] = ("held_by_hand", f"{where}: '{t.raw}' was changed by hand and stays as it is")
             unrolled_paras.add((t.deck, t.slide, t.shape_id, t.para, t.cell_rc))
             continue
         if t.kind == "chart":
             plan.not_rolled.append(f"{where}: the chart point '{t.raw}' belongs to a chart with a fixed set of periods; change the chart's periods in PowerPoint")
+            plan.why[t.id] = ("chart", f"{where}: the chart point '{t.raw}' belongs to a chart with a fixed set of periods; change the chart's periods in PowerPoint")
             unrolled_paras.add((t.deck, t.slide, t.shape_id, t.para, t.cell_rc))
             continue
         if t.kind == "text" and window and t.intent_labels and intent(t) is None:
             plan.kept.append(f"{where}: '{t.raw}' has no single period in the headings it was linked under (or none), so a window refresh cannot move it and leaves it as written")
+            plan.why[t.id] = ("no_single_period", f"{where}: '{t.raw}' has no single period in the headings it was linked under (or none), so a window refresh cannot move it and leaves it as written")
             continue
         if t.kind == "text" and window and not t.intent_labels:
             plan.kept.append(f"{where}: '{t.raw}' was linked here by its value, not inherited from the model report, so a window refresh leaves it as written")
+            plan.why[t.id] = ("linked_by_value", f"{where}: '{t.raw}' was linked here by its value, not inherited from the model report, so a window refresh leaves it as written")
             continue
         if t.kind == "text":
             c, pl = placed_of(t)
             if pl is None or pl.period.kind != plan.kind:
                 plan.kept.append(f"{where}: '{t.raw}' does not sit in a {plan.kind} period and is kept")
+                plan.why[t.id] = ("not_a_period_figure", f"{where}: '{t.raw}' does not sit in a {plan.kind} period and is kept")
                 continue
             got = intent(t)
             tgt = got[2] if got is not None else tl.shifted(c, plan.steps)
@@ -134,6 +225,7 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
                 if window and got is not None:
                     # a copy of last period's report can quote periods the new workbook no longer holds; those figures keep their old numbers, and the release says so
                     plan.not_rolled.append(why + "; it keeps the figure as written")
+                    plan.why[t.id] = ("new_period_missing", why + "; it keeps the figure as written")
                     unrolled_paras.add((t.deck, t.slide, t.shape_id, t.para, t.cell_rc))
                     continue
                 plan.blocked.append(why)
@@ -141,6 +233,7 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
             rolled[t.id] = {"id": t.id, "deck": t.deck, "slide": t.slide, "raw": t.raw, "from": [t.src_file, t.sheet, t.ref], "to": [tgt.file, tgt.sheet, tgt.ref],
                             "old_value": t.linked_value, "new_value": tgt.value, "old_formula": "", "new_formula": "", "period": [pl.period.kind, pl.period.index]}
             period_of[t.id] = pl.period
+            plan.why[t.id] = ("rolled", f"{where}: '{t.raw}' moves to {describe_period(pl.period.shifted(plan.steps))}")
             rolled_paras.add((t.deck, t.slide, t.shape_id, t.para, t.cell_rc))
             old_periods.setdefault((t.deck, t.slide), set()).add(pl.period)
             deck_periods.setdefault(t.deck, set()).add(pl.period)
@@ -175,25 +268,17 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
                             "old_value": t.linked_value, "new_value": nv, "old_formula": t.formula, "new_formula": new_formula, "period": []}
     if plan.blocked:
         return plan
-    row_of: dict[int, tuple] = {}
     # ---- write the new figures and period words into new copies of the documents ----
     by_tie = {t.id: t for t in ties}
-    docs_seen: dict[str, Any] = {}
     for rel in sorted({it["deck"] for it in rolled.values()} | {d for d in {t.deck for t in ties}}):
         path = project.root / rel
         if not path.is_file() or rel.lower().endswith(".scene.json"):
             continue
         doc = open_document(path.read_bytes(), rel)
-        docs_seen[rel] = open_document(path.read_bytes(), rel)  # an untouched copy: the dashes are read from the report as it stands
         dms = {}
         for d in doc.mentions():
             dms[project._mkey(d)] = d
             dms.setdefault(project._mkey(d, f"#{d.slide}"), d)
-        for t in ties:
-            if t.deck == rel and t.kind == "text":
-                d0 = dms.get(project._tkey(t))
-                if d0 is not None and d0.cell is not None:
-                    row_of[t.id] = (rel, project._table_id(d0), d0.cell[0])
         applied = 0
         mine = [by_tie[i] for i, it in rolled.items() if it["deck"] == rel]
         for t in sorted(mine, key=lambda t: (t.slide, t.shape_id, t.para, t.seg, -t.offset)):
@@ -257,14 +342,6 @@ def plan_rollforward(project: Project, steps: int = 1, window: bool = False) -> 
             data, _report = doc.serialize()
             plan.files[rel] = data
     # a figure for a period the report already showed (last year's column becoming this year's) must equal what the report said then, unless it was restated
-    def group_of(t) -> tuple:
-        """The headings of a figure's cell apart from the period one: two year columns of one group share it, the columns of another group do not."""
-        try:
-            labels = json.loads(t.intent_labels or t.src_labels or "[[], []]")
-        except ValueError:
-            return ()
-        return tuple(x for axis in labels[:2] for x in axis if parse_period(x) is None)
-
     row_periods: dict[tuple, dict[Any, Any]] = {}
     for t in ties:
         if t.id in row_of:

@@ -215,7 +215,6 @@ def _window_project(tmp_path: Path, columns: list[str], values: list[list[int]])
     import io
 
     import openpyxl
-    from docx import Document
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -432,3 +431,52 @@ def test_a_dash_beside_linked_figures_is_listed_when_its_source_has_become_a_fig
     svc.discover(pid)
     staged = svc.stage_rollforward(pid, 1, window=True)
     assert len(staged["nil_cells"]) == 1 and "Grants" in staged["nil_cells"][0] and "40" in staged["nil_cells"][0]
+
+
+def test_a_window_refresh_follows_a_renamed_column_group_by_the_figure_the_report_already_gave(tmp_path: Path) -> None:
+    import io
+
+    import openpyxl
+    from docx import Document
+
+    def book(group, years, rows):
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Results"
+        ws.append([None, group, None])
+        ws.merge_cells("B1:C1")  # a group heading spans both of its year columns
+        ws.append(["Line", *years])
+        for n, vals in rows:
+            ws.append([n, *vals])
+        buf = io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
+    root = tmp_path / "proj"
+    root.mkdir()
+    (root / "data.xlsx").write_bytes(book("Parks", ["2024", "2023"], [("Revenue", [500, 410]), ("Costs", [300, 250])]))
+    d = Document()
+    d.add_paragraph("Results")
+    t = d.add_table(rows=3, cols=3)
+    for c, v in enumerate(["Line", "2024", "2023"]):
+        t.cell(0, c).text = v
+    for r, (n, a, b) in enumerate((("Revenue", 500, 410), ("Costs", 300, 250)), 1):
+        t.cell(r, 0).text, t.cell(r, 1).text, t.cell(r, 2).text = n, str(a), str(b)
+    buf = io.BytesIO()
+    d.save(buf)
+    (root / "report_2024.docx").write_bytes(buf.getvalue())
+    svc = Service(tmp_path / "data")
+    pid = svc.add_project(str(root))["project"]
+    svc.discover(pid)
+    approved(svc, pid, "report_2024.docx")
+    (root / "report_2025.docx").write_bytes((root / "report_2024.docx").read_bytes())
+    away = tmp_path / "away"
+    away.mkdir()
+    (root / "report_2024.docx").replace(away / "report_2024.docx")
+    # the group is renamed in the new workbook, so its headings no longer match; 2024 figures are the same as last year's current ones
+    (root / "data.xlsx").write_bytes(book("Parks and Forests Division", ["2025", "2024"], [("Revenue", [620, 500]), ("Costs", [350, 300])]))
+    svc.discover(pid)
+    staged = svc.stage_rollforward(pid, 1, window=True)
+    assert staged["figures"] == 4
+    svc.approve_and_publish(pid, staged["release_id"], staged["digest"])
+    assert texts((root / "report_2025.docx").read_bytes())[1:][3:] == ["Revenue", "620", "500", "Costs", "350", "300"]
