@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from pathlib import PurePosixPath
-from typing import Any, Iterator
+from typing import Any
+from collections.abc import Iterator
 
 from ..match.engine import periods, tokens
 from ..ooxml.xlsx import SourceCell

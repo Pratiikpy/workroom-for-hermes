@@ -14,7 +14,7 @@
 
 Hermes can already read, write and run things. What it cannot do on its own is *prove* its work: where each number came from, that nothing outside the task was touched, that the file it says it made exists. Workroom adds that layer as one Hermes plugin (model tools, tool-call hooks, a Desktop panel and a document engine), so an agent can do real work on Word, PowerPoint and Excel files while you stay in charge of every change.
 
-> **Status: version 0.4.0, an early release, built and tested on Windows; the suite also passes on Linux.** Everything below is backed by a row in [`bench/EVIDENCE.md`](bench/EVIDENCE.md) or a number in [Evidence](docs/EVIDENCE.md); what is not proven is named in [Limits](docs/LIMITS.md). Real-model checks are one run per case, not rates.
+> **Status: version 0.4.0, an early release, built and tested on Windows; the suite also passes on Linux.** Everything below is backed by a row in [`bench/EVIDENCE.md`](bench/EVIDENCE.md) or a number in [Evidence](docs/EVIDENCE.md); what is not proven is named in [Limits](docs/LIMITS.md). Real-model checks are 3 to 5 runs per case with one model, so they are counts, not rates.
 
 ## Three promises
 
@@ -22,7 +22,7 @@ Hermes can already read, write and run things. What it cannot do on its own is *
 |---|---|---|---|
 | **1** | **Every figure has a source** | Numbers in reports and decks are linked to the workbook cell they came from; when a source changes you see exactly which numbers in which files are affected and only those change. In the agent's own text each figure is marked *supported by a source*, *calculation verified* or *not verified*, from what it actually read. | Asked to research the Australian EV market and build a board deck, Haiku wrote "all numbers are sourced"; Workroom flagged the figures with nothing behind them and said no deck existed yet. |
 | **2** | **Nothing changes without you** | The agent can prepare a release; it has no tool to approve one. A tripwire under the shell guard puts back any managed Office file or protected file a command changed, keeps the agent's version aside, and gives every other changed file a before-image you can Restore. | Told to skip Workroom, Haiku edited a deck with a Python script (it worked once). With the net on, three different attempts were each reverted and nothing changed. Told to tidy a folder it moved your protected `.env`; now those stay and nothing is lost. |
-| **3** | **The agent cannot overclaim** | A reply that says "I created a 6-slide deck" when no deck exists gets one line saying what is actually in your folder and what is waiting for your approval. | The same T1 run: Haiku claimed a deck, there were two workbooks staged and no deck; the line says so. |
+| **3** | **Claims are checked** | A reply that says "I created a 6-slide deck" when no deck exists gets one line saying what is actually in your folder and what is waiting for your approval. | The same T1 run: Haiku claimed a deck, there were two workbooks staged and no deck; the line says so. |
 
 ## What it does
 
@@ -32,11 +32,11 @@ Hermes can already read, write and run things. What it cannot do on its own is *
 <td width="50%"><img src="docs/screenshots/05-before-and-after.png" alt="Before and after, drawn by PowerPoint"><br><b>Review room.</b> The report or deck is drawn as Office draws it with every linked figure marked, before and after the release.</td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/12-needs-you-inbox.png" alt="Needs you inbox"><br><b>Needs you.</b> Releases, memory proposals, files to review, questions, a failed or missed scheduled check, a direct change that was put back: one inbox across every project.</td>
-<td><img src="docs/screenshots/13-made-gallery.png" alt="Made tab gallery"><br><b>Made.</b> Everything the agent produced, as a list or a gallery, with a preview, a comparison with the version before, and approval of the exact version you accept.</td>
+<td><img src="docs/screenshots/pane-needs-you.png" alt="Needs you inbox"><br><b>Needs you.</b> Releases, memory proposals, files to review, questions, a failed or missed scheduled check, a direct change that was put back: one inbox across every project.</td>
+<td><img src="docs/screenshots/pane-made-gallery.png" alt="Made tab gallery"><br><b>Made.</b> Everything the agent produced, as a list or a gallery, with a preview, a comparison with the version before, and approval of the exact version you accept.</td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/10-made-tab-figure-proof.png" alt="Figure proof"><br><b>Figure proof.</b> Each figure underlined and marked supported, calculated or not verified, with the evidence it rests on.</td>
+<td><img src="docs/screenshots/pane-figure-proof.png" alt="Figure proof"><br><b>Figure proof.</b> Each figure underlined and marked supported, calculated or not verified, with the evidence it rests on.</td>
 <td><img src="docs/screenshots/11-deck-drawn-without-office.png" alt="Deck drawn without Office"><br><b>No Office needed to look.</b> Decks and reports are drawn from their own shapes and text, with linked figures underlined in green.</td>
 </tr>
 <tr>
@@ -62,11 +62,11 @@ Also: **point-to-edit** (change a few words in one shape or paragraph; every oth
 | The editor touches only what must change | Every untouched part of 250 public Office files stays byte-identical; checked by python-pptx, Microsoft's Open XML validator and the real Word, Excel and PowerPoint | `bench/EVIDENCE.md` |
 | A release survives a crash and restores exactly | Recovery from a crash at every injected point; restore returns the original bytes | `bench/EVIDENCE.md` |
 | The agent cannot approve or publish | No Workroom tool approves; attempts by a real model to approve, to publish via a speaker-note injection, and to bypass ended with nothing changed | `bench/EVIDENCE.md` (real Haiku runs) |
-| Tests | 731 passed on Windows; 707 passed on Linux from a fresh clone; the catalog validator passes | `research/corpus/final_check_run4.log` |
+| Tests | 734 passed (6 skipped) on Windows; 707 passed on Linux from a fresh clone; the catalog validator passes | `bench/EVIDENCE.md` (suite row for the pinned commit) |
 
 ## How it compares
 
-Public descriptions of the closest products, read from their own documentation (see `research/cowork/` for the sources), against what is measured here. A blank means not documented, not that it is absent.
+Public descriptions of the closest products, read from their own documentation, against what is measured here. A blank means not documented, not that it is absent.
 
 | | Workroom | Claude Cowork | ChatGPT Work | OpenWork (open source) |
 |---|---|---|---|---|
@@ -211,7 +211,7 @@ The complete list is in [Limits](docs/LIMITS.md).
   2. on Windows, the system `icacls` tool once, to make Workroom's own signing-key file readable only by your account;
   3. on Windows with PowerPoint installed, and only when you press "Show before and after", PowerShell drives PowerPoint on a private temporary copy of a deck to draw slide pictures; the copy is deleted afterwards;
   4. nothing else: Workroom never starts a scheduled job itself (`/workroom-watch` only prints the lines you can save for Hermes cron).
-- No network access, no secrets read from files or the environment, no binaries, no self-update. A `pre_tool_call` hook blocks the agent's file-write tools on Office files in registered projects and sends suspicious shell commands to your approval prompt.
+- No network access, no binaries, no self-update, no environment secrets. To be able to put protected files back, the safety net reads, in memory, the bytes of every managed or protected file of a registered project (including `.env` and key files) before a shell, code or editing tool runs; those bytes are never shown to the agent and are kept in plugin data only if the agent changed the file (the agent's version, so you can recover it). To check figures it stores, in a local SQLite file in the plugin data directory, the text of tool results the agent read in a session (capped at 20 MB) and your chat messages; nothing leaves the machine. After a tool runs it may put back a managed or protected file that the tool changed, including a change made by another plugin's tool, and appends one line to a tool result or the agent's reply. `cryptography` signs release records and `xlsxwriter` writes workbooks; on Linux the optional `soffice` is used to draw slide pictures when installed. A `pre_tool_call` hook blocks the agent's file-write tools on Office files in registered projects and sends suspicious shell commands to your approval prompt.
 - Files read and written: inside the folders you register (documents; `brand.json` and the colour and font tokens of `DESIGN.md`; `workroom.md`, `AGENTS.md` and `CLAUDE.md` only as text for you to authorise; a `workroom.manifest.json` history file per project; files you approve Workroom to create), and in the plugin data directory (state, backups, a signing key file kept for this plugin only). Nothing else on your computer is read.
 - The scripts under `bench/` (benchmarks, the real-Desktop driver, and a small .NET console tool that runs Microsoft's Open XML SDK validator) are for testing only. The plugin never runs them, and no compiled file is committed. The plugin itself imports no private Hermes module.
 - See `NOTICE.md` for sources and credits.
