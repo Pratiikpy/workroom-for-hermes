@@ -426,6 +426,14 @@ function DeliverableView({ api, pid, item, busy, run, ctx, onChanged }) {
   const when = (t) => new Date(t * 1000).toLocaleString()
   let body = null
   if (!shown) body = h('div', { style: css.muted }, 'Loading...')
+  else if (shown.kind === 'slides') body = h('div', null,
+    h('div', { style: { ...css.muted, fontSize: 12 } }, 'Drawn from where each shape sits, not typeset: fonts and line breaks are approximate. No Office program needed.'),
+    shown.slides.map(sl => h('img', { key: sl.slide, alt: `Slide ${sl.slide}`, src: `data:image/svg+xml;utf8,${encodeURIComponent(sl.svg)}`, style: { width: '100%', margin: '6px 0', border: '1px solid var(--ui-stroke-secondary, #8884)', borderRadius: 6 } })))
+  else if (shown.kind === 'blocks') body = h('div', { style: { maxHeight: 360, overflow: 'auto', margin: '6px 0' } },
+    h('div', { style: { ...css.muted, fontSize: 12 } }, 'Structural view of the document: text and tables, not the page layout.'),
+    shown.blocks.map((b, i) => b.type === 'table'
+      ? h('table', { key: i, style: { borderCollapse: 'collapse', fontSize: 12, margin: '6px 0' } }, h('tbody', null, b.rows.map((r, ri) => h('tr', { key: ri }, r.map((c, ci) => h('td', { key: ci, style: { border: '1px solid var(--ui-stroke-secondary, #8884)', padding: '2px 6px' } }, c))))))
+      : h(b.type === 'heading' ? 'h3' : 'p', { key: i, style: { margin: '6px 0', fontSize: b.type === 'heading' ? 14 : 13, fontWeight: b.type === 'heading' ? 600 : 400 } }, b.text)))
   else if (shown.kind === 'text' && !version && proof && proof.marks_align && proof.figures.length) body = h(ProofText, { text: shown.text, figures: proof.figures, onPick: setPicked })
   else if (shown.kind === 'text') body = h('pre', { style: { whiteSpace: 'pre-wrap', maxHeight: 320, overflow: 'auto', fontSize: 12, margin: '6px 0', padding: 8, border: '1px solid var(--ui-stroke-secondary, #8884)', borderRadius: 8 } }, shown.text + (shown.truncated ? '\n... (cut at 200 KB)' : ''))
   else if (shown.kind === 'image') body = h('div', null,

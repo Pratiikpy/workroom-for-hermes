@@ -71,7 +71,7 @@ def test_word_and_powerpoint_compare_by_their_text() -> None:
 
     got = diff(word("Revenue was 120."), word("Revenue was 150."), "word", "a", "b")
     assert got["added"] == 1 and got["removed"] == 1 and "+Revenue was 150." in got["diff"]
-    assert preview(word("Hello"), "word", "x.docx")["review_room"] is True
+    assert preview(word("Hello"), "word", "x.docx")["blocks"][0]["text"] == "Hello"
 
 
 def test_files_without_text_say_so_instead_of_pretending() -> None:
@@ -102,3 +102,32 @@ def test_one_inbox_lists_what_waits_for_the_owner_in_every_project(tmp_path: Pat
     assert att["counts"]["memory"] == 1 and att["total"] == len(att["items"])
     svc.deliverable_approve(pid2, "memo.md")
     assert (pid2, "deliverable") not in {(i["project"], i["kind"]) for i in svc.attention()["items"]}
+
+
+def test_a_deck_and_a_report_are_drawn_structurally_without_any_office_program() -> None:
+    import io as _io
+
+    from docx import Document
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+
+    prs = Presentation()
+    prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
+    sl = prs.slides.add_slide(prs.slide_layouts[6])
+    tb = sl.shapes.add_textbox(Inches(1), Inches(1), Inches(8), Inches(1))
+    r = tb.text_frame.paragraphs[0].add_run()
+    r.text = "Revenue <b>rose</b> 12% & margin held"
+    r.font.size = Pt(28)
+    buf = _io.BytesIO()
+    prs.save(buf)
+    got = preview(buf.getvalue(), "powerpoint", "d.pptx")
+    assert got["kind"] == "slides" and got["structural"] and "Revenue &lt;b&gt;rose&lt;/b&gt; 12% &amp; margin held" in got["slides"][0]["svg"] and "<b>" not in got["slides"][0]["svg"]
+    d = Document()
+    d.add_heading("Q2 review", 1)
+    d.add_paragraph("Revenue rose 12%.")
+    t = d.add_table(rows=1, cols=2)
+    t.cell(0, 0).text, t.cell(0, 1).text = "Metric", "Q2"
+    b2 = _io.BytesIO()
+    d.save(b2)
+    blocks = preview(b2.getvalue(), "word", "r.docx")["blocks"]
+    assert [x["type"] for x in blocks] == ["heading", "paragraph", "table"] and blocks[2]["rows"] == [["Metric", "Q2"]]

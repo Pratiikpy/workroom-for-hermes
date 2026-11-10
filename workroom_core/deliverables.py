@@ -11,6 +11,7 @@ from __future__ import annotations
 import base64
 import difflib
 import io
+import re
 from pathlib import Path
 
 from lxml import etree
@@ -95,6 +96,109 @@ def excel_grid(data: bytes, sheet_index: int = 0) -> dict:
     return {"sheets": [s.name for s in all_sheets], "sheet": sh.name, "rows": rows}
 
 
+def _esc(t: str) -> str:
+    return t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+_NS = {"a": "http://schemas.openxmlformats.org/drawingml/2006/main", "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
+       "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships", "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+       "rel": "http://schemas.openxmlformats.org/package/2006/relationships"}
+
+
+def _xml(z, name: str):
+    return etree.fromstring(z.read(name), etree.XMLParser(resolve_entities=False, no_network=True, huge_tree=False))
+
+
+def slides_svg(data: bytes, limit: int = 60) -> list[dict]:
+    """Each slide drawn from its shapes' own positions and sizes as an SVG: boxes, text at its font size, tables as grids. Read straight from the file's XML
+    (no PowerPoint, no python-pptx), structural rather than typeset: line breaks and fonts are approximate, and the page says so. Text is escaped; nothing
+    from the file is executed."""
+    import zipfile
+
+    z = zipfile.ZipFile(io.BytesIO(data))
+    pres = _xml(z, "ppt/presentation.xml")
+    size = pres.find(".//p:sldSz", _NS)
+    W, H = int(size.get("cx")), int(size.get("cy"))
+    rels = {r.get("Id"): r.get("Target") for r in _xml(z, "ppt/_rels/presentation.xml.rels").findall("rel:Relationship", _NS)}
+    order = [rels[sid.get(f"{{{_NS['r']}}}id")] for sid in pres.findall(".//p:sldId", _NS) if sid.get(f"{{{_NS['r']}}}id") in rels]
+    px = 960.0 / W
+    out = []
+    for si, target in enumerate(order[:limit], 1):
+        root = _xml(z, "ppt/" + target.lstrip("/").removeprefix("ppt/") if not target.startswith("/") else target.lstrip("/"))
+        parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 {H * px:.0f}" width="100%" role="img" aria-label="Slide {si}"><rect width="960" height="{H * px:.0f}" fill="#fff" stroke="#d1d5db"/>']
+        for node in root.find(".//p:spTree", _NS):
+            xfrm = node.find(".//a:xfrm", _NS) if node.tag.endswith("}sp") else node.find("p:xfrm", _NS)
+            if xfrm is None or xfrm.find("a:off", _NS) is None or xfrm.find("a:ext", _NS) is None:
+                continue
+            off, ext = xfrm.find("a:off", _NS), xfrm.find("a:ext", _NS)
+            x, y, w, h = int(off.get("x")) * px, int(off.get("y")) * px, int(ext.get("cx")) * px, int(ext.get("cy")) * px
+            if node.find(".//a:tbl", _NS) is not None:
+                rows = node.findall(".//a:tr", _NS)
+                rh = h / max(1, len(rows))
+                for ri, tr in enumerate(rows):
+                    cells = tr.findall("a:tc", _NS)
+                    cw = w / max(1, len(cells))
+                    for ci, tc in enumerate(cells):
+                        txt = "".join(t.text or "" for t in tc.iter(f"{{{_NS['a']}}}t"))
+                        parts.append(f'<rect x="{x + ci * cw:.1f}" y="{y + ri * rh:.1f}" width="{cw:.1f}" height="{rh:.1f}" fill="{"#f3f4f6" if ri == 0 else "#fff"}" stroke="#d1d5db"/>')
+                        parts.append(f'<text x="{x + ci * cw + 4:.1f}" y="{y + ri * rh + rh * 0.65:.1f}" font-size="{min(14, rh * 0.5):.0f}" fill="#111827">{_esc(txt[:40])}</text>')
+                continue
+            if node.find(".//{http://schemas.openxmlformats.org/drawingml/2006/chart}chart") is not None:
+                parts.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" fill="#f9fafb" stroke="#9ca3af" stroke-dasharray="4"/><text x="{x + 8:.1f}" y="{y + 20:.1f}" font-size="13" fill="#6b7280">chart</text>')
+                continue
+            fill = node.find("p:spPr/a:solidFill/a:srgbClr", _NS)
+            if fill is not None and re.fullmatch(r"[0-9A-Fa-f]{6}", fill.get("val") or ""):
+                parts.append(f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" fill="#{fill.get("val")}" stroke="#e5e7eb"/>')
+            ty = y
+            for para in node.findall(".//a:p", _NS):
+                runs = para.findall("a:r", _NS)
+                txt = "".join((r.find("a:t", _NS).text or "") if r.find("a:t", _NS) is not None else "" for r in runs)
+                if not txt:
+                    continue
+                szs = [int(r.find("a:rPr", _NS).get("sz")) for r in runs if r.find("a:rPr", _NS) is not None and (r.find("a:rPr", _NS).get("sz") or "").isdigit()]
+                pt = (max(szs) / 100.0) if szs else 18.0
+                size = max(8.0, min(pt * 12700 * px, 60.0))
+                ty += size * 1.25
+                col = None
+                for r in runs:
+                    c = r.find("a:rPr/a:solidFill/a:srgbClr", _NS)
+                    if c is not None and re.fullmatch(r"[0-9A-Fa-f]{6}", c.get("val") or ""):
+                        col = "#" + c.get("val")
+                        break
+                parts.append(f'<text x="{x + 6:.1f}" y="{ty:.1f}" font-size="{size:.0f}" fill="{col or "#111827"}">{_esc(txt[:160])}</text>')
+        parts.append("</svg>")
+        out.append({"slide": si, "svg": "".join(parts)})
+    return out
+
+
+def docx_blocks(data: bytes, limit: int = 400) -> list[dict]:
+    """A Word document as plain blocks (headings, paragraphs, tables) for the structural view, read straight from the file's XML; the page draws them as text,
+    never as markup from the file."""
+    import zipfile
+
+    z = zipfile.ZipFile(io.BytesIO(data))
+    body = _xml(z, "word/document.xml").find("w:body", _NS)
+    w = _NS["w"]
+
+    def text(el) -> str:
+        return "".join(t.text or "" for t in el.iter(f"{{{w}}}t"))
+
+    out: list[dict] = []
+    for child in body:
+        tag = child.tag.rsplit("}", 1)[-1]
+        if tag == "p":
+            t = text(child)
+            if t.strip():
+                st = child.find("w:pPr/w:pStyle", _NS)
+                style = (st.get(f"{{{w}}}val") if st is not None else "") or ""
+                out.append({"type": "heading" if style.lower().startswith("heading") or style.lower() == "title" else "paragraph", "text": t})
+        elif tag == "tbl":
+            out.append({"type": "table", "rows": [[text(tc) for tc in tr.findall("w:tc", _NS)] for tr in child.findall("w:tr", _NS)][:60]})
+        if len(out) >= limit:
+            break
+    return out
+
+
 def text_of(data: bytes, kind: str) -> str | None:
     """Text used to compare two versions; None where the kind has no meaningful text (images, unknown files)."""
     try:
@@ -139,9 +243,20 @@ def preview(data: bytes, kind: str, path: str, page: int = 1) -> dict:
             return {"kind": "grid", **excel_grid(data)}
         except Exception as exc:  # noqa: BLE001
             return {"kind": "none", "why": f"the workbook could not be read ({type(exc).__name__})"}
+    why = ""
+    if kind == "powerpoint":
+        try:
+            return {"kind": "slides", "slides": slides_svg(data), "structural": True}
+        except Exception as exc:  # noqa: BLE001  a deck the reader cannot draw still has its text
+            why = f" ({type(exc).__name__}: {str(exc)[:80]})"
+    if kind == "word":
+        try:
+            return {"kind": "blocks", "blocks": docx_blocks(data), "structural": True}
+        except Exception as exc:  # noqa: BLE001
+            why = f" ({type(exc).__name__}: {str(exc)[:80]})"
     if kind in ("word", "powerpoint"):
         text = text_of(data, kind)
-        return {"kind": "text", "text": text or "", "truncated": False, "review_room": True} if text is not None else {"kind": "none", "why": "the file could not be read"}
+        return {"kind": "text", "text": text or "", "truncated": False, "review_room": True} if text is not None else {"kind": "none", "why": "the file could not be read" + why}
     return {"kind": "none", "why": "no preview for this kind of file"}
 
 
