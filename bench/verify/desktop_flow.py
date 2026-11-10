@@ -54,13 +54,15 @@ def texts(root: Path) -> list[str]:
 
 
 def open_workroom(pg) -> None:
-    """Click the Workroom tab once the Desktop has loaded it (it appears a few seconds after a reload)."""
+    """Bring the Workroom page to the front once the Desktop has loaded it (the tab appears a few seconds after a reload and its label may be shortened)."""
+    find = "() => { const e = Array.from(document.querySelectorAll('div,button,span')).find(x => x.children.length === 0 && /^WORKRO/i.test(x.innerText || '') && x.getBoundingClientRect().y < 40 && x.getBoundingClientRect().width > 0); if (!e) return null; const r = e.getBoundingClientRect(); return [r.x + 10, r.y + r.height / 2]; }"
     for _ in range(40):
-        box = pg.evaluate("() => { const e = Array.from(document.querySelectorAll('div')).find(x => x.innerText === 'WORKROOM' && x.getBoundingClientRect().y < 40); if (!e) return null; const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2] }")
+        if pg.get_by_label("Folder path").count():
+            pg.wait_for_timeout(1500)
+            return
+        box = pg.evaluate(find)
         if box:
             pg.mouse.click(box[0], box[1])
-            pg.wait_for_timeout(2500)
-            return
         pg.wait_for_timeout(1000)
     raise AssertionError("the Workroom tab did not appear in the Desktop")
 
@@ -118,6 +120,8 @@ def main() -> None:
         sources(root, 13_000_000, 16_400_000)
         pg.get_by_role("button", name="Find links").click()
         pg.wait_for_selector("text=numbers found", timeout=30000)
+        pg.get_by_role("button", name="See what changes").click()
+        pg.get_by_text("Moving to the next period?").click()
         pg.get_by_role("button", name="Roll forward one period").click()
         pg.wait_for_selector("text=roll your documents forward", timeout=30000)
         pg.screenshot(path=str(SHOTS / "depth_05_roll.png"), full_page=True)

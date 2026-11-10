@@ -3,18 +3,39 @@ import { SandboxedFrame, host, useValue, Tabs, TabsList, TabsTrigger, Badge, Emp
 import { TRANSCRIPT_DIRECTIVE_AREA } from '@hermes/plugin-sdk'
 
 const css = {
-  page: { display: 'flex', flexDirection: 'column', gap: 16, padding: 20, height: '100%', overflow: 'auto', color: 'var(--ui-text-primary, inherit)', fontSize: 13, lineHeight: 1.5 },
-  title: { fontSize: 18, fontWeight: 600, margin: 0 },
-  sub: { color: 'var(--ui-text-tertiary, #888)', margin: '2px 0 0' },
-  card: { border: '1px solid var(--ui-stroke-secondary, #8884)', borderRadius: 10, padding: 14, background: 'var(--ui-bg-elevated, transparent)' },
+  page: { display: 'flex', flexDirection: 'column', gap: 16, padding: 20, height: '100%', overflow: 'auto', color: 'var(--ui-text-primary, inherit)', fontSize: 13.5, lineHeight: 1.55 },
+  shell: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 360px', height: '100%', color: 'var(--ui-text-primary, inherit)', fontSize: 14, lineHeight: 1.55 },
+  shellNarrow: { display: 'flex', flexDirection: 'column', height: '100%', overflow: 'auto', color: 'var(--ui-text-primary, inherit)', fontSize: 14, lineHeight: 1.55 },
+  main: { overflow: 'auto', padding: '36px 44px 56px', minWidth: 0 },
+  mainNarrow: { padding: '24px 20px', minWidth: 0 },
+  stage: { display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 1040, margin: '0 auto' },
+  rail: { overflow: 'auto', padding: '28px 20px 40px', display: 'flex', flexDirection: 'column', gap: 14, borderLeft: '1px solid var(--ui-stroke-secondary, #8883)' },
+  railBelow: { padding: '0 20px 32px', display: 'flex', flexDirection: 'column', gap: 14 },
+  welcome: { maxWidth: 680, margin: '8vh auto 0', textAlign: 'center' },
+  hero: { fontSize: 34, lineHeight: 1.12, fontWeight: 650, letterSpacing: '-0.025em', margin: '0 0 12px' },
+  title: { fontSize: 26, fontWeight: 650, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.2 },
+  stageTitle: { fontSize: 19, fontWeight: 650, letterSpacing: '-0.01em', margin: '0 0 4px' },
+  lead: { color: 'var(--ui-text-secondary, var(--ui-text-tertiary, #777))', margin: '0 0 14px' },
+  sub: { color: 'var(--ui-text-tertiary, #888)', margin: '4px 0 0', fontSize: 12.5 },
+  card: { border: '1px solid var(--ui-stroke-secondary, #8883)', borderRadius: 16, padding: 'clamp(12px, 3%, 22px)', minWidth: 0, overflowWrap: 'anywhere', background: 'var(--ui-bg-elevated, transparent)', boxShadow: '0 1px 2px rgba(0,0,0,.04), 0 8px 24px -12px rgba(0,0,0,.10)' },
+  quiet: { border: '1px solid var(--ui-stroke-secondary, #8883)', borderRadius: 14, padding: '14px 16px', background: 'var(--ui-bg-elevated, transparent)' },
+  eyebrow: { fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ui-text-tertiary, #888)', margin: '0 0 8px' },
+  step: { display: 'flex', gap: 10, alignItems: 'flex-start', width: '100%', textAlign: 'left', padding: '8px 8px', margin: '0 -8px', borderRadius: 10, border: 'none', background: 'transparent', color: 'inherit', font: 'inherit', cursor: 'pointer' },
+  stepOn: { background: 'var(--ui-control-hover-background, rgba(127,127,127,.10))' },
+  dot: { flex: 'none', width: 22, height: 22, borderRadius: 11, display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 600, borderWidth: 1.5, borderStyle: 'solid', borderColor: 'var(--ui-stroke-secondary, #8886)', color: 'var(--ui-text-tertiary, #888)', marginTop: 1 },
+  dotOn: { borderColor: 'var(--ui-accent, #3b82f6)', color: 'var(--ui-accent, #3b82f6)' },
+  dotDone: { borderColor: 'transparent', background: 'var(--ui-green, #16a34a)', color: '#fff' },
+  approveBar: { marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--ui-stroke-secondary, #8883)' },
+  warn: { margin: '8px 0 0', fontSize: 12.5, color: 'var(--ui-amber, #d97706)' },
+  hidden: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' },
   row: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
-  input: { flex: 1, minWidth: 220, padding: '7px 9px', borderRadius: 8, border: '1px solid var(--ui-stroke-secondary, #8886)', background: 'transparent', color: 'inherit', font: 'inherit' },
-  btn: { padding: '7px 12px', borderRadius: 8, border: '1px solid var(--ui-stroke-secondary, #8886)', background: 'var(--ui-control-hover-background, #8881)', color: 'inherit', font: 'inherit', cursor: 'pointer' },
-  primary: { background: 'var(--ui-accent, #3b82f6)', color: '#fff', border: '1px solid transparent' },
+  input: { flex: 1, minWidth: 220, padding: '8px 11px', borderRadius: 10, border: '1px solid var(--ui-stroke-secondary, #8886)', background: 'transparent', color: 'inherit', font: 'inherit' },
+  btn: { padding: '8px 14px', borderRadius: 10, border: '1px solid var(--ui-stroke-secondary, #8886)', background: 'var(--ui-control-hover-background, #8881)', color: 'inherit', font: 'inherit', fontWeight: 500, cursor: 'pointer' },
+  primary: { background: 'var(--ui-accent, #3b82f6)', color: '#fff', border: '1px solid transparent', fontWeight: 600 },
   disabled: { opacity: 0.45, cursor: 'not-allowed' },
-  h2: { fontSize: 13, fontWeight: 600, margin: '0 0 8px', letterSpacing: 0.2 },
+  h2: { fontSize: 14, fontWeight: 600, margin: '0 0 8px' },
   muted: { color: 'var(--ui-text-tertiary, #888)' },
-  chip: { display: 'inline-block', padding: '1px 8px', borderRadius: 999, fontSize: 11, border: '1px solid var(--ui-stroke-secondary, #8886)' }
+  chip: { display: 'inline-block', padding: '2px 10px', borderRadius: 999, fontSize: 12, border: '1px solid var(--ui-stroke-secondary, #8886)' }
 }
 
 const btn = (label, onClick, { primary = false, disabled = false, name } = {}) =>
@@ -525,7 +546,7 @@ function NeedsYou({ api, pid, setPid, refreshKey }) {
     [...att.items.filter(i => i.project === pid), ...att.items.filter(i => i.project !== pid)].slice(0, 12).map((it, i) => h('div', { key: i, style: { ...css.row, justifyContent: 'space-between', padding: '3px 0', borderTop: i ? '1px solid var(--ui-stroke-secondary, #8883)' : 'none' } },
       h('span', { style: { fontSize: 13 } }, h('span', { style: css.chip }, it.name), ' ', it.title),
       it.kind === 'bypass' ? btn('I have seen this', () => api('/tripwire-dismiss', { project: it.project }).then(() => api('/attention', {}).then(setAtt)), { name: 'Dismiss the direct-change notice' })
-        : it.project !== pid ? btn('Go to project', () => setPid(it.project)) : h('span', { style: { ...css.muted, fontSize: 12 } }, 'in this project, below'))),
+        : it.project !== pid ? btn('Go to project', () => setPid(it.project)) : h('span', { style: { ...css.muted, fontSize: 12 } }, 'in this project'))),
     att.items.length > 12 ? h('div', { style: { ...css.muted, fontSize: 12 } }, `and ${att.items.length - 12} more`) : null,
     att.folders_missing && att.folders_missing.length ? h('div', { style: { ...css.muted, fontSize: 12, marginTop: 6 } }, `${att.folders_missing.length} project${att.folders_missing.length === 1 ? '' : 's'} not shown: the folder was moved or deleted.`) : null,
     att.could_not_check.length ? h('div', { role: 'alert', style: { color: 'var(--ui-amber, #d97706)', fontSize: 12, marginTop: 6 } }, `${att.could_not_check.length} part${att.could_not_check.length === 1 ? '' : 's'} could not be checked: ${att.could_not_check.map(f => `${f.part} (${f.error})`).join('; ').slice(0, 300)}`) : null)
@@ -954,6 +975,8 @@ function WorkroomPage({ ctx }) {
   const [tracked, setTracked] = useState(false)
   const [confirmRestore, setConfirmRestore] = useState(null)
   const [ack, setAck] = useState(false)
+  const [step, setStep] = useState('links')
+  const [tab, setTab] = useState('made')
 
   const run = useCallback(async (fn, okText) => {
     setBusy(true)
@@ -972,7 +995,7 @@ function WorkroomPage({ ctx }) {
 
   const checkHistory = useCallback((id) => id ? api('/history', { project: id }).then(setHistory).catch(() => setHistory(null)) : setHistory(null), [api])
   const loadPast = useCallback((id) => id ? api('/releases', { project: id }).then(setPast).catch(() => setPast([])) : setPast([]), [api])
-  useEffect(() => { checkHistory(pid); loadPast(pid); setConfirmRestore(null); if (pid) api('/awaiting', { project: pid }).then(a => { if (a.length) setRelease(a[0]) }).catch(() => {}); if (pid) api('/settings', { project: pid }).then(s => setTracked(!!s.tracked_changes)).catch(() => {}) }, [pid, checkHistory, loadPast, api])
+  useEffect(() => { checkHistory(pid); loadPast(pid); setConfirmRestore(null); if (pid) api('/awaiting', { project: pid }).then(a => { if (a.length) { setRelease(a[0]); setStep('approve') } }).catch(() => {}); if (pid) api('/settings', { project: pid }).then(s => setTracked(!!s.tracked_changes)).catch(() => {}) }, [pid, checkHistory, loadPast, api])
 
   useEffect(() => {
     api('/projects').then(list => { setProjects(list); if (list.length && !pid) setPid(list[0].project) }).catch(() => {})
@@ -982,13 +1005,13 @@ function WorkroomPage({ ctx }) {
     const r = await api('/sample', {})
     setProjects(await api('/projects'))
     setPid(r.project)
-    if (r.state === 'awaiting_approval') setRelease(r)
+    if (r.state === 'awaiting_approval') { setRelease(r); setStep('approve') }
     return r
   }, r => r.state === 'awaiting_approval' ? 'A sample project is ready. Review the deck Workroom wants to create, then approve it.' : 'The sample project is already here.')
 
   const nextQuarter = () => run(async () => {
     await api('/sample-next', { project: pid })
-    setPlan(null); setInbox(null); setRelease(null)
+    setPlan(null); setInbox(null); setRelease(null); setStep('changes')
     return {}
   }, () => 'New sample figures arrived. Press Check the sources to see what changes.')
 
@@ -1032,6 +1055,7 @@ function WorkroomPage({ ctx }) {
   const preview = () => run(async () => {
     const p = await api('/plan', { project: pid })
     setPlan(p)
+    setStep('changes')
     setInbox(await api('/changes', { project: pid }))
     const calm = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
     setTimeout(() => { if (changesRef.current && changesRef.current.scrollIntoView) changesRef.current.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' }) }, 120)
@@ -1040,6 +1064,7 @@ function WorkroomPage({ ctx }) {
 
   const showRelease = async (r) => {
     setAck(false)
+    setStep('approve')
     setRelease(r.state === 'blocked' ? r : await api('/release', { project: pid, release_id: r.release_id }))
     return r
   }
@@ -1052,119 +1077,185 @@ function WorkroomPage({ ctx }) {
 
   const approve = () => run(async () => {
     const r = await api('/approve', { project: pid, release_id: release.release_id, digest: release.digest, acknowledge: ack })
-    setRelease(null); setPlan(null)
+    setRelease(null); setPlan(null); setStep('links')
     await loadPast(pid)
     return r
   }, () => release && release.created ? 'Published. The new file now exists in your folder. Restore removes it again, unless you have edited it since.' : 'Published. A backup of every replaced file is kept so you can restore it.')
 
 
   const current = projects.find(p => p.project === pid)
+  const shellRef = useRef(null)
+  const [wide, setWide] = useState(true)
+  useEffect(() => {
+    const el = shellRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return undefined
+    const ro = new ResizeObserver(entries => setWide(entries[0].contentRect.width >= 980))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const linked = ties.filter(t => t.state === 'accepted' || t.state === 'confirmed').length
+  const asking = ties.filter(t => t.state === 'confirm' && !t.coincidence).length
+  const steps = [
+    { id: 'links', title: 'Link the figures', note: found ? `${linked} linked${asking ? ` · ${asking} need you` : ''}` : 'Each number to its source cell', done: !!found },
+    { id: 'changes', title: 'See what changes', note: plan ? `${plan.changes.length} number${plan.changes.length === 1 ? '' : 's'} would change` : 'Compare with the sources', done: !!plan },
+    { id: 'review', title: 'Review the documents', note: 'Pages as Office draws them', done: false },
+    { id: 'approve', title: 'Approve the release', note: release ? 'Waiting for you' : past.length ? `${past.length} published` : 'Only you can approve', done: false }
+  ]
+  const name = current ? current.folder.replace(/[\\/]+$/, '').split(/[\\/]/).pop() : 'Workroom'
 
-  return h('div', { style: css.page, 'aria-busy': busy },
-    h('div', null, h('h1', { style: css.title }, 'Workroom'), h('p', { style: css.sub }, 'Keeps your reports and decks in step with the numbers behind them. It changes only what must change, and only after you approve.')),
-    h(NeedsYou, { api, pid, setPid, refreshKey: past.length + (busy ? 1 : 0) }),
-    h('section', { style: css.card, 'aria-label': 'Project' },
-      h('h2', { style: css.h2 }, 'Project'),
-      projects.length ? h('div', { style: { ...css.row, marginBottom: 8 } },
-        h('label', { htmlFor: 'wr-project', style: css.muted }, 'Folder'),
-        h('select', { id: 'wr-project', value: pid || '', onChange: e => { setPid(e.target.value); setFound(null); setPlan(null); setRelease(null) }, style: css.input },
-          projects.map(p => h('option', { key: p.project, value: p.project }, p.folder)))) : null,
-      h('div', { style: css.row },
-        h('input', { style: css.input, placeholder: 'Folder with your workbook and deck, for example C:\\Reports\\Monthly', value: folder, onChange: e => setFolder(e.target.value), 'aria-label': 'Folder path' }),
-        btn('Add project', addProject, { disabled: busy || !folder.trim() }))),
-    history && history.state === 'recovery' ? h('section', { role: 'alert', style: { ...css.card, borderColor: 'var(--ui-amber, #d97706)' }, 'aria-label': 'Saved history needs your review' },
-      h('h2', { style: css.h2 }, 'Saved history needs your review'),
-      h('p', { style: { margin: '0 0 8px', fontSize: 13 } }, history.counters
-        ? 'Workroom keeps three records of how many releases were published for this project, and they do not agree. This can happen if a backup was restored, the folder was copied from another computer, or the history file was deleted or edited. Until you review it, nothing will be released.'
-        : 'Workroom cannot trust the saved history file in this folder: ' + history.reason + '. Until you review it, nothing will be released.'),
-      history.counters ? h('table', { style: { fontSize: 12, margin: '0 0 8px' } }, h('tbody', null,
-        [['History file in the folder', history.counters.manifest], ['Counter kept by Workroom', history.counters.anchor], ['Release journal on this computer', history.counters.journal]].map(([name, n]) => h('tr', { key: name }, h('td', { style: { paddingRight: 16 } }, name), h('td', null, n))))) : null,
-      h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'If you accept, the release journal on this computer is treated as correct, and your decision is written to the history together with what was seen. Nothing in your documents changes.'),
-      btn('Accept the history on this computer and continue', acceptHistory, { disabled: busy, primary: true })) : null,
-    message ? h(Banner, { kind: message.kind }, message.text) : null,
-    pid ? h('section', { style: css.card, 'aria-label': 'Links' },
-      h('h2', { style: css.h2 }, '1. Find the links'),
-      h('p', { style: { ...css.muted, margin: '0 0 8px' } }, 'Workroom reads your documents and links each number to the cell it came from. Nothing is written to your files.'),
+  const projectCard = h('section', { style: css.quiet, 'aria-label': 'Project' },
+    h('h2', { style: css.eyebrow }, 'Project'),
+    projects.length ? h('div', { style: { marginBottom: 8 } },
+      h('label', { htmlFor: 'wr-project', style: css.hidden }, 'Folder'),
+      h('select', { id: 'wr-project', value: pid || '', onChange: e => { setPid(e.target.value); setFound(null); setPlan(null); setRelease(null); setStep('links') }, style: { ...css.input, width: '100%', minWidth: 0 } },
+        projects.map(p => h('option', { key: p.project, value: p.project }, p.folder)))) : null,
+    h('div', { style: { display: 'flex', gap: 8 } },
+      h('input', { style: { ...css.input, minWidth: 0 }, placeholder: projects.length ? 'Add another folder' : 'Folder with your workbook and deck, for example C:\\Reports\\Monthly', value: folder, onChange: e => setFolder(e.target.value), 'aria-label': 'Folder path' }),
+      btn('Add project', addProject, { disabled: busy || !folder.trim(), primary: !projects.length })))
+
+  const progress = h('nav', { style: css.quiet, 'aria-label': 'Progress' },
+    h('h2', { style: css.eyebrow }, 'Progress'),
+    h('div', { style: wide ? null : { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 4, padding: '0 8px' } }, steps.map((s, i) => h('button', { key: s.id, type: 'button', onClick: () => setStep(s.id), 'aria-current': step === s.id ? 'step' : undefined, style: { ...css.step, ...(step === s.id ? css.stepOn : {}) } },
+      h('span', { 'aria-hidden': true, style: { ...css.dot, ...(s.done ? css.dotDone : step === s.id ? css.dotOn : {}) } }, s.done ? '\u2713' : String(i + 1)),
+      h('span', { style: { minWidth: 0 } },
+        h('span', { style: { display: 'block', fontWeight: step === s.id ? 600 : 500 } }, s.title),
+        h('span', { style: { ...css.muted, display: 'block', fontSize: 12 } }, s.note))))))
+
+  const linksStep = h('section', { style: css.card, 'aria-label': 'Links' },
+    h('h2', { style: css.stageTitle }, 'Link the figures'),
+    h('p', { style: css.lead }, 'Workroom reads your documents and links each number to the cell it came from. Nothing is written to your files.'),
+    h('div', { style: css.row },
       btn('Find links', discover, { disabled: busy, primary: !found }),
-      found ? h('div', { style: { marginTop: 10 } },
-        h('div', { style: css.row },
-          h('span', { style: css.chip }, `${found.numbers_found} numbers found`),
-          h('span', { style: { ...css.chip, borderColor: 'var(--ui-green, #16a34a)' } }, `${ties.filter(t => t.state === 'accepted' || t.state === 'confirmed').length} linked`),
-          h('span', { style: css.chip }, `${ties.filter(t => t.state === 'confirm' && !t.coincidence).length} need you`),
-          h('span', { style: css.chip }, `${found.no_source} have no source`)),
-        found.unreadable && found.unreadable.length ? h('p', { role: 'alert', style: { ...css.muted, margin: '6px 0 0', fontSize: 12, color: 'var(--ui-amber, #d97706)' } }, `${found.unreadable.length} file${found.unreadable.length === 1 ? '' : 's'} could not be read and ${found.unreadable.length === 1 ? 'was' : 'were'} left alone: ${found.unreadable.slice(0, 3).join(', ')}${found.unreadable.length > 3 ? ' and more' : ''}.`) : null,
-        found.uncalculated && found.uncalculated.length ? h('p', { role: 'alert', style: { ...css.muted, margin: '6px 0 0', fontSize: 12, color: 'var(--ui-amber, #d97706)' } }, `${found.uncalculated.map(u => `${u.file} has ${u.formulas} formula${u.formulas === 1 ? '' : 's'} with no saved value`).slice(0, 2).join('; ')}. A program wrote that file without calculating it: open it in Excel and save it, then find links again.`) : null,
-        found.missing && found.missing.length ? h('p', { role: 'alert', style: { ...css.muted, margin: '6px 0 0', fontSize: 12, color: 'var(--ui-amber, #d97706)' } }, `${found.missing.length === 1 ? 'A document is' : found.missing.length + ' documents are'} missing from the folder: ${found.missing.slice(0, 3).join(', ')}. Its links and your decisions about them are kept and resume when it is back.`) : null,
-        h(Links, { ties, onConfirm: confirmTie, onSkip: skipTie, onWhy: why, why: whyInfo ? { info: whyInfo, close: () => setWhyInfo(null) } : null, busy }),
-        h(Calculations, { api, pid, busy, run })) : null) : null,
-    pid && found ? h('section', { ref: changesRef, style: css.card, 'aria-label': 'Changes' },
-      h('h2', { style: css.h2 }, '2. See what would change'),
-      btn('Check the sources', preview, { disabled: busy }),
-      plan ? h('div', { style: { marginTop: 10 } },
-        h(ChangeViews, { inbox, folder: current && current.folder, ctx: pluginCtx }),
-        inbox && inbox.changes.length && !release ? h(Flags, { flags: inbox.flags, coverage: inbox.coverage, onDismiss: dismissFinding, busy, compact: true }) : null,
-        inbox && inbox.changes.length ? null : h(Changes, { changes: plan.changes }),
-        plan.held.length ? h('div', { style: { marginTop: 10 } },
-          h('div', { style: { fontWeight: 600 } }, 'Held for you'),
-          h('ul', { style: { margin: '4px 0 0', paddingLeft: 18 } }, plan.held.map((t, i) => h('li', { key: i }, t)))) : null,
-        plan.changes.length ? h('div', { style: { marginTop: 10 } },
-          h('label', { style: { ...css.row, margin: '0 0 8px', fontSize: 13 } },
-            h('input', { type: 'checkbox', checked: tracked, disabled: busy, onChange: e => toggleTracked(e.target.checked), 'aria-label': 'Release Word changes as tracked changes' }),
-            h('span', null, 'Release Word changes as tracked changes, so a reviewer can accept or reject each one')),
-          btn('Prepare release', stage, { disabled: busy, primary: true })) : null,
-        h('details', { style: { marginTop: 12 } },
-          h('summary', { style: { ...css.muted, cursor: 'pointer' } }, 'Moving to the next period?'),
-          h('p', { style: { ...css.muted, margin: '6px 0 8px' } }, 'When the workbook has the next period, Workroom can move every linked number to it and advance the period words beside them (Q3 2026 becomes Q4 2026). You approve it once, and Restore undoes the whole move. It refuses, naming each number, if any has no value for the next period.'),
-          btn('Roll forward one period', rollForward, { disabled: busy }))) : null) : null,
-    pid && found ? h(ReviewRoom, { key: 'room-' + past.length, api, pid }) : null,
-    release ? h('section', { style: { ...css.card, borderColor: 'var(--ui-accent, #3b82f6)' }, 'aria-label': 'Release' },
-      h('h2', { style: css.h2 }, '3. Approve the release'),
-      release.state === 'blocked'
-        ? h('div', null, h('div', { style: { fontWeight: 600 } }, 'Blocked'), h('ul', null, (release.findings || []).map((f, i) => h('li', { key: i }, f))))
-        : h('div', null,
-            release.edited_page ? h('p', { style: { margin: '0 0 8px' } }, `Your edits to ${release.changes[0].deck} will be written (${release.changes[0].new_text}). Tied numbers keep their links to their sources.`)
-            : release.created ? h('div', null,
-              h('p', { style: { margin: '0 0 6px' } }, `Workroom will create ${release.changes[0].deck}. Every figure in it is linked to its source cell. Nothing else in your folder is touched.`),
-              h('ul', { style: { margin: '0 0 8px', paddingLeft: 18 } }, groupFigures(release.figures).slice(0, 12).map((f, i) => h('li', { key: i },
-                h('strong', null, f.text), h('span', { style: css.muted }, ` ${f.concept || ''} ${f.period || ''} · ${f.source}${f.count > 1 ? ` · in ${f.count} places` : ''}`)))))
-            : release.rolled ? h('p', { style: { margin: '0 0 8px' } }, `Workroom will roll your documents forward: ${release.rolled.figures} figures move to the next period and ${release.rolled.period_words} period words advance (${release.rolled.example}). Restore undoes the whole roll.`)
-            : h('p', { style: { margin: '0 0 8px' } }, `${release.changes.length} number${release.changes.length === 1 ? '' : 's'} will change in your documents. Everything else stays exactly as it is, and a backup of each replaced file is kept.`),
-            release.changes && release.rolled ? h('ul', { style: { margin: '0 0 8px', paddingLeft: 18 } }, release.changes.slice(0, 8).map((c, i) => h('li', { key: i }, h('span', { style: css.muted }, `${c.old_text} `), '\u2192 ', h('strong', null, c.new_text), h('span', { style: css.muted }, `  ${c.deck}, ${c.where || 'slide ' + c.slide}`)))) : null,
-            release.held && release.held.length ? h('details', { style: { margin: '0 0 8px' } }, h('summary', { style: css.muted }, `${release.held.length} left for you`), release.held.map((t, i) => h('div', { key: i, style: { ...css.muted, fontSize: 12 } }, t))) : null,
-            release.restated && release.restated.length ? h('details', { style: { margin: '0 0 8px' } }, h('summary', { style: css.muted }, `${release.restated.length} figure${release.restated.length === 1 ? '' : 's'} for a period the report already showed ${release.restated.length === 1 ? 'is' : 'are'} now different`), release.restated.map((t, i) => h('div', { key: i, style: { ...css.muted, fontSize: 12 } }, t))) : null,
-            release.nil_cells && release.nil_cells.length ? h('details', { style: { margin: '0 0 8px' } }, h('summary', { style: css.muted }, `${release.nil_cells.length} dash${release.nil_cells.length === 1 ? '' : 'es'} may now hold a figure (not changed)`), release.nil_cells.map((t, i) => h('div', { key: i, style: { ...css.muted, fontSize: 12 } }, t))) : null,
-            release.notes && release.notes.length ? h('details', { style: { margin: '0 0 8px' } }, h('summary', { style: css.muted }, `${release.notes.length} change${release.notes.length === 1 ? '' : 's'} in your workbook were followed`), release.notes.map((t, i) => h('div', { key: i, style: { ...css.muted, fontSize: 12 } }, t))) : null,
-            (release.flags && release.flags.length) || (release.coverage && release.coverage.sentences_checked) ? h(Flags, { flags: release.flags, coverage: release.coverage, busy }) : null,
-            release.needs_acknowledgement && release.needs_acknowledgement.length ? h('label', { style: { ...css.row, margin: '8px 0', fontSize: 13 } },
+      found ? btn('Check the sources', () => { setStep('changes'); preview() }, { disabled: busy, primary: true }) : null),
+    found ? h('div', { style: { marginTop: 14 } },
+      h('div', { style: css.row },
+        h('span', { style: css.chip }, `${found.numbers_found} numbers found`),
+        h('span', { style: { ...css.chip, borderColor: 'var(--ui-green, #16a34a)' } }, `${linked} linked`),
+        h('span', { style: css.chip }, `${asking} need you`),
+        h('span', { style: css.chip }, `${found.no_source} have no source`)),
+      found.unreadable && found.unreadable.length ? h('p', { role: 'alert', style: css.warn }, `${found.unreadable.length} file${found.unreadable.length === 1 ? '' : 's'} could not be read and ${found.unreadable.length === 1 ? 'was' : 'were'} left alone: ${found.unreadable.slice(0, 3).join(', ')}.`) : null,
+      found.uncalculated && found.uncalculated.length ? h('p', { role: 'alert', style: css.warn }, `${found.uncalculated.map(u => `${u.file} has ${u.formulas} formula${u.formulas === 1 ? '' : 's'} with no saved value`).slice(0, 2).join('; ')}. A program wrote the workbook without calculating it; open and save it in Excel so the values can be read.`) : null,
+      found.missing && found.missing.length ? h('p', { role: 'alert', style: css.warn }, `${found.missing.length === 1 ? 'A document is' : found.missing.length + ' documents are'} missing from the folder: ${found.missing.slice(0, 3).join(', ')}. Its links are kept and nothing is released to it until it is back.`) : null,
+      h(Links, { ties, onConfirm: confirmTie, onSkip: skipTie, onWhy: why, why: whyInfo ? { info: whyInfo, close: () => setWhyInfo(null) } : null, busy }),
+      h(Calculations, { api, pid, busy, run })) : null)
+
+  const changesStep = h('section', { ref: changesRef, style: css.card, 'aria-label': 'Changes' },
+    h('h2', { style: css.stageTitle }, 'See what changes'),
+    h('p', { style: css.lead }, 'When a source changes, this shows every place it reaches before anything is written.'),
+    btn('Check the sources', preview, { disabled: busy, primary: !plan }),
+    plan ? h('div', { style: { marginTop: 14 } },
+      h(ChangeViews, { inbox, folder: current && current.folder, ctx: pluginCtx }),
+      inbox && inbox.changes.length && !release ? h(Flags, { flags: inbox.flags, coverage: inbox.coverage, onDismiss: dismissFinding, busy, compact: true }) : null,
+      inbox && inbox.changes.length ? null : h(Changes, { changes: plan.changes }),
+      plan.held.length ? h('div', { style: { marginTop: 10 } },
+        h('div', { style: { fontWeight: 600 } }, 'Held for you'),
+        h('ul', { style: { margin: '4px 0 0', paddingLeft: 18 } }, plan.held.map((t, i) => h('li', { key: i }, t)))) : null,
+      plan.changes.length ? h('div', { style: { marginTop: 14 } },
+        h('label', { style: { ...css.row, margin: '0 0 10px' } },
+          h('input', { type: 'checkbox', checked: tracked, disabled: busy, onChange: e => toggleTracked(e.target.checked), 'aria-label': 'Release Word changes as tracked changes' }),
+          h('span', null, 'Release Word changes as tracked changes, so a reviewer can accept or reject each one')),
+        btn('Prepare release', stage, { disabled: busy, primary: true })) : null) : null,
+    h('details', { style: { marginTop: 14 } },
+        h('summary', { style: { ...css.muted, cursor: 'pointer' } }, 'Moving to the next period?'),
+        h('p', { style: { ...css.muted, margin: '6px 0 8px' } }, 'When the workbook has the next period, Workroom can move every linked number to it and advance the period words beside them (Q3 2026 becomes Q4 2026). You approve it once, and Restore undoes the whole move. It refuses, naming each number, if any has no value for the next period.'),
+        btn('Roll forward one period', rollForward, { disabled: busy })))
+
+  const approveStep = release ? h('section', { style: { ...css.card, borderColor: 'var(--ui-accent, #3b82f6)' }, 'aria-label': 'Release' },
+    h('h2', { style: css.stageTitle }, 'Approve the release'),
+    release.state === 'blocked'
+      ? h('div', null, h('div', { style: { fontWeight: 600 } }, 'Blocked'), h('ul', null, (release.findings || []).map((f, i) => h('li', { key: i }, f))))
+      : h('div', null,
+          release.edited_page ? h('p', { style: css.lead }, `Your edits to ${release.changes[0].deck} will be written (${release.changes[0].new_text}). Tied numbers keep their links to their sources.`)
+          : release.created ? h('div', null,
+            h('p', { style: css.lead }, `Workroom will create ${release.changes[0].deck}. Every figure in it is linked to its source cell. Nothing else in your folder is touched.`),
+            h('ul', { style: { margin: '0 0 8px', paddingLeft: 18 } }, groupFigures(release.figures).slice(0, 12).map((f, i) => h('li', { key: i },
+              h('strong', null, f.text), h('span', { style: css.muted }, ` ${f.concept || ''} ${f.period || ''} · ${f.source}${f.count > 1 ? ` · in ${f.count} places` : ''}`)))))
+          : release.rolled ? h('p', { style: css.lead }, `Workroom will roll your documents forward: ${release.rolled.figures} figures move to the next period and ${release.rolled.period_words} period words advance (${release.rolled.example}). Restore undoes the whole roll.`)
+          : h('p', { style: css.lead }, `${release.changes.length} number${release.changes.length === 1 ? '' : 's'} will change in your documents. Everything else stays exactly as it is, and a backup of each replaced file is kept.`),
+          release.changes && release.rolled ? h('ul', { style: { margin: '0 0 8px', paddingLeft: 18 } }, release.changes.slice(0, 8).map((c, i) => h('li', { key: i }, h('span', { style: css.muted }, `${c.old_text} `), '\u2192 ', h('strong', null, c.new_text), h('span', { style: css.muted }, `  ${c.deck}, ${c.where || 'slide ' + c.slide}`)))) : null,
+          release.held && release.held.length ? h('details', { style: { margin: '0 0 8px' } }, h('summary', { style: css.muted }, `${release.held.length} left for you`), release.held.map((t, i) => h('div', { key: i, style: { ...css.muted, fontSize: 12 } }, t))) : null,
+          release.restated && release.restated.length ? h('details', { style: { margin: '0 0 8px' } }, h('summary', { style: css.muted }, `${release.restated.length} figure${release.restated.length === 1 ? '' : 's'} for a period the report already showed ${release.restated.length === 1 ? 'is' : 'are'} now different`), release.restated.map((t, i) => h('div', { key: i, style: { ...css.muted, fontSize: 12 } }, t))) : null,
+          release.nil_cells && release.nil_cells.length ? h('details', { style: { margin: '0 0 8px' } }, h('summary', { style: css.muted }, `${release.nil_cells.length} dash${release.nil_cells.length === 1 ? '' : 'es'} may now hold a figure (not changed)`), release.nil_cells.map((t, i) => h('div', { key: i, style: { ...css.muted, fontSize: 12 } }, t))) : null,
+          release.notes && release.notes.length ? h('details', { style: { margin: '0 0 8px' } }, h('summary', { style: css.muted }, `${release.notes.length} change${release.notes.length === 1 ? '' : 's'} in your workbook were followed`), release.notes.map((t, i) => h('div', { key: i, style: { ...css.muted, fontSize: 12 } }, t))) : null,
+          (release.flags && release.flags.length) || (release.coverage && release.coverage.sentences_checked) ? h(Flags, { flags: release.flags, coverage: release.coverage, busy }) : null,
+          release.created || release.edited_page ? null : h(Proof, { api, pid, releaseId: release.release_id }),
+          h('div', { style: css.approveBar },
+            release.needs_acknowledgement && release.needs_acknowledgement.length ? h('label', { style: { ...css.row, margin: '0 0 10px' } },
               h('input', { type: 'checkbox', checked: ack, onChange: e => setAck(e.target.checked), 'aria-label': 'I have read the flagged sentences' }),
               h('span', null, 'I have read the sentences above and still want to release.')) : null,
-            h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, `Release fingerprint ${release.digest.slice(0, 12)}. Your approval applies to exactly this release and nothing else.`),
-            release.created || release.edited_page ? null : h(Proof, { api, pid, releaseId: release.release_id }),
-            btn('Approve and publish', approve, { disabled: busy || (release.needs_acknowledgement && release.needs_acknowledgement.length > 0 && !ack), primary: true }))) : null,
-    !projects.length ? h('section', { style: { ...css.card, borderColor: 'var(--ui-accent, #3b82f6)' }, 'aria-label': 'Try the sample' },
+            h('div', { style: { ...css.row, justifyContent: 'space-between' } },
+              h('span', { style: { ...css.muted, fontSize: 12 } }, `Release fingerprint ${release.digest.slice(0, 12)}. Your approval applies to exactly this release and nothing else.`),
+              btn('Approve and publish', approve, { disabled: busy || (release.needs_acknowledgement && release.needs_acknowledgement.length > 0 && !ack), primary: true })))))
+    : h('section', { style: css.card, 'aria-label': 'Release' },
+        h('h2', { style: css.stageTitle }, 'Approve the release'),
+        h('p', { style: css.lead }, 'Nothing is waiting for your approval. The agent can prepare a release, and so can you from "See what changes"; only you can approve one.'),
+        past.length ? null : h('p', { style: css.muted }, 'Published releases will be listed here, each with a Restore.'))
+
+  const pastCard = pid && past.length ? h('section', { style: css.card, 'aria-label': 'Past releases' },
+    h('h2', { style: css.h2 }, 'Past releases'),
+    h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'Restoring puts the files of that release back as they were before it. It is refused if you have worked in those files since, so nothing you did later is overwritten.'),
+    past.map(r => h('div', { key: r.release_id, style: { ...css.row, justifyContent: 'space-between', padding: '6px 0', borderTop: '1px solid var(--ui-stroke-secondary, #8882)' } },
+      h('span', null, `${new Date(r.published_at * 1000).toLocaleString()} · ${r.created ? 'created ' + r.changes[0].deck : r.changes.length + ' number' + (r.changes.length === 1 ? '' : 's')}${r.restored ? ' · restored' : ''}`),
+      h(ReleaseRecord, { api, pid, releaseId: r.release_id }),
+      r.restored ? null : confirmRestore === r.release_id
+        ? h('span', { style: css.row }, btn(r.created ? 'Yes, remove this file' : 'Yes, restore these files', () => restoreRelease(r.release_id), { disabled: busy, primary: true }), btn('Cancel', () => setConfirmRestore(null), { disabled: busy }))
+        : btn('Restore', () => setConfirmRestore(r.release_id), { disabled: busy })))) : null
+
+  const recovery = history && history.state === 'recovery' ? h('section', { role: 'alert', style: { ...css.card, borderColor: 'var(--ui-amber, #d97706)' }, 'aria-label': 'Saved history needs your review' },
+    h('h2', { style: css.h2 }, 'Saved history needs your review'),
+    h('p', { style: { margin: '0 0 8px' } }, history.counters
+      ? 'Workroom keeps three records of how many releases were published for this project, and they do not agree. This can happen if a backup was restored, the folder was copied from another computer, or the history file was deleted or edited. Until you review it, nothing will be released.'
+      : 'Workroom cannot trust the saved history file in this folder: ' + history.reason + '. Until you review it, nothing will be released.'),
+    history.counters ? h('table', { style: { fontSize: 12, margin: '0 0 8px' } }, h('tbody', null,
+      [['History file in the folder', history.counters.manifest], ['Counter kept by Workroom', history.counters.anchor], ['Release journal on this computer', history.counters.journal]].map(([label, n]) => h('tr', { key: label }, h('td', { style: { paddingRight: 16 } }, label), h('td', null, n))))) : null,
+    h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'If you accept, the release journal on this computer is treated as correct, and your decision is written to the history together with what was seen. Nothing in your documents changes.'),
+    btn('Accept the history on this computer and continue', acceptHistory, { disabled: busy, primary: true })) : null
+
+  const welcome = h('div', { style: css.welcome },
+    h('h1', { style: css.hero }, 'A room where the agent works on your documents'),
+    h('p', { style: { ...css.lead, fontSize: 15, maxWidth: 560, margin: '0 auto 22px' } }, 'Every figure tied to its source. Nothing changes without you. Every claim checked.'),
+    h('section', { style: { ...css.card, textAlign: 'left', borderColor: 'var(--ui-accent, #3b82f6)' }, 'aria-label': 'Try the sample' },
       h('h2', { style: css.h2 }, 'New here? Try the sample'),
-      h('p', { style: { margin: '0 0 8px' } }, 'Workroom makes a small sample project in its own storage (a results workbook and a board deck whose every figure is tied to a cell). Your own files are not touched. You approve the deck, then pretend a new quarter arrived and watch only the changed numbers update.'),
-      btn('Make the sample project', trySample, { disabled: busy, primary: true })) : null,
-    current && current.folder.replace(/[\\/]+$/, '').endsWith('sample-quarterly') ? h('section', { style: css.card, 'aria-label': 'Sample controls' },
+      h('p', { style: { margin: '0 0 12px' } }, 'Workroom makes a small sample project in its own storage (a results workbook and a board deck whose every figure is tied to a cell). Your own files are not touched. You approve the deck, then pretend a new quarter arrived and watch only the changed numbers update.'),
+      btn('Make the sample project', trySample, { disabled: busy, primary: true })),
+    h('div', { style: { textAlign: 'left', marginTop: 14 } }, projectCard))
+
+  const centre = !pid ? welcome : h('div', { style: css.stage },
+    h('header', null,
+      h('h1', { style: css.title }, name),
+      h('p', { style: css.sub }, current ? current.folder : '')),
+    recovery,
+    message ? h(Banner, { kind: message.kind }, message.text) : null,
+    current && current.folder.replace(/[\\/]+$/, '').endsWith('sample-quarterly') ? h('section', { style: css.quiet, 'aria-label': 'Sample controls' },
       h('div', { style: { ...css.row, justifyContent: 'space-between' } },
-        h('span', { style: { fontSize: 13 } }, 'This is the sample project.'),
+        h('span', null, 'This is the sample project.'),
         btn('Pretend a new quarter arrived', nextQuarter, { disabled: busy }))) : null,
-    pid ? h(PagesList, { api, pid }) : null,
-    pid ? h(Instructions, { api, pid, busy, run }) : null,
-    pid ? h(Deliverables, { api, pid, busy, run, ctx }) : null,
-    pid ? h(Room, { api, pid, busy, run }) : null,
-    pid ? h(AgentChanges, { api, pid, busy, run }) : null,
-    pid ? h(Policy, { api, pid, busy, run }) : null,
-    pid && past.length ? h('section', { style: css.card, 'aria-label': 'Past releases' },
-      h('h2', { style: css.h2 }, 'Past releases'),
-      h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'Restoring puts the files of that release back as they were before it. It is refused if you have worked in those files since, so nothing you did later is overwritten.'),
-      past.map(r => h('div', { key: r.release_id, style: { ...css.row, justifyContent: 'space-between', padding: '4px 0' } },
-        h('span', { style: { fontSize: 13 } }, `${new Date(r.published_at * 1000).toLocaleString()} · ${r.created ? 'created ' + r.changes[0].deck : r.changes.length + ' number' + (r.changes.length === 1 ? '' : 's')}${r.restored ? ' · restored' : ''}`),
-        h(ReleaseRecord, { api, pid, releaseId: r.release_id }),
-        r.restored ? null : confirmRestore === r.release_id
-          ? h('span', { style: css.row }, btn(r.created ? 'Yes, remove this file' : 'Yes, restore these files', () => restoreRelease(r.release_id), { disabled: busy, primary: true }), btn('Cancel', () => setConfirmRestore(null), { disabled: busy }))
-          : btn('Restore', () => setConfirmRestore(r.release_id), { disabled: busy })))) : null,
-    current ? h('div', { style: { ...css.muted, fontSize: 11 } }, `Working on ${current.folder}`) : null)
+    step === 'links' ? linksStep : null,
+    step === 'changes' ? changesStep : null,
+    step === 'review' ? (found ? h(ReviewRoom, { key: 'room-' + past.length, api, pid }) : h('section', { style: css.card, 'aria-label': 'Review the documents' }, h('h2', { style: css.stageTitle }, 'Review the documents'), h('p', { style: css.muted }, 'Find the links first; the review room draws each page with its linked figures marked.'))) : null,
+    step === 'approve' ? approveStep : null,
+    step === 'approve' || step === 'links' ? pastCard : null)
+
+  const rail = h('aside', { style: wide ? css.rail : css.railBelow, 'aria-label': 'Project room' },
+    pid && wide ? progress : null,
+    h(NeedsYou, { api, pid, setPid, refreshKey: past.length + (busy ? 1 : 0) }),
+    pid ? h('div', null,
+      h(Tabs, { value: tab, onValueChange: setTab },
+        h(TabsList, null,
+          h(TabsTrigger, { value: 'made' }, 'Made'),
+          h(TabsTrigger, { value: 'room' }, 'Room'),
+          h(TabsTrigger, { value: 'rules' }, 'Rules'))),
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 } },
+        tab === 'made' ? [h(Deliverables, { key: 'd', api, pid, busy, run, ctx, empty: true }), h(PagesList, { key: 'p', api, pid }), h(AgentChanges, { key: 'a', api, pid, busy, run })] : null,
+        tab === 'room' ? [h(Room, { key: 'r', api, pid, busy, run }), h(Instructions, { key: 'i', api, pid, busy, run })] : null,
+        tab === 'rules' ? h(Policy, { api, pid, busy, run }) : null)) : null,
+    pid ? projectCard : null)
+
+  return h('div', { ref: shellRef, style: wide ? css.shell : css.shellNarrow, 'aria-busy': busy },
+    !pid && message ? h('div', { style: { gridColumn: '1 / -1' } }, h(Banner, { kind: message.kind }, message.text)) : null,
+    pid && !wide ? h('div', { style: { padding: '20px 20px 0' } }, progress) : null,
+    h('main', { style: wide ? css.main : css.mainNarrow }, centre),
+    rail)
 }
 
 export default {
