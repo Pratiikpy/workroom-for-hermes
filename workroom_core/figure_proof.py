@@ -334,6 +334,8 @@ def _calculated(m, idx: _Index, words: set[str]):
         for ob, lb, b in pool:
             if ob != oa or a == b or abs(la - lb) > CALC_NEAR_LINES:
                 continue
+            if not (words & CALC_CUES) and len(idx.shared(la, words) | idx.shared(lb, words)) < 2:
+                continue  # without a word that says "change" or "total", one shared word is a coincidence waiting to happen
             tries = []
             if m.unit == "percent":
                 tries += [((a - b) / b * 100.0, f"change from {b:g} to {a:g}"), (a / b * 100.0, f"{a:g} as a share of {b:g}")]
