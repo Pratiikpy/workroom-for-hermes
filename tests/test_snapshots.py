@@ -91,3 +91,29 @@ def test_the_hook_never_raises_or_blocks(tmp_path: Path) -> None:
 
     hook = make_snapshotter(lambda: 1 / 0, lambda *a: None)
     assert hook(tool_name="write_file", args={"path": "x"}) is None and hook(tool_name="read_file", args=None) is None
+
+
+def test_the_shell_reader_names_the_files_a_command_changes() -> None:
+    from workroom.adapters.snapshotter import shell_targets
+
+    assert shell_targets("rm /home/u/proj/report.docx") == ["/home/u/proj/report.docx"]
+    assert shell_targets("cp new.xlsx model.xlsx") == ["model.xlsx"]
+    assert shell_targets("sed -i s/a/b/ notes.txt") == ["notes.txt"]
+    assert shell_targets("truncate -s 0 data.csv") == ["data.csv"]
+    assert shell_targets("echo x | tee out.txt") == ["out.txt"]
+    assert shell_targets("del /q /s old.txt") == ["old.txt"]
+    assert shell_targets("dd if=/dev/zero of=disk.img") == ["disk.img"]
+    assert shell_targets("ls > /dev/null") == [] and shell_targets("rm *.tmp") == []
+
+
+def test_a_relative_write_with_no_known_folder_is_not_recorded(tmp_path: Path) -> None:
+    from workroom.adapters.snapshotter import make_snapshotter
+    from workroom.tests.test_room import project
+
+    root, svc, pid = project(tmp_path)
+    (root / "notes.txt").write_text("x")
+    hook = make_snapshotter(lambda: svc.projects(), lambda p, path, tool: svc.snapshot_take(p, path, tool))
+    hook(tool_name="write_file", args={"path": "notes.txt", "content": "y"})
+    assert svc.snapshots(pid) == []
+    hook(tool_name="write_file", args={"path": "notes.txt", "content": "y"}, cwd=str(root))
+    assert [s["path"] for s in svc.snapshots(pid)] == ["notes.txt"]

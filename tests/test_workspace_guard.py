@@ -50,4 +50,22 @@ def test_the_guard_ignores_other_folders_and_never_raises(tmp_path: Path) -> Non
     root, svc, pid = project(tmp_path)
     g = guard_for(svc)
     assert g(tool_name="write_file", args={"path": str(tmp_path / "elsewhere" / ".env")}) is None
-    assert make_workspace_guard(lambda: 1 / 0, lambda p: {})(tool_name="write_file", args={"path": "x"}) is None
+    broken = make_workspace_guard(lambda: 1 / 0, lambda p: {})(tool_name="write_file", args={"path": "x"})
+    assert broken["action"] == "approve" and "could not check" in broken["message"]  # a policy that cannot be read asks a person, it does not let the call through
+
+
+def test_a_relative_path_with_no_known_folder_is_not_taken_to_be_inside_a_project(tmp_path: Path) -> None:
+    root, svc, pid = project(tmp_path)
+    g = guard_for(svc)
+    assert g(tool_name="write_file", args={"path": ".env", "content": "x"}) is None
+    assert g(tool_name="write_file", args={"path": ".env", "content": "x"}, cwd=str(root))["action"] == "block"
+
+
+def test_absolute_paths_and_in_place_edits_are_checked_too(tmp_path: Path) -> None:
+    root, svc, pid = project(tmp_path)
+    g = guard_for(svc)
+    target = (root / ".env").as_posix()
+    assert g(tool_name="terminal", args={"command": f"rm {target}"})["action"] == "block"
+    assert g(tool_name="terminal", args={"command": "sed -i s/a/b/ .env", "workdir": str(root)})["action"] == "block"
+    assert g(tool_name="terminal", args={"command": "cp other.txt .env", "workdir": str(root)})["action"] == "block"
+    assert g(tool_name="terminal", args={"command": "echo x | tee .env", "workdir": str(root)})["action"] == "block"

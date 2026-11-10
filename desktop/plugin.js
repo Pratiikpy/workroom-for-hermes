@@ -454,8 +454,8 @@ function NeedsYou({ api, pid, setPid, refreshKey }) {
   const [att, setAtt] = useState(null)
   useEffect(() => { api('/attention', {}).then(setAtt).catch(() => setAtt(null)) }, [api, pid, refreshKey])
   if (!att) return null
-  const label = { release: 'release', memory: 'memory', deliverable: 'deliverable', instruction: 'instruction', recipe: 'recipe', links: 'links', columns: 'columns' }
-  const parts = Object.entries(att.counts).map(([k, n]) => `${n} ${label[k] || k}${n === 1 ? '' : 's'}`)
+  const label = { release: ['release', 'releases'], memory: ['memory to decide', 'memories to decide'], deliverable: ['deliverable', 'deliverables'], instruction: ['instruction change', 'instruction changes'], recipe: ['recipe', 'recipes'], links: ['link question', 'link questions'], columns: ['column question', 'column questions'] }
+  const parts = Object.entries(att.counts).map(([k, n]) => `${n} ${(label[k] || [k, k])[n === 1 ? 0 : 1]}`)
   return h('section', { style: { ...css.card, borderColor: att.total ? 'var(--ui-accent, #3b82f6)' : undefined }, 'aria-label': 'Needs you' },
     h('h2', { style: css.h2 }, att.total ? `Needs you · ${att.total}` : 'Nothing needs you'),
     att.total ? h('div', { style: { ...css.muted, fontSize: 12, marginBottom: 6 } }, parts.join(' · ')) : h('div', { style: { ...css.muted, fontSize: 12 } }, 'No release, memory, deliverable or question is waiting in any project.'),
@@ -463,6 +463,7 @@ function NeedsYou({ api, pid, setPid, refreshKey }) {
       h('span', { style: { fontSize: 13 } }, h('span', { style: css.chip }, it.name), ' ', it.title),
       it.project !== pid ? btn('Go to project', () => setPid(it.project)) : h('span', { style: { ...css.muted, fontSize: 12 } }, 'in this project, below'))),
     att.items.length > 12 ? h('div', { style: { ...css.muted, fontSize: 12 } }, `and ${att.items.length - 12} more`) : null,
+    att.folders_missing && att.folders_missing.length ? h('div', { style: { ...css.muted, fontSize: 12, marginTop: 6 } }, `${att.folders_missing.length} project${att.folders_missing.length === 1 ? '' : 's'} not shown: the folder was moved or deleted.`) : null,
     att.could_not_check.length ? h('div', { role: 'alert', style: { color: 'var(--ui-amber, #d97706)', fontSize: 12, marginTop: 6 } }, `${att.could_not_check.length} part${att.could_not_check.length === 1 ? '' : 's'} could not be checked: ${att.could_not_check.map(f => `${f.part} (${f.error})`).join('; ').slice(0, 300)}`) : null)
 }
 

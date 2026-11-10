@@ -929,15 +929,19 @@ class Service:
         instruction and recipe proposals, links and column questions to answer. Each item says what it is, where, and which panel settles it."""
         items: list[dict[str, Any]] = []
         failed: list[dict[str, str]] = []
+        gone: list[str] = []
         for p in self.projects():
             pid, folder = p["project"], p["folder"]
             name = Path(folder).name
+            if not Path(folder).is_dir():
+                gone.append(folder)  # a project whose folder was moved or deleted has nothing to decide until it is found again
+                continue
 
             def add(kind: str, title: str, panel: str, ref: str = "", weight: int = 1) -> None:
                 items.append({"project": pid, "folder": folder, "name": name, "kind": kind, "title": title, "panel": panel, "ref": ref, "weight": weight})
 
             steps = (
-                ("releases", lambda: [add("release", f"A release with {len(r.get('changes', []))} change(s) is ready to approve", "release", r["release_id"], 3) for r in self.awaiting(pid)]),
+                ("releases", lambda: [add("release", self._release_title(r), "release", r["release_id"], 3) for r in self.awaiting(pid)]),
                 ("memory", lambda: [add("memory", f"Remember? {m['text'][:90]}", "room", str(m["id"]), 2) for m in self._with_room(pid, lambda room: room.memory("proposed"))]),
                 ("deliverables", lambda: [add("deliverable", f"{d['path']} is {d['status']}", "deliverables", d["path"], 2) for d in self.deliverables(pid) if d["status"] in ("not reviewed", "changed since approval")]),
                 ("instructions", lambda: [add("instruction", f"A proposed change to {x['name']}", "instructions", x["proposal"], 2) for x in self.proposals(pid)]),
@@ -954,7 +958,16 @@ class Service:
         counts: dict[str, int] = {}
         for it in items:
             counts[it["kind"]] = counts.get(it["kind"], 0) + 1
-        return {"total": len(items), "counts": counts, "items": items, "could_not_check": failed}
+        return {"total": len(items), "counts": counts, "items": items, "could_not_check": failed, "folders_missing": gone}
+
+    @staticmethod
+    def _release_title(r: dict[str, Any]) -> str:
+        if r.get("created"):
+            return f"A new document with {len(r.get('figures') or [])} linked figure(s) is ready to approve"
+        if r.get("rolled"):
+            return f"A roll to the next period ({r['rolled'].get('figures', 0)} figures) is ready to approve"
+        n = len(r.get("changes") or [])
+        return f"A release with {n} change{'' if n == 1 else 's'} is ready to approve" if n else "A prepared release with no recorded changes is waiting: open it to approve or let it expire"
 
     # ---- deliverables: what the agent produced or changed, previewed, compared and approved (see deliverables.py)
     def _with_both(self, pid: str, fn):

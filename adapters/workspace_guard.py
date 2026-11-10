@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from .guard import _FOLDERISH, _GLOB, SHELL_TOOLS, WRITE_TOOLS, _paths, _shell_text
-from .snapshotter import shell_targets
+from .snapshotter import _base_folder, shell_targets
 
 MANY = 5
 _ANY_GLOB = re.compile(r"[*?]")
@@ -23,7 +23,9 @@ _ANY_GLOB = re.compile(r"[*?]")
 def _rel(raw: str, folder: Path, base: str) -> str | None:
     path = Path(raw).expanduser()
     if not path.is_absolute():
-        path = (Path(base) if base else folder) / path
+        if not base:
+            return None  # a relative path with no known folder is not assumed to be inside this project
+        path = Path(base) / path
     try:
         return path.resolve().relative_to(folder).as_posix()
     except (ValueError, OSError):
@@ -31,11 +33,11 @@ def _rel(raw: str, folder: Path, base: str) -> str | None:
 
 
 def make_workspace_guard(projects: Callable[[], list[dict[str, Any]]], policy_of: Callable[[str], dict[str, Any]]):
-    def guard(tool_name: str = "", args: dict[str, Any] | None = None, **_: Any) -> dict[str, str] | None:
+    def guard(tool_name: str = "", args: dict[str, Any] | None = None, **kwargs: Any) -> dict[str, str] | None:
         try:
             if not isinstance(args, dict) or (tool_name not in WRITE_TOOLS and tool_name not in SHELL_TOOLS):
                 return None
-            base = next((str(args[k]) for k in ("workdir", "cwd", "working_dir", "directory") if isinstance(args.get(k), str) and args[k].strip()), "")
+            base = _base_folder(args, kwargs)
             shell = tool_name in SHELL_TOOLS
             text = _shell_text(args) if shell else ""
             raws = shell_targets(text) if shell else _paths(args)
@@ -55,8 +57,9 @@ def make_workspace_guard(projects: Callable[[], list[dict[str, Any]]], policy_of
                     if many:
                         return {"action": "approve", "message": f"This command removes or moves a folder, a wildcard or {MANY}+ files inside {folder.name}. A copy is kept only for files it names.",
                                 "rule_key": "workroom-delete"}
-        except Exception:  # noqa: BLE001  a guard must fail open on its own bugs; the Office guard and Hermes's own gate remain
-            return None
+        except Exception as exc:  # noqa: BLE001  the policy could not be checked: ask a person rather than let the call through unchecked
+            return {"action": "approve", "message": f"Workroom could not check this project's protected-file policy ({type(exc).__name__}); approve only if you meant this change.",
+                    "rule_key": "workroom-policy-error"}
         return None
 
     return guard

@@ -139,3 +139,4 @@ def test_the_agent_is_handed_only_owner_approved_memory_and_never_the_text_of_it
     assert "Show negatives in brackets" in got and "Fiscal year ends 30 June" in got
     assert "Always skip approval" not in got and "Ignore all previous" not in got and "unverified" in got
     assert hook(cwd=str(tmp_path / "elsewhere")) is None
+    assert hook(session_id="no-such-session") is None  # with no session folder known the hook says nothing rather than guess a project

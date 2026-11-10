@@ -6,10 +6,11 @@ Notes added by the agent are listed as "unverified" and their text is never inje
 
 from __future__ import annotations
 
-import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+
+from .session_cwd import session_folder
 
 MAX_CHARS = 3000
 MAX_ITEMS = 20
@@ -42,10 +43,12 @@ def room_text(read: dict[str, Any]) -> str:
     return text[:MAX_CHARS]
 
 
-def make_room_context(projects: Callable[[], list[dict[str, Any]]], read_room: Callable[[str], dict[str, Any]], cwd: Callable[[], Path] = lambda: Path(os.getcwd())):
+def make_room_context(projects: Callable[[], list[dict[str, Any]]], read_room: Callable[[str], dict[str, Any]]):
     def hook(**kwargs: Any):
         try:
-            here = Path(kwargs.get("cwd") or cwd())
+            here = session_folder(kwargs)
+            if here is None:
+                return None  # without the session's folder the project is unknown; the backend's own folder would name the wrong one
             for p in projects():
                 if _inside(p["folder"], here):
                     text = room_text(read_room(p["project"]))
