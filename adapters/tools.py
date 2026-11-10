@@ -96,6 +96,13 @@ ROOM_REMEMBER_SCHEMA = {
                                                     "source": {"type": "string", "description": "Where this came from, e.g. the owner's words or the file"}}, "required": ["project", "text", "kind", "source"]},
 }
 
+LAYOUT_SCHEMA = {
+    "name": "workroom_layout_check",
+    "description": ("Check a .pptx deck in the project for visible layout faults before anyone sees it: text that does not fit its box, text too small to read, "
+                    "shapes off the slide, low contrast, tables taller than the slide, overlapping boxes. Code, not judgement; read-only. Decks Workroom builds are checked by themselves."),
+    "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "path": {"type": "string", "description": "The deck, relative to the project folder"}}, "required": ["project", "path"]},
+}
+
 ATTENTION_SCHEMA = {
     "name": "workroom_attention",
     "description": ("List everything that waits for the owner across all Workroom projects (releases to approve, memory to decide, deliverables to review, proposals, links to confirm), "
@@ -268,6 +275,7 @@ def _directive(staged: dict[str, Any]) -> str:
 workroom_recipe_propose = _wrap(lambda a: service().recipe_propose(a["project"], a["report"]))
 workroom_recipe_status = _wrap(lambda a: service().recipe_status(a["project"]))
 workroom_release_record = _wrap(lambda a: service().release_record(a["project"], a["release"]))
+workroom_layout_check = _wrap(lambda a: service().layout_check(a["project"], a["path"]))
 workroom_attention = _wrap(lambda a: service().attention())
 workroom_deliverable_register = _wrap(lambda a: service().deliverable_register(a["project"], a["path"], a.get("note", ""), by="agent"))
 workroom_room_read = _wrap(lambda a: service().room_read(a["project"]))

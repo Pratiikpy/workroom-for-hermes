@@ -923,6 +923,22 @@ class Service:
         """Owner route (never an agent tool)."""
         return self._with_snaps(pid, lambda st: st.restore(snap_id))
 
+    @_closing
+    def layout_check(self, pid: str, path: str) -> dict[str, Any]:
+        """The layout gate on a deck in the project: visible faults (overflow, small text, off-slide, contrast, table height) and warnings. Read-only."""
+        from .layout_gate import as_dicts, check_pptx
+
+        proj, _ = self._open(pid)
+        f = (proj.root / path).resolve()
+        try:
+            f.relative_to(proj.root.resolve())
+        except ValueError:
+            raise ServiceError("the file is outside the project") from None
+        if f.suffix.lower() != ".pptx" or not f.is_file():
+            raise ServiceError("the layout gate reads .pptx decks in the project folder")
+        found = check_pptx(f.read_bytes())
+        return {"path": path, "faults": as_dicts([x for x in found if x.severity == "block"]), "warnings": as_dicts([x for x in found if x.severity == "warn"])}
+
     # ---- one inbox: everything that waits for the owner, in every project
     def attention(self) -> dict[str, Any]:
         """Every decision owed to the owner across all projects, newest kind first: releases to approve, memory to decide, deliverables to review,
@@ -1508,6 +1524,15 @@ class Service:
                 data = build_file(resolved)
             except BuildError as exc:
                 return {"state": "refused", "errors": [{"code": exc.code, "where": "", "message": str(exc)}], "notes": v.notes}
+            if spec["kind"] == "pptx":
+                from .layout_gate import as_dicts, blocking, check_pptx
+
+                faults = check_pptx(data)
+                if blocking(faults):
+                    return {"state": "refused", "errors": [{"code": "layout", "where": f"slide {f.slide}: {f.shape}", "message": f.message} for f in blocking(faults)],
+                            "notes": v.notes, "layout": as_dicts(faults),
+                            "hint": "The deck was built but would show these faults. Shorten the text, split the slide, or move the block to its own slide, then call again."}
+                v.notes += [f"layout: slide {f.slide}, {f.message}" for f in faults if f.severity == "warn"]
             try:
                 found = proj.locate_born(rel, data, occurrences, values)
             except ValueError as exc:

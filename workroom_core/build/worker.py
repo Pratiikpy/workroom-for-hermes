@@ -93,8 +93,9 @@ def _pptx(spec: dict) -> bytes:
                     card = slide.shapes.add_shape(1, Inches(x), Inches(y), Inches(card_w), Inches(h))
                     card.name = f"{name} card {ci + 1}"
                     card.fill.solid()
-                    card.fill.fore_color.rgb = rgb("F3F4F6")
-                    card.line.fill.background()
+                    card.fill.fore_color.rgb = rgb("FFFFFF")  # a white card with a hairline keeps the brand's checked contrast (muted 4.5:1 on white); a grey fill dropped it to 4.4:1
+                    card.line.color.rgb = rgb(RULE)
+                    card.line.width = Pt(1)
                     for part, top, size, color, bold, txt in (("label", 0.15, 14, muted, False, item["label"]), ("value", 0.55, 40, accent, True, item["value"]),
                                                               ("note", 1.4, 12, muted, False, item.get("note", ""))):
                         if not txt:
