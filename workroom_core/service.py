@@ -1102,6 +1102,35 @@ class Service:
         return {"release_id": rid, "state": "awaiting_approval", "digest": ctl.digest(rid), "changes": [change], "part_changed": report.parts_changed[0], "other_parts_identical": True}
 
     # ---- one inbox: everything that waits for the owner, in every project
+    # ---- scheduled checks: every run leaves a receipt, so a check that failed or stopped running is seen, not assumed
+    def watch_receipt(self, pid: str, outcome: str, detail: str = "", every_hours: float = 0) -> dict[str, Any]:
+        """Record one run of the scheduled check. ``outcome``: ok (nothing to do), prepared (a release is waiting), failed."""
+        if outcome not in ("ok", "prepared", "failed"):
+            raise ServiceError("outcome must be ok, prepared or failed")
+        pid = self._resolve(pid)
+        path = self.data_dir / "projects" / pid / "watch_runs.json"
+        runs = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
+        every = float(every_hours) if every_hours and every_hours > 0 else (runs[-1].get("every_hours", 0) if runs else 0)
+        runs.append({"at": int(time.time()), "outcome": outcome, "detail": str(detail)[:300], "every_hours": every})
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(runs[-50:]), encoding="utf-8")
+        return runs[-1]
+
+    def watch_status(self, pid: str) -> dict[str, Any]:
+        """The recent runs of the scheduled check and whether it needs attention: the last run failed, or it is overdue (no run for twice its interval)."""
+        pid = self._resolve(pid)
+        path = self.data_dir / "projects" / pid / "watch_runs.json"
+        runs = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
+        if not runs:
+            return {"runs": [], "problem": ""}
+        last = runs[-1]
+        problem = ""
+        if last["outcome"] == "failed":
+            problem = f"The last scheduled check failed: {last['detail'] or 'no reason recorded'}"
+        elif last.get("every_hours") and time.time() - last["at"] > 2 * 3600 * last["every_hours"]:
+            problem = "The scheduled check has not run since " + time.strftime("%d %b %Y %H:%M", time.localtime(last["at"])) + f" (it should run every {last['every_hours']:g} hours)"
+        return {"runs": runs[-10:], "problem": problem}
+
     def attention(self) -> dict[str, Any]:
         """Every decision owed to the owner across all projects, newest kind first: releases to approve, memory to decide, deliverables to review,
         instruction and recipe proposals, links and column questions to answer. Each item says what it is, where, and which panel settles it."""
@@ -1125,6 +1154,7 @@ class Service:
                 ("instructions", lambda: [add("instruction", f"A proposed change to {x['name']}", "instructions", x["proposal"], 2) for x in self.proposals(pid)]),
                 ("recipe", lambda: [add("recipe", "A proposed recipe waits for approval", "recipe", "", 2) for _ in (self.recipe_status(pid).get("pending") or [])]),
                 ("links", lambda: (lambda n: [add("links", f"{n} figure link(s) need your confirmation", "links", "", 1)] if n else [])(sum(1 for t in self.ties(pid) if t.get("state") == "confirm"))),
+                ("schedule", lambda: (lambda w: [add("schedule", w["problem"], "release", "", 2)] if w["problem"] else [])(self.watch_status(pid))),
                 ("columns", lambda: (lambda n: [add("columns", f"{n} report column(s) fit two workbook columns", "links", "", 1)] if n else [])(len(self.column_questions(pid)))),
             )
             for label, step in steps:

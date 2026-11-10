@@ -134,7 +134,7 @@ def make_watch_command(service_factory: Callable[[], Service]) -> Callable[..., 
         name = f"workroom-watch-{pid}.py"
         body = chr(10).join([
             "import os, runpy, sys",
-            f'sys.argv = ["watch.py", "--project", "{pid}"]',
+            f'sys.argv = ["watch.py", "--project", "{pid}", "--every", "6"]',
             'runpy.run_path(os.path.join(os.environ.get("HERMES_HOME", os.path.expanduser("~/.hermes")), "plugins", "workroom", "scripts", "watch.py"), run_name="__main__")',
         ])
         return chr(10).join([
