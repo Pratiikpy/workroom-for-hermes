@@ -1233,6 +1233,42 @@ class Service:
         return {**rec["summary"], "stale": rec["sha"] != now_sha, "at": rec["at"]}
 
     @_closing
+    def run_score(self, pid: str) -> dict[str, Any]:
+        """How well the agent's work in this project holds up, from checks the agent cannot edit: for each deliverable, the share of its figures that are
+        supported by what the agent read or are verified calculations, and for each deck, the layout faults that block. Returns the counts and one number
+        in [0, 1] with its formula, so an outside harness (evaluation, a reward function) can use it. It measures evidence for figures and visible layout
+        faults only: it does not judge whether the work is useful, correct in substance, or finished."""
+        weights = {"supported": 1.0, "unclear": 0.5, "unsourced": 0.0}
+        figures = {"supported": 0, "unclear": 0, "unsourced": 0}
+        decks = []
+        items = []
+        for d in self.deliverables(pid):
+            proof = d.get("proof")
+            if proof and not proof.get("stale"):
+                sup = int(proof.get("sourced", 0)) + int(proof.get("calculated", 0))
+                uns = int(proof.get("unsourced", 0))
+                unc = int(proof.get("figures", 0)) - sup - uns
+                figures["supported"] += sup
+                figures["unsourced"] += uns
+                figures["unclear"] += max(0, unc)
+            blocking = 0
+            if d["kind"] == "powerpoint" and d.get("exists"):
+                try:
+                    blocking = len(self.layout_check(pid, d["path"])["faults"])
+                except ServiceError:
+                    blocking = 0
+                if blocking:
+                    decks.append(d["path"])
+            items.append({"path": d["path"], "figures_proof": bool(proof and not proof.get("stale")), "blocking_layout_faults": blocking})
+        total = sum(figures.values())
+        figure_part = sum(weights[k] * v for k, v in figures.items()) / total if total else None
+        penalty = 0.25 * len(decks)
+        reward = None if figure_part is None and not decks else max(0.0, min(1.0, (figure_part if figure_part is not None else 1.0) - penalty))
+        return {"reward": reward, "figures": figures, "decks_with_blocking_layout_faults": decks, "deliverables": items,
+                "formula": "(1.0 x supported + 0.5 x unclear + 0 x unsourced) / figures, minus 0.25 per deck with a blocking layout fault, clamped to [0, 1]; null when there is nothing to judge",
+                "does_not_measure": "usefulness, correctness of the substance, completeness, or figures in files that carry no recorded proof"}
+
+    @_closing
     def deliverable_proof(self, pid: str, path: str) -> dict[str, Any]:
         """Each figure of a text deliverable with where it came from, checked again now against the evidence of the session that wrote it."""
         from .figure_proof import EvidenceStore, check_file

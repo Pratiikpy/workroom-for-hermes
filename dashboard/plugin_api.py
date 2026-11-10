@@ -292,6 +292,11 @@ async def deliverable_approve(body: DeliverableBody) -> dict:
     return _guard(lambda: _service().deliverable_approve(body.project, body.path))
 
 
+@router.post("/run-score")
+async def run_score(body: RoomBody) -> dict:
+    return _guard(lambda: _service().run_score(body.project))
+
+
 @router.post("/release-proof")
 async def release_proof(body: RoomBody) -> dict:
     return _guard(lambda: _service().release_proof_export(body.project, body.ref))
