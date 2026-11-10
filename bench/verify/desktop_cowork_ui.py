@@ -57,5 +57,18 @@ with sync_playwright() as p:
     room = pg.locator("body").inner_text()
     check("the helper agent is listed in the Room with its goal, outcome and files", "Helper agents" in room and "researcher" in room and "summarise it" in room and "deck.pptx" in room)
     pg.screenshot(path=str(SHOTS / "cowork_room_crew.png"))
+    # Made: gallery view
+    pg.locator("[role=tablist]").filter(has_text="Needs you").get_by_role("tab", name="Made", exact=True).first.click()
+    pg.wait_for_timeout(2000)
+    pg.get_by_role("button", name="Gallery view").first.click()
+    pg.wait_for_timeout(4000)
+    cards = pg.get_by_role("list", name="Deliverables as cards").first
+    check("the gallery shows one card per deliverable", cards.get_by_role("listitem").count() >= 3)
+    thumb = cards.get_by_role("img", name="First slide of deck.pptx")
+    check("the deck card draws its first slide", thumb.count() == 1 and thumb.first.evaluate("e => e.complete && e.naturalWidth > 0"))
+    pg.screenshot(path=str(SHOTS / "cowork_gallery.png"))
+    pg.get_by_role("button", name="Open deck.pptx").first.click()
+    pg.wait_for_timeout(3000)
+    check("Open on a card returns to the list with the file open", pg.get_by_role("img", name="Slide 1").count() > 0)
     check("no page errors", not errors)
     print(f"{sum(ok for _, ok in results)}/{len(results)} passed", errors[:3])

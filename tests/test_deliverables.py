@@ -155,3 +155,27 @@ def test_linked_figures_are_underlined_in_the_structural_drawing_and_text_stays_
     got = svc.deliverable_preview(pid, "deck.pptx")
     svg = got["slides"][0]["svg"]
     assert got["marked"] >= 1 and 'text-decoration="underline">120<' in svg and "<b>" not in svg and "&lt;b&gt;" in svg
+
+
+def test_the_gallery_gives_each_file_a_card_with_a_thumbnail_that_fits_its_kind(tmp_path: Path) -> None:
+    from pptx import Presentation
+    from pptx.util import Inches
+    from xlsxwriter import Workbook
+
+    root, svc, pid = project(tmp_path)
+    (root / "note.md").write_text("# Plan\nShip on Friday.")
+    prs = Presentation()
+    prs.slides.add_slide(prs.slide_layouts[6]).shapes.add_textbox(Inches(1), Inches(1), Inches(6), Inches(1)).text_frame.text = "Board pack"
+    prs.save(str(root / "deck.pptx"))
+    with Workbook(str(root / "sheet.xlsx")) as wb:
+        wb.add_worksheet("A").write_row(0, 0, ["Metric", "Q1"])
+    (root / "broken.docx").write_bytes(b"not a zip")
+    (root / "chart.png").write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 20)
+    for n in ("note.md", "deck.pptx", "sheet.xlsx", "broken.docx", "chart.png"):
+        svc.deliverable_register(pid, n, "made by a script")
+    cards = {c["path"]: c for c in svc.deliverable_cards(pid)}
+    assert cards["deck.pptx"]["thumb"]["type"] == "svg" and "Board pack" in cards["deck.pptx"]["thumb"]["svg"]
+    assert cards["note.md"]["thumb"]["type"] == "text" and "Ship on Friday." in cards["note.md"]["thumb"]["text"]
+    assert cards["sheet.xlsx"]["thumb"]["type"] == "text" and "Metric" in cards["sheet.xlsx"]["thumb"]["text"]
+    assert cards["chart.png"]["thumb"]["type"] == "image"
+    assert cards["broken.docx"]["thumb"] is None and cards["broken.docx"]["status"]  # a file that cannot be drawn still has its card

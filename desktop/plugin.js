@@ -477,21 +477,40 @@ function DeliverableView({ api, pid, item, busy, run, ctx, onChanged }) {
 function Deliverables({ api, pid, busy, run, ctx, empty = false }) {
   const [items, setItems] = useState(null)
   const [open, setOpen] = useState(null)
+  const [view, setView] = useState('list')
   const load = useCallback(() => pid ? api('/deliverables', { project: pid }).then(r => setItems(r.items)).catch(() => setItems(null)) : setItems(null), [api, pid])
   useEffect(() => { setOpen(null); load() }, [load])
   if (items && !items.length && empty) return h(EmptyState, { title: 'Nothing made yet', description: 'Files the agent makes or changes in this folder appear here, with their earlier versions and an approve button.' })
   if (!items || !items.length) return null
   const tone = { approved: 'var(--ui-green, #16a34a)', 'changed since approval': 'var(--ui-amber, #d97706)', 'not reviewed': 'var(--ui-text-tertiary, #888)', missing: 'var(--ui-red, #dc2626)' }
   const waiting = items.filter(i => i.status === 'not reviewed' || i.status === 'changed since approval').length
+  const gallery = view === 'gallery'
   return h('section', { style: css.card, 'aria-label': 'Deliverables' },
-    h('h2', { style: css.h2 }, `Deliverables${waiting ? ` · ${waiting} to review` : ''}`),
-    h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'Every file the agent made or changed in this project. Look at it, compare it with the version before, ask about it, and approve the exact version you accept.'),
-    items.map(it => h('div', { key: it.path, style: { borderTop: '1px solid var(--ui-stroke-secondary, #8883)', padding: '6px 0' } },
+    h('div', { style: { ...css.row, justifyContent: 'space-between' } },
+      h('h2', { style: css.h2 }, `Deliverables${waiting ? ` · ${waiting} to review` : ''}`),
+      h('div', { role: 'group', 'aria-label': 'View', style: css.row }, btn('List', () => setView('list'), { disabled: !gallery, name: 'List view' }), btn('Gallery', () => setView('gallery'), { disabled: gallery, name: 'Gallery view' }))),
+    gallery ? h(DeliverableGallery, { api, pid, items, onOpen: (p) => { setView('list'); setOpen(p) } }) : null,
+    gallery ? null : h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'Every file the agent made or changed in this project. Look at it, compare it with the version before, ask about it, and approve the exact version you accept.'),
+    gallery ? null : items.map(it => h('div', { key: it.path, style: { borderTop: '1px solid var(--ui-stroke-secondary, #8883)', padding: '6px 0' } },
       h('div', { style: { ...css.row, justifyContent: 'space-between' } },
         h('span', { style: { fontSize: 13 } }, `${it.path} · ${it.kind}${it.versions.length ? ` · ${it.versions.length} earlier version${it.versions.length === 1 ? '' : 's'}` : ''} · `, h('span', { style: { color: tone[it.status] || 'inherit' } }, it.status),
           it.proof && it.proof.figures ? h('span', { style: { marginLeft: 8, color: it.proof.unsourced ? 'var(--ui-red, #dc2626)' : 'var(--ui-green, #16a34a)' } }, `· ${it.proof.sourced + it.proof.calculated + it.proof.stated} of ${it.proof.figures} figures supported${it.proof.stale ? ' (changed since)' : ''}`) : null),
         btn(open === it.path ? 'Hide' : 'Open', () => setOpen(open === it.path ? null : it.path))),
       open === it.path ? h(DeliverableView, { api, pid, item: it, busy, run, ctx, onChanged: load }) : null)))
+}
+
+function DeliverableGallery({ api, pid, items, onOpen }) {
+  const [cards, setCards] = useState(null)
+  useEffect(() => { api('/deliverable-cards', { project: pid, path: '' }).then(r => setCards(r.cards)).catch(() => setCards([])) }, [api, pid, items])
+  if (!cards) return h('div', { style: css.muted }, 'Drawing the cards...')
+  const tone = { approved: 'var(--ui-green, #16a34a)', 'changed since approval': 'var(--ui-amber, #d97706)', missing: 'var(--ui-red, #dc2626)' }
+  return h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10, marginTop: 6 }, role: 'list', 'aria-label': 'Deliverables as cards' }, cards.map(c => h('div', { key: c.path, role: 'listitem', style: { border: '1px solid var(--ui-stroke-secondary, #8884)', borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column' } },
+    h('div', { style: { height: 96, background: 'var(--ui-bg-secondary, #8881)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' } },
+      !c.thumb ? h('span', { style: { ...css.muted, fontSize: 11 } }, c.kind)
+        : c.thumb.type === 'svg' ? h('img', { alt: `First slide of ${c.path}`, src: `data:image/svg+xml;utf8,${encodeURIComponent(c.thumb.svg)}`, style: { width: '100%', height: '100%', objectFit: 'contain' } })
+        : c.thumb.type === 'image' ? h('img', { alt: c.path, src: `data:${c.thumb.mime};base64,${c.thumb.data}`, style: { width: '100%', height: '100%', objectFit: 'cover' } })
+        : h('pre', { style: { margin: 0, padding: 6, fontSize: 9, lineHeight: 1.3, whiteSpace: 'pre-wrap', width: '100%', alignSelf: 'flex-start', overflow: 'hidden' } }, c.thumb.text)),
+    h('div', { style: { padding: 6, fontSize: 12 } }, h('div', { style: { fontWeight: 600, overflowWrap: 'anywhere' } }, c.path), h('div', { style: { color: tone[c.status] || 'inherit', fontSize: 11 } }, c.status), btn('Open', () => onOpen(c.path), { name: `Open ${c.path}` })))))
 }
 
 function NeedsYou({ api, pid, setPid, refreshKey }) {

@@ -1269,6 +1269,36 @@ class Service:
                 "does_not_measure": "usefulness, correctness of the substance, completeness, or figures in files that carry no recorded proof"}
 
     @_closing
+    def deliverable_cards(self, pid: str, limit: int = 24) -> list[dict[str, Any]]:
+        """One small card per deliverable for the gallery view: a thumbnail the pane can draw (the first slide of a deck as SVG, a small image, the first lines
+        of a text file, the first rows of a workbook, the first heading and paragraphs of a report), with the file status. Read-only; a file that cannot be
+        drawn still gets a card with no thumbnail."""
+        from .deliverables import kind_of, preview
+
+        proj, _ = self._open(pid)
+        cards: list[dict[str, Any]] = []
+        for d in self.deliverables(pid)[: max(1, min(int(limit), 60))]:
+            card = {"path": d["path"], "kind": d["kind"], "status": d["status"], "thumb": None}
+            f = proj.root / d["path"]
+            try:
+                if f.is_file() and f.stat().st_size <= 8_000_000:
+                    got = preview(f.read_bytes(), kind_of(d["path"]), d["path"])
+                    if got["kind"] == "slides" and got["slides"]:
+                        card["thumb"] = {"type": "svg", "svg": got["slides"][0]["svg"]}
+                    elif got["kind"] == "image" and len(got.get("data", "")) < 400_000:
+                        card["thumb"] = {"type": "image", "mime": got["mime"], "data": got["data"]}
+                    elif got["kind"] == "text":
+                        card["thumb"] = {"type": "text", "text": got["text"][:240]}
+                    elif got["kind"] == "grid":
+                        card["thumb"] = {"type": "text", "text": "\n".join("  ".join(str(c) for c in row[:5]) for row in got["rows"][:5])[:240]}
+                    elif got["kind"] == "blocks":
+                        card["thumb"] = {"type": "text", "text": "\n".join(b.get("text", "") for b in got["blocks"] if b["type"] != "table")[:240]}
+            except Exception:  # noqa: BLE001  one file that cannot be drawn must not hide the others
+                card["thumb"] = None
+            cards.append(card)
+        return cards
+
+    @_closing
     def deliverable_proof(self, pid: str, path: str) -> dict[str, Any]:
         """Each figure of a text deliverable with where it came from, checked again now against the evidence of the session that wrote it."""
         from .figure_proof import EvidenceStore, check_file
