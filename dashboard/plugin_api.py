@@ -243,6 +243,16 @@ class RoomBody(BaseModel):
     approve: bool = True
 
 
+@router.post("/snapshots")
+async def snapshots(body: RoomBody) -> dict:
+    return _guard(lambda: {"snapshots": _service().snapshots(body.project)})
+
+
+@router.post("/snapshot-restore")
+async def snapshot_restore(body: RoomBody) -> dict:
+    return _guard(lambda: _service().snapshot_restore(body.project, body.id))
+
+
 @router.post("/room")
 async def room_overview(body: RoomBody) -> dict:
     return _guard(lambda: _service().room_overview(body.project))

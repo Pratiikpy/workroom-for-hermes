@@ -40,6 +40,7 @@ provides_tools:
   - workroom_room_remember
 provides_hooks:
   - pre_tool_call
+  - pre_llm_call
 config_schema:
   approvers:
     type: list

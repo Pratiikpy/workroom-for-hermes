@@ -896,6 +896,33 @@ class Service:
         pfile.unlink()
         return self.authorise_instruction(pid, doc["name"], hashlib.sha256(doc["text"].encode("utf-8")).hexdigest())
 
+    # ---- before-images of files an agent changed (see snapshots.py)
+    def _with_snaps(self, pid: str, fn):
+        from .snapshots import SnapshotError, SnapshotStore
+
+        proj, _ = self._open(pid)
+        pid = self._resolve(pid)
+        store = SnapshotStore(self.data_dir / "projects" / pid, proj.root)
+        try:
+            return fn(store)
+        except SnapshotError as exc:
+            raise ServiceError(str(exc)) from None
+        finally:
+            store.close()
+
+    @_closing
+    def snapshot_take(self, pid: str, path: str, tool: str) -> None:
+        self._with_snaps(pid, lambda st: st.take(path, tool))
+
+    @_closing
+    def snapshots(self, pid: str, limit: int = 100) -> list[dict[str, Any]]:
+        return self._with_snaps(pid, lambda st: st.list(limit))
+
+    @_closing
+    def snapshot_restore(self, pid: str, snap_id: int) -> dict[str, Any]:
+        """Owner route (never an agent tool)."""
+        return self._with_snaps(pid, lambda st: st.restore(snap_id))
+
     # ---- the Room: sources, memory with provenance, audit (see room.py)
     def _with_room(self, pid: str, fn):
         from .room import Room, RoomError

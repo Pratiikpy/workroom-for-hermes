@@ -362,6 +362,21 @@ function Room({ api, pid, busy, run }) {
       info.audit.slice().reverse().map(e => h('div', { key: e.id, style: { ...css.muted, fontSize: 12 } }, `${when(e.at)} · ${e.actor} · ${e.event.replace('_', ' ')}`))) : null)
 }
 
+function AgentChanges({ api, pid, busy, run }) {
+  const [rows, setRows] = useState(null)
+  const load = useCallback(() => pid ? api('/snapshots', { project: pid }).then(r => setRows(r.snapshots)).catch(() => setRows(null)) : setRows(null), [api, pid])
+  useEffect(() => { load() }, [load])
+  if (!rows || !rows.length) return null
+  const when = (t) => new Date(t * 1000).toLocaleString()
+  const word = { saved: 'changed', created: 'created', too_large: 'changed (too large to keep a copy)' }
+  return h('section', { style: css.card, 'aria-label': 'Files the agent changed' },
+    h('h2', { style: css.h2 }, 'Files the agent changed'),
+    h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'A copy of each file is kept before the agent changes it. Restore puts it back and keeps what was there, so a restore can be undone. Changes made by commands that do not name their files are not covered.'),
+    rows.slice(0, 15).map(r => h('div', { key: r.id, style: { ...css.row, justifyContent: 'space-between', padding: '3px 0' } },
+      h('span', { style: { fontSize: 13 } }, `${r.path} · ${word[r.state] || r.state} · ${when(r.at)}${r.restored ? ' · restored' : ''}`),
+      r.state === 'too_large' ? null : btn('Restore', () => run(async () => { await api('/snapshot-restore', { project: pid, id: r.id }); await load() }, () => 'Restored.'), { disabled: busy }))))
+}
+
 const stateLabel = { accepted: 'linked automatically', confirmed: 'linked by you', confirm: 'needs you', skipped: 'left alone', held: 'you changed it by hand' }
 
 function Why({ info, onClose }) {
@@ -893,6 +908,7 @@ function WorkroomPage({ ctx }) {
     pid ? h(PagesList, { api, pid }) : null,
     pid ? h(Instructions, { api, pid, busy, run }) : null,
     pid ? h(Room, { api, pid, busy, run }) : null,
+    pid ? h(AgentChanges, { api, pid, busy, run }) : null,
     pid && past.length ? h('section', { style: css.card, 'aria-label': 'Past releases' },
       h('h2', { style: css.h2 }, 'Past releases'),
       h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'Restoring puts the files of that release back as they were before it. It is refused if you have worked in those files since, so nothing you did later is overwritten.'),

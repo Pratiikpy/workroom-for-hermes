@@ -50,6 +50,12 @@ def register(ctx):
     from .adapters.guard import make_guard
 
     ctx.register_hook("pre_tool_call", make_guard(lambda: [p["folder"] for p in tools.service().projects()]))
+    from .adapters.snapshotter import make_snapshotter
+
+    ctx.register_hook("pre_tool_call", make_snapshotter(lambda: tools.service().projects(), lambda pid, path, tool: tools.service().snapshot_take(pid, path, tool)))
+    from .adapters.room_context import make_room_context
+
+    ctx.register_hook("pre_llm_call", make_room_context(lambda: tools.service().projects(), lambda pid: tools.service().room_read(pid)))
     ctx.register_command(
         "workroom-approve",
         make_approve_command(_service, ctx.ask_choice, lambda: ctx.get_config("approvers", [])),
