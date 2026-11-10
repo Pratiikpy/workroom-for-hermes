@@ -297,6 +297,16 @@ async def release_proof(body: RoomBody) -> dict:
     return _guard(lambda: _service().release_proof_export(body.project, body.ref))
 
 
+@router.post("/release-proof-embed")
+async def release_proof_embed(body: RoomBody) -> dict:
+    return _guard(lambda: _service().release_proof_embed(body.project, body.ref, body.text))
+
+
+@router.post("/verify-embedded")
+async def verify_embedded(body: RoomBody) -> dict:
+    return _guard(lambda: _service().verify_embedded_file(body.project, body.text))
+
+
 @router.post("/room-policy")
 async def room_policy(body: RoomBody) -> dict:
     return _guard(lambda: _service().room_policy(body.project))

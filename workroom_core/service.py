@@ -552,7 +552,20 @@ class Service:
             raise ServiceError("that release was restored; its files are no longer the released bytes")
         proj, _ = self._open(pid)
         pid = self._resolve(pid)
-        files = [{"file": f["file"], "sha256": f["after"]} for f in rec["files"] if f.get("after")]
+        files = []
+        for f in rec["files"]:
+            if not f.get("after"):
+                continue
+            entry = {"file": f["file"], "sha256": f["after"]}
+            path = proj.root / f["file"]
+            if path.suffix.lower() in (".docx", ".pptx", ".xlsx") and sha256_file(path) == f["after"]:
+                try:
+                    from .embed import package_digest
+
+                    entry["package_digest"] = package_digest(path.read_bytes())
+                except Exception:  # noqa: BLE001  a file that cannot be read as a package is signed by its bytes only
+                    pass
+            files.append(entry)
         meta_path = self.data_dir / "projects" / pid / "meta" / f"{release_id}.json"
         meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
         refs = [c.get("src", "") for c in (meta.get("changes") or [])] + [f.get("source", "") for f in (meta.get("figures") or [])]
@@ -567,6 +580,44 @@ class Service:
                    "figures": len(meta.get("figures") or []) or rec["changes_total"],
                    "note": "Sources are hashed when this record is exported; export it right after the release."}
         return Signer(self.data_dir / "keys").sign(payload)
+
+    @_closing
+    def release_proof_embed(self, pid: str, release_id: str, file: str) -> dict[str, Any]:
+        """Owner route: a copy of one released Office file that carries its own signed record, written beside it as ``name.proven.ext``. The released file is
+        not touched, and the copy is refused unless the file on disk is still the released bytes."""
+        from .embed import embed
+        from .signing import sha256_file
+
+        proj, _ = self._open(pid)
+        env = self.release_proof_export(pid, release_id)
+        entry = next((f for f in env["payload"]["files"] if f["file"] == file), None)
+        if entry is None or not entry.get("package_digest"):
+            raise ServiceError("that file is not a Word, PowerPoint or Excel file of this release")
+        src = (proj.root / file).resolve()
+        try:
+            src.relative_to(proj.root.resolve())
+        except ValueError:
+            raise ServiceError("the file is outside the project") from None
+        if sha256_file(src) != entry["sha256"]:
+            raise ServiceError("the file on disk is no longer the released file; restore it or export from a later release")
+        dst = src.with_name(src.stem + ".proven" + src.suffix)
+        dst.write_bytes(embed(src.read_bytes(), env))
+        return {"written": dst.relative_to(proj.root.resolve()).as_posix(), "key_fingerprint": env["key_fingerprint"]}
+
+    @_closing
+    def verify_embedded_file(self, pid: str, file: str) -> dict[str, Any]:
+        """Check a project file that carries its own record, on its own. Read-only."""
+        from .signing import verify_embedded
+
+        proj, _ = self._open(pid)
+        f = (proj.root / file).resolve()
+        try:
+            f.relative_to(proj.root.resolve())
+        except ValueError:
+            raise ServiceError("the file is outside the project") from None
+        if not f.is_file():
+            raise ServiceError("that file is not in the project")
+        return verify_embedded(f.read_bytes())
 
     @_closing
     def verify_proof(self, pid: str, envelope: Any) -> dict[str, Any]:

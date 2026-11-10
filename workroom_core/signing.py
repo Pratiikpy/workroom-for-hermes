@@ -114,5 +114,29 @@ def verify(envelope: dict[str, Any], folder: Path, source_folder: Path | None = 
             "release": body.get("release"), "figures": body.get("figures"), "proves": PROVES, "does_not_prove": DOES_NOT}
 
 
+def verify_embedded(data: bytes) -> dict[str, Any]:
+    """Check a file that carries its own signed record, with nothing else to hand: the signature, and that the file's content is what the record names."""
+    from . import embed
+
+    env = embed.extract(data)
+    if env is None:
+        return {"ok": False, "checks": [{"check": "record", "result": "FAIL", "detail": "this file carries no Workroom record (or Office rewrote it and dropped it)"}], "proves": PROVES, "does_not_prove": DOES_NOT}
+    out = verify(env, Path("."))  # signature only: the named files are checked below against this file itself
+    checks = [c for c in out["checks"] if c["check"] == "signature"]
+    ok = bool(checks) and checks[0]["result"] == "pass"
+    named = [f for f in (env.get("payload") or {}).get("files", []) if f.get("package_digest")]
+    if ok and not named:
+        checks.append({"check": "content", "result": "FAIL", "detail": "the record does not name a content digest, so it cannot be tied to this file"})
+    elif ok:
+        got = embed.package_digest(data)
+        match = any(f["package_digest"] == got for f in named)
+        checks.append({"check": "content", "result": "pass" if match else "FAIL",
+                       "detail": "the content of this file is the released content (the record itself does not count)" if match
+                       else "the content differs from the released content: the file was changed, or re-saved by a program that rewrites it, after release"})
+    body = env.get("payload") or {}
+    return {"ok": all(c["result"] == "pass" for c in checks), "checks": checks, "approved_by": body.get("approved_by"), "approved_at": body.get("approved_at"),
+            "release": body.get("release"), "figures": body.get("figures"), "proves": PROVES, "does_not_prove": DOES_NOT}
+
+
 PROVES = "Who approved these exact bytes, against which exact source files, and that nothing was changed since."
 DOES_NOT = "That the figures are true, that the sources are right, or that the person who holds the key is who they say they are."

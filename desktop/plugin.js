@@ -888,7 +888,13 @@ function ReleaseRecord({ api, pid, releaseId }) {
   const [text, setText] = useState(null)
   const [error, setError] = useState(null)
   const [signed, setSigned] = useState(null)
-  const exportProof = () => api('/release-proof', { project: pid, ref: releaseId }).then(r => setSigned(JSON.stringify(r, null, 1))).catch(e => setError(String(e && e.message ? e.message : e)))
+  const [embeddable, setEmbeddable] = useState([])
+  const [embedded, setEmbedded] = useState(null)
+  const exportProof = () => api('/release-proof', { project: pid, ref: releaseId }).then(r => {
+    setSigned(JSON.stringify(r, null, 1))
+    setEmbeddable(((r.payload && r.payload.files) || []).filter(f => f.package_digest).map(f => f.file))
+  }).catch(e => setError(String(e && e.message ? e.message : e)))
+  const embedInto = (file) => api('/release-proof-embed', { project: pid, ref: releaseId, text: file }).then(r => setEmbedded('Written beside the original as ' + r.written + '. The released file itself is unchanged.')).catch(e => setError(String(e && e.message ? e.message : e)))
   const load = () => api('/release-record', { project: pid, release_id: releaseId }).then(r => setText(r.text)).catch(e => setError(String(e && e.message ? e.message : e)))
   if (error) return h('span', { role: 'alert', style: { color: 'var(--ui-red, #dc2626)', fontSize: 12 } }, error)
   if (text === null) return btn('Open the record', load, { name: 'Open the record of this release' })
@@ -897,7 +903,9 @@ function ReleaseRecord({ api, pid, releaseId }) {
     h('div', { style: { ...css.row, margin: '6px 0' } }, btn('Export a signed proof of this release', exportProof, { name: 'Export a signed proof' }),
       h('span', { style: { ...css.muted, fontSize: 12 } }, 'Shows who approved these exact files against which exact sources. It does not prove the figures are true.')),
     signed ? h('div', null, h('textarea', { readOnly: true, value: signed, rows: 8, 'aria-label': 'Signed proof', style: { ...css.input, width: '100%', fontFamily: 'monospace', fontSize: 11 } }),
-      btn('Copy', () => { try { navigator.clipboard.writeText(signed) } catch (e) { /* the text is selectable */ } })) : null,
+      btn('Copy', () => { try { navigator.clipboard.writeText(signed) } catch (e) { /* the text is selectable */ } }),
+      embeddable.length ? h('div', { style: { ...css.row, margin: '6px 0' } }, embeddable.map(f => btn('Make a copy of ' + f + ' that carries this proof', () => embedInto(f), { key: f, name: 'Embed the proof in ' + f }))) : null,
+      embedded ? h('div', { role: 'status', style: { fontSize: 12, margin: '4px 0' } }, embedded) : null) : null,
     h('pre', { style: { whiteSpace: 'pre-wrap', fontSize: 12, margin: '6px 0', padding: 8, border: '1px solid var(--ui-stroke-secondary, #8884)', borderRadius: 6, maxHeight: 360, overflow: 'auto' }, tabIndex: 0, 'aria-label': 'Release record' }, text))
 }
 

@@ -72,3 +72,50 @@ def test_a_restored_release_cannot_be_exported(tmp_path: Path) -> None:
     svc.restore_release(pid, rid)
     with pytest.raises(ServiceError):
         svc.release_proof_export(pid, rid)
+
+
+def test_a_copy_carries_its_own_record_and_is_checked_on_its_own(tmp_path: Path) -> None:
+    import io
+    import zipfile
+
+    from workroom.workroom_core import embed
+
+    root, svc, pid, env = exported(tmp_path)
+    rid = env["payload"]["release"]
+    original = (root / "report.docx").read_bytes()
+    out = svc.release_proof_embed(pid, rid, "report.docx")
+    assert out["written"] == "report.proven.docx" and (root / "report.docx").read_bytes() == original
+    copy = (root / out["written"]).read_bytes()
+    assert embed.extract(copy)["signature"] == env["signature"]
+    good = svc.verify_embedded_file(pid, out["written"])
+    assert good["ok"] and checks(good) == {"signature": "pass", "content": "pass"}
+    # the copy's content is the released content: every part but two bookkeeping lists is byte-identical to the released file
+    a, b = zipfile.ZipFile(io.BytesIO(original)), zipfile.ZipFile(io.BytesIO(copy))
+    assert [n for n in a.namelist() if a.read(n) != b.read(n)] == ["[Content_Types].xml", "word/_rels/document.xml.rels"]
+    # changing one part after embedding is caught by the content check, and the signature still holds
+    tampered = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(copy)) as zin, zipfile.ZipFile(tampered, "w") as zout:
+        for item in zin.infolist():
+            body = zin.read(item.filename)
+            zout.writestr(item.filename, body.replace(b"120", b"999") if item.filename == "word/document.xml" else body)
+    (root / "t.docx").write_bytes(tampered.getvalue())
+    bad = svc.verify_embedded_file(pid, "t.docx")
+    assert not bad["ok"] and checks(bad) == {"signature": "pass", "content": "FAIL"}
+    # a forged record is caught by the signature
+    forged = json.loads(json.dumps(env))
+    forged["payload"]["approved_by"] = "someone-else"
+    (root / "f.docx").write_bytes(embed.embed(original, forged))
+    assert checks(svc.verify_embedded_file(pid, "f.docx"))["signature"] == "FAIL"
+    # a file with no record says so
+    assert not svc.verify_embedded_file(pid, "report.docx")["ok"]
+
+
+def test_the_copy_is_refused_when_the_file_is_no_longer_the_released_one(tmp_path: Path) -> None:
+    import pytest
+
+    from workroom.workroom_core.service import ServiceError
+
+    root, svc, pid, env = exported(tmp_path)
+    (root / "report.docx").write_bytes((root / "report.docx").read_bytes() + b"x")
+    with pytest.raises(ServiceError):
+        svc.release_proof_embed(pid, env["payload"]["release"], "report.docx")
