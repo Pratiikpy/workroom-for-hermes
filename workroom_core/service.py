@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 import secrets
@@ -974,6 +975,80 @@ class Service:
             raise ServiceError("the layout gate reads .pptx decks in the project folder")
         found = check_pptx(f.read_bytes())
         return {"path": path, "faults": as_dicts([x for x in found if x.severity == "block"]), "warnings": as_dicts([x for x in found if x.severity == "warn"])}
+
+    # ---- point-to-edit: one scoped text edit in a Word or PowerPoint file, staged for approval
+    @_closing
+    def find_text(self, pid: str, path: str, query: str) -> dict[str, Any]:
+        """Where a piece of text sits in a deck or report: the locator to give to stage_text_edit. Read-only."""
+        proj, _ = self._open(pid)
+        doc, rel = self._open_office(proj, path)
+        q = (query or "").strip().lower()
+        if not q:
+            raise ServiceError("give the text to look for")
+        out = []
+        for s in range(1, len(doc.slide_parts()) + 1):
+            for shape_id, name, text in doc.shapes(s):
+                if q in text.lower():
+                    loc = {"paragraph": int(name.split()[-1])} if rel.lower().endswith(".docx") else {"slide": s, "shape": shape_id}
+                    out.append({"locator": loc, "where": name if rel.lower().endswith(".pptx") else f"paragraph {loc['paragraph']}", "text": text[:200]})
+        return {"path": rel, "matches": out[:25]}
+
+    @staticmethod
+    def _open_office(proj: Project, path: str):
+        f = (proj.root / path).resolve()
+        try:
+            f.relative_to(proj.root.resolve())
+        except ValueError:
+            raise ServiceError("the file is outside the project") from None
+        if f.suffix.lower() not in (".pptx", ".docx") or not f.is_file():
+            raise ServiceError("point-to-edit works on .pptx and .docx files in the project folder")
+        return open_document(f.read_bytes(), f.name), f.relative_to(proj.root.resolve()).as_posix()
+
+    @_closing
+    def stage_text_edit(self, pid: str, path: str, locator: dict[str, Any], old: str, new: str) -> dict[str, Any]:
+        """Prepare one release that replaces ``old`` with ``new`` inside one named shape or paragraph and changes nothing else (checked: exactly one part of the
+        package differs, and a linked figure is never edited here). The owner approves; the files are unchanged until then."""
+        import zipfile
+
+        from .match.numbers import parse_numbers
+        from .ooxml.runs import EditError
+
+        proj, ctl = self._open(pid)
+        self._integrity(pid, proj, ctl)
+        if not isinstance(old, str) or not isinstance(new, str) or not old.strip() or old == new:
+            raise ServiceError("give the exact text to replace and different new text")
+        if len(old) > 2000 or len(new) > 2000:
+            raise ServiceError("an edit is limited to 2000 characters")
+        doc, rel = self._open_office(proj, path)
+        before = (proj.root / rel).read_bytes()
+        tied = {t.raw for t in proj.ties() if t.deck == rel and t.state in ("accepted", "confirmed")}
+        touched = {n.raw for n in parse_numbers(old)} | {n.raw for n in parse_numbers(new)}
+        if tied & touched:
+            raise ServiceError("that text holds a figure Workroom keeps linked to its source; change the figure in the source and refresh instead of editing it here")
+        try:
+            if rel.lower().endswith(".docx"):
+                doc.edit_text(int(locator["paragraph"]), old, new)
+            else:
+                doc.edit_text(int(locator["slide"]), int(locator["shape"]), old, new)
+        except (EditError, KeyError, TypeError, ValueError) as exc:
+            raise ServiceError(f"could not make that edit: {exc}") from None
+        data, report = doc.serialize()
+        if len(report.parts_changed) != 1:
+            raise ServiceError(f"the edit would have touched {len(report.parts_changed)} parts of the file; refusing")
+        a, b = zipfile.ZipFile(io.BytesIO(before)), zipfile.ZipFile(io.BytesIO(data))
+        collateral = [n for n in a.namelist() if n not in report.parts_changed and (n not in b.namelist() or a.read(n) != b.read(n))]
+        if collateral:
+            raise ServiceError("the edit would have changed other parts of the file; refusing: " + ", ".join(collateral[:3]))
+        rid = ctl.stage({rel: data}, mode="inplace")
+        meta_dir = self.data_dir / "projects" / pid / "meta"
+        meta_dir.mkdir(parents=True, exist_ok=True)
+        change = {"deck": rel, "slide": locator.get("slide", 0), "old_text": old, "new_text": new, "src": "", "old_value": 0, "new_value": 0, "where": "a scoped text edit"}
+        (meta_dir / f"{rid}.json").write_text(json.dumps({"changes": [change], "held": [], "flags": [], "coverage": {}, "notes": [f"only {report.parts_changed[0]} differs; every other part of the file is byte-identical"]}), encoding="utf-8")
+        try:
+            ctl.mark_verified(rid, [])
+        except NotReady:
+            return {"release_id": rid, "state": "blocked"}
+        return {"release_id": rid, "state": "awaiting_approval", "digest": ctl.digest(rid), "changes": [change], "part_changed": report.parts_changed[0], "other_parts_identical": True}
 
     # ---- one inbox: everything that waits for the owner, in every project
     def attention(self) -> dict[str, Any]:

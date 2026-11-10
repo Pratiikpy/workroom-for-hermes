@@ -41,6 +41,8 @@ provides_tools:
   - workroom_room_remember
   - workroom_deliverable_register
   - workroom_attention
+  - workroom_find_text
+  - workroom_edit_text
   - workroom_verify
   - workroom_layout_check
 provides_hooks:

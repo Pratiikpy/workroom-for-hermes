@@ -110,6 +110,21 @@ VERIFY_SCHEMA = {
     "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "record": {"type": "object", "description": "The exported record"}}, "required": ["project", "record"]},
 }
 
+FIND_TEXT_SCHEMA = {
+    "name": "workroom_find_text",
+    "description": "Find where some text sits in a .pptx deck or .docx report in the project: returns the locator (slide and shape, or paragraph) that workroom_edit_text needs. Read-only.",
+    "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "path": {"type": "string"}, "query": {"type": "string"}}, "required": ["project", "path", "query"]},
+}
+
+EDIT_TEXT_SCHEMA = {
+    "name": "workroom_edit_text",
+    "description": ("Change a few words in one place of a .pptx deck or .docx report: pass the locator from workroom_find_text, the exact old text and the new text. Workroom changes only that "
+                    "shape or paragraph, checks that every other part of the file is byte-identical, and stages it for the owner to approve; nothing changes until then. "
+                    "It refuses to edit a figure that is linked to a source (change the source and refresh instead)."),
+    "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "path": {"type": "string"}, "locator": {"type": "object", "description": "{slide, shape} or {paragraph}"},
+                                                    "old": {"type": "string"}, "new": {"type": "string"}}, "required": ["project", "path", "locator", "old", "new"]},
+}
+
 ATTENTION_SCHEMA = {
     "name": "workroom_attention",
     "description": ("List everything that waits for the owner across all Workroom projects (releases to approve, memory to decide, deliverables to review, proposals, links to confirm), "
@@ -285,6 +300,8 @@ workroom_recipe_status = _wrap(lambda a: service().recipe_status(a["project"]))
 workroom_release_record = _wrap(lambda a: service().release_record(a["project"], a["release"]))
 workroom_layout_check = _wrap(lambda a: service().layout_check(a["project"], a["path"]))
 workroom_verify = _wrap(lambda a: service().verify_proof(a["project"], a["record"]))
+workroom_find_text = _wrap(lambda a: service().find_text(a["project"], a["path"], a["query"]))
+workroom_edit_text = _wrap(lambda a: _stage_summary({**service().stage_text_edit(a["project"], a["path"], a["locator"], a["old"], a["new"]), "project": a["project"]}))
 workroom_attention = _wrap(lambda a: service().attention())
 workroom_deliverable_register = _wrap(lambda a: service().deliverable_register(a["project"], a["path"], a.get("note", ""), by="agent"))
 workroom_room_read = _wrap(lambda a: service().room_read(a["project"]))

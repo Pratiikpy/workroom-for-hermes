@@ -242,6 +242,23 @@ class Doc:
         self._dirty.add(part)
         return res
 
+    def edit_text(self, paragraph: int, old: str, new: str, occurrence: int | None = None) -> Replacement:
+        """Replace one occurrence of ``old`` inside body paragraph number ``paragraph`` (as listed by ``shapes()``), changing only that paragraph's runs."""
+        part = self._parts[0]
+        paras = self._paragraphs(part)
+        if not 0 <= paragraph < len(paras):
+            raise EditError("there is no such paragraph")
+        p = paras[paragraph]
+        hits = find_all(p, old, WORD)
+        if not hits:
+            raise EditError(f"text {old!r} not found in that paragraph")
+        if len(hits) > 1 and occurrence is None:
+            raise EditError(f"text {old!r} occurs {len(hits)} times in that paragraph; choose one")
+        res = replace_once(p, old, new, WORD, occurrence=occurrence if len(hits) > 1 else None)
+        self._merged = self._merged or res.formats_merged
+        self._dirty.add(part)
+        return res
+
     def serialize(self) -> tuple[bytes, EditReport]:
         if not self._dirty:
             return rewrite(self.pkg, {}), EditReport((), self._merged)
