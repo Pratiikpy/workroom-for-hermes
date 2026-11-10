@@ -32,6 +32,24 @@ These are from a real Hermes Desktop v0.23.0 session on Windows (not mockups), t
 
 The whole first-run loop (make the sample, approve the deck, a new quarter arrives, see what changes, approve the update) is in [`docs/demo/first-run.gif`](docs/demo/first-run.gif).
 
+## A room around your documents (Windows only so far)
+
+Beyond keeping documents in step with their sources, Workroom gives every project folder a shared room that the agent works inside and you stay in charge of. Each piece below is built, tested and listed with its evidence in [`bench/EVIDENCE.md`](bench/EVIDENCE.md); what is not verified is named next to it.
+
+- **Room.** Sources, memory the agent proposes and you approve or reject (with where it came from), and rules such as protected paths. Only you decide; the agent can propose.
+- **Undo for the agent's file changes.** A copy of each file is kept before the agent changes it, and Restore puts it back. Changes made by shell commands are covered for the common cases (rm, mv, cp, sed -i, redirects) and not for everything.
+- **Made tab.** Every file the agent produced, with a preview, a comparison with the version before, and approval of the exact version you accept. One inbox across all projects lists what waits for you.
+- **Figure proof.** Each figure in the agent's text is marked *supported by a source*, *calculation verified* or *not verified*, from what the agent actually read in this session. It never says "true". On the test set the rule that flags a figure with no source did not reach its 95% bar; the measured numbers are in the evidence file.
+- **Decks drawn without Office.** A deck or report is drawn from its own shapes and text, so the preview works with no Office program installed. It is a structural drawing, not a typeset page.
+- **Layout check for decks the agent builds.** Overflowing text, tiny text, off-slide shapes, low contrast and overlaps are found before you see the deck. On 210 seeded faults it found all 210 and flagged none of 210 clean slides, but those faults were written by the same author; on files other people made the false-alarm rate is not verified.
+- **Point-to-edit.** Change a few words in one place of a deck or report: only that shape or paragraph is touched, every other part of the file stays byte-identical, a figure linked to a source is refused, and you approve the result. 50 of 50 edits on real files had no collateral change.
+- **Signed proof of a release, also inside the file.** A copy of the released Word, PowerPoint or Excel file can carry its own signed record. It survives the real Office programs opening and saving it, but a program that rewrites the file makes the content check fail, by design: the record proves the released version.
+- **Scheduled checks.** A Hermes cron job prepares a release when a source changes and never approves or publishes it.
+
+![The Made tab: a memo with each figure marked supported or not verified, and the evidence for the selected figure](docs/screenshots/10-made-tab-figure-proof.png)
+
+![A deck drawn from its own shapes with no Office program, shown for approval](docs/screenshots/11-deck-drawn-without-office.png)
+
 ## How it works
 
 1. **Find the links.** Workroom reads decks (.pptx), reports (.docx) and workbooks (.xlsx) and links each number to a source cell using the value, the words around it, the period and the units. Equal numbers never create a link by themselves. When it is not sure, it asks you; it never guesses.
