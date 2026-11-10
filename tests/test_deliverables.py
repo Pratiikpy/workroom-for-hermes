@@ -86,3 +86,19 @@ def test_a_version_from_before_the_file_existed_is_explained(tmp_path: Path) -> 
     (root / "new.md").write_text("made")
     sid = svc.snapshots(pid)[0]["id"]
     assert svc.deliverable_preview(pid, "new.md", sid)["kind"] == "none"
+
+
+def test_one_inbox_lists_what_waits_for_the_owner_in_every_project(tmp_path: Path) -> None:
+    root, svc, pid = project(tmp_path)
+    other = tmp_path / "other"
+    other.mkdir()
+    pid2 = svc.add_project(str(other))["project"]
+    svc.room_propose_memory(pid, "Round to thousands", "preference", "chat")
+    (other / "memo.md").write_text("draft")
+    svc.deliverable_register(pid2, "memo.md", "made by a script")
+    att = svc.attention()
+    kinds = {(i["project"], i["kind"]) for i in att["items"]}
+    assert (pid, "memory") in kinds and (pid2, "deliverable") in kinds and att["could_not_check"] == []
+    assert att["counts"]["memory"] == 1 and att["total"] == len(att["items"])
+    svc.deliverable_approve(pid2, "memo.md")
+    assert (pid2, "deliverable") not in {(i["project"], i["kind"]) for i in svc.attention()["items"]}

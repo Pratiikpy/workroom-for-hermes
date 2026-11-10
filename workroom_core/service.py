@@ -923,6 +923,39 @@ class Service:
         """Owner route (never an agent tool)."""
         return self._with_snaps(pid, lambda st: st.restore(snap_id))
 
+    # ---- one inbox: everything that waits for the owner, in every project
+    def attention(self) -> dict[str, Any]:
+        """Every decision owed to the owner across all projects, newest kind first: releases to approve, memory to decide, deliverables to review,
+        instruction and recipe proposals, links and column questions to answer. Each item says what it is, where, and which panel settles it."""
+        items: list[dict[str, Any]] = []
+        failed: list[dict[str, str]] = []
+        for p in self.projects():
+            pid, folder = p["project"], p["folder"]
+            name = Path(folder).name
+
+            def add(kind: str, title: str, panel: str, ref: str = "", weight: int = 1) -> None:
+                items.append({"project": pid, "folder": folder, "name": name, "kind": kind, "title": title, "panel": panel, "ref": ref, "weight": weight})
+
+            steps = (
+                ("releases", lambda: [add("release", f"A release with {len(r.get('changes', []))} change(s) is ready to approve", "release", r["release_id"], 3) for r in self.awaiting(pid)]),
+                ("memory", lambda: [add("memory", f"Remember? {m['text'][:90]}", "room", str(m["id"]), 2) for m in self._with_room(pid, lambda room: room.memory("proposed"))]),
+                ("deliverables", lambda: [add("deliverable", f"{d['path']} is {d['status']}", "deliverables", d["path"], 2) for d in self.deliverables(pid) if d["status"] in ("not reviewed", "changed since approval")]),
+                ("instructions", lambda: [add("instruction", f"A proposed change to {x['name']}", "instructions", x["proposal"], 2) for x in self.proposals(pid)]),
+                ("recipe", lambda: [add("recipe", "A proposed recipe waits for approval", "recipe", "", 2) for _ in (self.recipe_status(pid).get("pending") or [])]),
+                ("links", lambda: (lambda n: [add("links", f"{n} figure link(s) need your confirmation", "links", "", 1)] if n else [])(sum(1 for t in self.ties(pid) if t.get("state") == "confirm"))),
+                ("columns", lambda: (lambda n: [add("columns", f"{n} report column(s) fit two workbook columns", "links", "", 1)] if n else [])(len(self.column_questions(pid)))),
+            )
+            for label, step in steps:
+                try:
+                    step()
+                except Exception as exc:  # noqa: BLE001  one broken project or panel must not hide the rest; it is reported, not swallowed
+                    failed.append({"project": pid, "part": label, "error": f"{type(exc).__name__}: {str(exc)[:160]}"})
+        items.sort(key=lambda x: (-x["weight"], x["name"], x["kind"]))
+        counts: dict[str, int] = {}
+        for it in items:
+            counts[it["kind"]] = counts.get(it["kind"], 0) + 1
+        return {"total": len(items), "counts": counts, "items": items, "could_not_check": failed}
+
     # ---- deliverables: what the agent produced or changed, previewed, compared and approved (see deliverables.py)
     def _with_both(self, pid: str, fn):
         from .room import Room, RoomError

@@ -96,6 +96,13 @@ ROOM_REMEMBER_SCHEMA = {
                                                     "source": {"type": "string", "description": "Where this came from, e.g. the owner's words or the file"}}, "required": ["project", "text", "kind", "source"]},
 }
 
+ATTENTION_SCHEMA = {
+    "name": "workroom_attention",
+    "description": ("List everything that waits for the owner across all Workroom projects (releases to approve, memory to decide, deliverables to review, proposals, links to confirm), "
+                    "so you can tell the owner what needs them. Read-only: you cannot decide any of these."),
+    "parameters": {"type": "object", "properties": {}},
+}
+
 DELIVERABLE_SCHEMA = {
     "name": "workroom_deliverable_register",
     "description": ("List a file you produced inside the project folder as a deliverable, so the owner sees it under Deliverables with a preview, earlier versions and an approve button. "
@@ -261,6 +268,7 @@ def _directive(staged: dict[str, Any]) -> str:
 workroom_recipe_propose = _wrap(lambda a: service().recipe_propose(a["project"], a["report"]))
 workroom_recipe_status = _wrap(lambda a: service().recipe_status(a["project"]))
 workroom_release_record = _wrap(lambda a: service().release_record(a["project"], a["release"]))
+workroom_attention = _wrap(lambda a: service().attention())
 workroom_deliverable_register = _wrap(lambda a: service().deliverable_register(a["project"], a["path"], a.get("note", ""), by="agent"))
 workroom_room_read = _wrap(lambda a: service().room_read(a["project"]))
 workroom_room_add_source = _wrap(lambda a: service().room_add_source(a["project"], a["kind"], a["ref"], a.get("label", ""), by="agent"))

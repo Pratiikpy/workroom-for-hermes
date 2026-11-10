@@ -262,6 +262,11 @@ class DeliverableBody(BaseModel):
     page: int = 1
 
 
+@router.post("/attention")
+async def attention() -> dict:
+    return _guard(lambda: _service().attention())
+
+
 @router.post("/deliverables")
 async def deliverables(body: DeliverableBody) -> dict:
     return _guard(lambda: {"items": _service().deliverables(body.project)})

@@ -450,6 +450,22 @@ function Deliverables({ api, pid, busy, run, ctx }) {
       open === it.path ? h(DeliverableView, { api, pid, item: it, busy, run, ctx, onChanged: load }) : null)))
 }
 
+function NeedsYou({ api, pid, setPid, refreshKey }) {
+  const [att, setAtt] = useState(null)
+  useEffect(() => { api('/attention', {}).then(setAtt).catch(() => setAtt(null)) }, [api, pid, refreshKey])
+  if (!att) return null
+  const label = { release: 'release', memory: 'memory', deliverable: 'deliverable', instruction: 'instruction', recipe: 'recipe', links: 'links', columns: 'columns' }
+  const parts = Object.entries(att.counts).map(([k, n]) => `${n} ${label[k] || k}${n === 1 ? '' : 's'}`)
+  return h('section', { style: { ...css.card, borderColor: att.total ? 'var(--ui-accent, #3b82f6)' : undefined }, 'aria-label': 'Needs you' },
+    h('h2', { style: css.h2 }, att.total ? `Needs you · ${att.total}` : 'Nothing needs you'),
+    att.total ? h('div', { style: { ...css.muted, fontSize: 12, marginBottom: 6 } }, parts.join(' · ')) : h('div', { style: { ...css.muted, fontSize: 12 } }, 'No release, memory, deliverable or question is waiting in any project.'),
+    att.items.slice(0, 12).map((it, i) => h('div', { key: i, style: { ...css.row, justifyContent: 'space-between', padding: '3px 0', borderTop: i ? '1px solid var(--ui-stroke-secondary, #8883)' : 'none' } },
+      h('span', { style: { fontSize: 13 } }, h('span', { style: css.chip }, it.name), ' ', it.title),
+      it.project !== pid ? btn('Go to project', () => setPid(it.project)) : h('span', { style: { ...css.muted, fontSize: 12 } }, 'in this project, below'))),
+    att.items.length > 12 ? h('div', { style: { ...css.muted, fontSize: 12 } }, `and ${att.items.length - 12} more`) : null,
+    att.could_not_check.length ? h('div', { role: 'alert', style: { color: 'var(--ui-amber, #d97706)', fontSize: 12, marginTop: 6 } }, `${att.could_not_check.length} part${att.could_not_check.length === 1 ? '' : 's'} could not be checked: ${att.could_not_check.map(f => `${f.part} (${f.error})`).join('; ').slice(0, 300)}`) : null)
+}
+
 const stateLabel = { accepted: 'linked automatically', confirmed: 'linked by you', confirm: 'needs you', skipped: 'left alone', held: 'you changed it by hand' }
 
 function Why({ info, onClose }) {
@@ -892,6 +908,7 @@ function WorkroomPage({ ctx }) {
 
   return h('div', { style: css.page, 'aria-busy': busy },
     h('div', null, h('h1', { style: css.title }, 'Workroom'), h('p', { style: css.sub }, 'Keeps your reports and decks in step with the numbers behind them. It changes only what must change, and only after you approve.')),
+    h(NeedsYou, { api, pid, setPid, refreshKey: past.length + (busy ? 1 : 0) }),
     h('section', { style: css.card, 'aria-label': 'Project' },
       h('h2', { style: css.h2 }, 'Project'),
       projects.length ? h('div', { style: { ...css.row, marginBottom: 8 } },
