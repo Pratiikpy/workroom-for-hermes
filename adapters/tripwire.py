@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import fnmatch
 import hashlib
+import json
 import os
 import threading
 import time
@@ -31,6 +32,14 @@ KEEP_FILE = 2 * 1024 * 1024  # an ordinary file bigger than this is watched but 
 MAX_TOTAL = 200 * 1024 * 1024
 MAX_FILES = 3000
 _SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv"}
+# Tools that only read, or that are Workroom's own, are not watched. Everything else is: a shell, a code tool, or an editing tool that ANOTHER plugin brought
+# (a real model, stopped in the shell, used a second plugin's pptx_edit_shape tool to edit the deck directly).
+_READING = ("read_", "search_", "web_", "browser_", "vision", "tool_", "session_", "skill", "todo", "clarify", "memory", "get_", "list_", "office_inspect", "pptx_inspect",
+            "pptx_diff", "docx_inspect", "xlsx_inspect", "cron", "image_", "tts", "delegate")
+
+
+def watched(tool_name: str) -> bool:
+    return tool_name not in ("", None) and not tool_name.startswith("workroom_") and not tool_name.startswith(_READING)
 
 MESSAGE = ("Workroom put {names} back as it was: managed Office files and the files this project protects are not changed directly, because that would skip the "
            "verified release or the owner's rules. What you wrote is kept for the owner to look at. To change figures, use workroom_plan and workroom_stage_release; "
@@ -74,9 +83,10 @@ def make_tripwire(projects: Callable[[], list[dict[str, Any]]], policy_of: Calla
 
     def before(tool_name: str = "", args: dict[str, Any] | None = None, **kwargs: Any) -> None:
         try:
-            if tool_name not in SHELL_TOOLS:
+            if not watched(tool_name):
                 return None
-            state: dict[str, Any] = {"at": time.time(), "projects": {}}
+            shell = tool_name in SHELL_TOOLS
+            state: dict[str, Any] = {"at": time.time(), "projects": {}, "shell": shell}
             total = 0
             for p in projects():
                 root = Path(p["folder"]).resolve()
@@ -93,6 +103,8 @@ def make_tripwire(projects: Callable[[], list[dict[str, Any]]], policy_of: Calla
                     except OSError:
                         continue
                     managed = _managed(rel, protected)
+                    if not managed and not shell:
+                        continue  # an editing tool that is not a shell is watched for managed files only; ordinary files are not copied for it
                     entry: dict[str, Any] = {"managed": managed, "size": st.st_size, "mtime": st.st_mtime_ns, "digest": None, "data": None}
                     if st.st_size <= MAX_FILE and (managed or st.st_size <= KEEP_FILE):
                         try:
@@ -125,7 +137,7 @@ def make_tripwire(projects: Callable[[], list[dict[str, Any]]], policy_of: Calla
 
     def after(tool_name: str = "", args: dict[str, Any] | None = None, result: Any = None, **kwargs: Any):
         try:
-            if tool_name not in SHELL_TOOLS or not isinstance(result, str):
+            if not watched(tool_name):
                 return None
             with lock:
                 state = pending.pop(key_of(kwargs), None)
@@ -208,7 +220,8 @@ def make_tripwire(projects: Callable[[], list[dict[str, Any]]], policy_of: Calla
             text = MESSAGE.format(names=", ".join(sorted(set(reverted))) or "the file") if reverted else ""
             if unrestored:
                 text += (" " if text else "") + "Could not put back " + ", ".join(unrestored) + " (too large to keep a copy, or in use); the owner can Restore it from the changes list."
-            return result + "\n\n[Workroom] " + text
+            suffix = "\n\n[Workroom] " + text
+            return (result if isinstance(result, str) else json.dumps(result, default=str)) + suffix
         except Exception:  # noqa: BLE001
             return None
 

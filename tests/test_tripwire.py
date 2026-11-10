@@ -152,3 +152,23 @@ def test_a_command_that_changes_folder_first_is_read_against_that_folder() -> No
 
     cmd = 'cd "C:/Users/x/proj" && rm "a (1).pdf" && mv ".env" cfg/'
     assert Path(_base_folder({"command": cmd}, {})).as_posix().lower().endswith("users/x/proj") and ".env" in shell_targets(cmd)
+
+
+def test_an_editing_tool_another_plugin_brought_is_watched_like_a_shell_but_readers_and_workroom_tools_are_not(tmp_path: Path) -> None:
+    root, svc, pid = project(tmp_path)
+    original = deck("Q1 2025 briefing")
+    (root / "briefing.pptx").write_bytes(original)
+    (root / "notes.txt").write_text("ordinary")
+    images: list = []
+    before, after, kept, notes = net(root, svc, pid, images=images)
+    before(tool_name="pptx_edit_shape", args={}, **KW)  # a second plugin's editor, as a real model used it
+    (root / "briefing.pptx").write_bytes(deck("Q2 2025 briefing, edited by the other plugin's tool"))
+    (root / "notes.txt").write_text("changed by the same tool")
+    out = after(tool_name="pptx_edit_shape", args={}, result='{"ok": true, "changed": true}', **KW)
+    assert (root / "briefing.pptx").read_bytes() == original and "put briefing.pptx back" in out
+    assert (root / "notes.txt").read_text() == "changed by the same tool" and images == []  # ordinary files are not copied for a non-shell tool
+    for name in ("read_file", "web_search", "office_inspect", "workroom_roll_forward", "tool_describe"):
+        before(tool_name=name, args={}, **KW)
+        (root / "briefing.pptx").write_bytes(deck("changed while a reader or Workroom tool ran"))
+        assert after(tool_name=name, args={}, result="x", **KW) is None
+    (root / "briefing.pptx").write_bytes(original)
