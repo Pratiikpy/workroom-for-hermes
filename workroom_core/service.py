@@ -923,6 +923,97 @@ class Service:
         """Owner route (never an agent tool)."""
         return self._with_snaps(pid, lambda st: st.restore(snap_id))
 
+    # ---- deliverables: what the agent produced or changed, previewed, compared and approved (see deliverables.py)
+    def _with_both(self, pid: str, fn):
+        from .room import Room, RoomError
+        from .snapshots import SnapshotError, SnapshotStore
+
+        proj, _ = self._open(pid)
+        pid = self._resolve(pid)
+        state = self.data_dir / "projects" / pid
+        room, store = Room(state, proj.root), SnapshotStore(state, proj.root)
+        try:
+            return fn(room, store, proj.root)
+        except (RoomError, SnapshotError) as exc:
+            raise ServiceError(str(exc)) from None
+        finally:
+            room.close()
+            store.close()
+
+    @_closing
+    def deliverables(self, pid: str) -> list[dict[str, Any]]:
+        """Every file a tool changed or the agent registered, newest first, with its kind, versions and whether the owner approved what is there now."""
+        from .deliverables import kind_of
+
+        def build(room, store, root):
+            registered, approved = room.registered(), room.approvals()
+            order = store.paths() + [p for p in registered if p not in store.paths()]
+            out = []
+            for rel in order:
+                f = root / rel
+                now_sha = hashlib.sha256(f.read_bytes()).hexdigest() if f.is_file() else None
+                versions = [v for v in store.versions(rel) if v["state"] == "saved" and v["sha"] != now_sha]
+                ap = approved.get(rel)
+                status = "missing" if now_sha is None else ("approved" if ap and ap["sha"] == now_sha else ("changed since approval" if ap else "not reviewed"))
+                out.append({"path": rel, "kind": kind_of(rel), "exists": now_sha is not None, "size": f.stat().st_size if now_sha else 0,
+                            "modified": f.stat().st_mtime if now_sha else None, "versions": [{"id": v["id"], "at": v["at"], "tool": v["tool"]} for v in versions],
+                            "status": status, "registered": registered.get(rel), "approved": ap})
+            return out
+
+        return self._with_both(pid, build)
+
+    @_closing
+    def deliverable_preview(self, pid: str, path: str, version: int = 0, page: int = 1) -> dict[str, Any]:
+        """The file as it is now (version 0) or as it was before a change (a version id from the list)."""
+        from .deliverables import kind_of, preview
+
+        def build(room, store, root):
+            rel = room._check_ref("file", path)
+            if version:
+                data = store.version_bytes(version)
+                if data is None:
+                    return {"kind": "none", "why": "this version is the moment before the file existed"}
+            else:
+                f = root / rel
+                if not f.is_file():
+                    return {"kind": "none", "why": "the file is not in the folder any more"}
+                data = f.read_bytes()
+            return {"path": rel, "version": version, **preview(data, kind_of(rel), rel, page)}
+
+        return self._with_both(pid, build)
+
+    @_closing
+    def deliverable_diff(self, pid: str, path: str, version: int) -> dict[str, Any]:
+        """What changed between an earlier version and the file as it is now."""
+        from .deliverables import diff, kind_of
+
+        def build(room, store, root):
+            rel = room._check_ref("file", path)
+            old = store.version_bytes(version)
+            f = root / rel
+            new = f.read_bytes() if f.is_file() else None
+            return {"path": rel, "version": version, **diff(old, new, kind_of(rel), f"{rel} (before)", f"{rel} (now)")}
+
+        return self._with_both(pid, build)
+
+    @_closing
+    def deliverable_approve(self, pid: str, path: str) -> dict[str, Any]:
+        """Owner route (never an agent tool): approve exactly the bytes that are in the file now."""
+        def build(room, store, root):
+            rel = room._check_ref("file", path)
+            f = root / rel
+            if not f.is_file():
+                raise ServiceError("the file is not in the folder")
+            sha = hashlib.sha256(f.read_bytes()).hexdigest()
+            room.approve_version(rel, sha, "owner")
+            return {"path": rel, "approved_sha": sha}
+
+        return self._with_both(pid, build)
+
+    @_closing
+    def deliverable_register(self, pid: str, path: str, note: str = "", by: str = "agent") -> dict[str, Any]:
+        return {"path": self._with_both(pid, lambda room, store, root: room.register_deliverable(path, note, by)), "next": "It is listed under Deliverables for the owner to review."}
+
     # ---- the Room: sources, memory with provenance, audit (see room.py)
     def _with_room(self, pid: str, fn):
         from .room import Room, RoomError

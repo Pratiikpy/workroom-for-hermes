@@ -38,6 +38,7 @@ provides_tools:
   - workroom_room_read
   - workroom_room_add_source
   - workroom_room_remember
+  - workroom_deliverable_register
 provides_hooks:
   - pre_tool_call
   - pre_llm_call

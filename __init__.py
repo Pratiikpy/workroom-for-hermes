@@ -36,6 +36,7 @@ TOOLS = (
     ("workroom_room_read", tools.ROOM_READ_SCHEMA, tools.workroom_room_read, "Read the project's Room: authorised instructions, sources, approved memory.", READ_ONLY_TOOLSET),
     ("workroom_room_add_source", tools.ROOM_SOURCE_SCHEMA, tools.workroom_room_add_source, "Add a source (file, folder, link or note) to the project's Room.", FULL_TOOLSET),
     ("workroom_room_remember", tools.ROOM_REMEMBER_SCHEMA, tools.workroom_room_remember, "Propose something for the project's Room memory; the owner decides.", FULL_TOOLSET),
+    ("workroom_deliverable_register", tools.DELIVERABLE_SCHEMA, tools.workroom_deliverable_register, "List a file you produced as a deliverable for the owner to review.", FULL_TOOLSET),
 )
 
 

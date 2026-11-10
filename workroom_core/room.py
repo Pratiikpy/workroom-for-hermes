@@ -38,6 +38,8 @@ class Room:
             self.db.execute("CREATE TABLE IF NOT EXISTS memory (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT, text TEXT, source TEXT, state TEXT, proposed_by TEXT,"
                             " proposed_at REAL, decided_by TEXT, decided_at REAL, history TEXT)")
             self.db.execute("CREATE TABLE IF NOT EXISTS policy (key TEXT PRIMARY KEY, value TEXT)")
+            self.db.execute("CREATE TABLE IF NOT EXISTS deliverables (path TEXT PRIMARY KEY, registered_by TEXT, note TEXT, at REAL)")
+            self.db.execute("CREATE TABLE IF NOT EXISTS approvals (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT, sha TEXT, at REAL, by TEXT)")
             self.db.execute("CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY AUTOINCREMENT, at REAL, actor TEXT, event TEXT, detail TEXT)")
 
     def close(self) -> None:
@@ -185,3 +187,30 @@ class Room:
             self.db.execute("INSERT OR REPLACE INTO policy (key, value) VALUES ('policy', ?)", (json.dumps(value),))
             self._log(by, "policy_changed", {"protected": len(value["protected"]), "confirm_delete": value["confirm_delete"]})
         return value
+
+    # ---- deliverables: files registered as work product, and the owner's approval of an exact version
+    def register_deliverable(self, path: str, note: str, by: str) -> str:
+        actor = self._actor(by)
+        rel = self._check_ref("file", path)
+        note = (note or "").strip()[:MAX_LABEL]
+        with self.db:
+            self.db.execute("INSERT OR REPLACE INTO deliverables (path, registered_by, note, at) VALUES (?,?,?,?)", (rel, actor, note, time.time()))
+            self._log(actor, "deliverable_registered", {"path": rel})
+        return rel
+
+    def registered(self) -> dict[str, dict]:
+        return {r["path"]: {"registered_by": r["registered_by"], "note": r["note"], "at": r["at"]} for r in self.db.execute("SELECT * FROM deliverables")}
+
+    def approve_version(self, path: str, sha: str, by: str) -> None:
+        if self._actor(by) != "owner":
+            raise RoomError("only the owner approves a deliverable")
+        rel = self._check_ref("file", path)
+        with self.db:
+            self.db.execute("INSERT INTO approvals (path, sha, at, by) VALUES (?,?,?,?)", (rel, sha, time.time(), by))
+            self._log(by, "deliverable_approved", {"path": rel, "sha": sha[:16]})
+
+    def approvals(self) -> dict[str, dict]:
+        out: dict[str, dict] = {}
+        for r in self.db.execute("SELECT * FROM approvals ORDER BY id"):
+            out[r["path"]] = {"sha": r["sha"], "at": r["at"], "by": r["by"]}
+        return out

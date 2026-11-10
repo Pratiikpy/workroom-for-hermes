@@ -102,3 +102,19 @@ class SnapshotStore:
         with self.db:
             self.db.execute("UPDATE snaps SET restored_at=? WHERE id=?", (time.time(), r["id"]))
         return {"path": r["path"], "restored_to": "earlier content" if r["state"] == "saved" else "not existing (the new file was moved to the recovery folder)"}
+
+    def paths(self) -> list[str]:
+        return [r["path"] for r in self.db.execute("SELECT path, MAX(id) AS last FROM snaps GROUP BY path ORDER BY last DESC")]
+
+    def versions(self, rel: str) -> list[dict]:
+        """Earlier versions of one file, oldest first: each before-image the store kept (a file that did not exist yet has none)."""
+        return [{"id": r["id"], "at": r["at"], "tool": r["tool"], "sha": r["sha"], "state": r["state"], "size": r["size"]}
+                for r in self.db.execute("SELECT * FROM snaps WHERE path=? ORDER BY id", (rel,))]
+
+    def version_bytes(self, snap_id: int) -> bytes | None:
+        r = self.db.execute("SELECT * FROM snaps WHERE id=?", (int(snap_id),)).fetchone()
+        if r is None:
+            raise SnapshotError("unknown version")
+        if r["state"] != "saved":
+            return None
+        return (self.dir / "objects" / r["sha"]).read_bytes()

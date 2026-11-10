@@ -393,6 +393,63 @@ function Policy({ api, pid, busy, run }) {
     btn('Save', () => run(async () => { await api('/room-policy-set', { project: pid, protected: patterns, confirm_delete: pol.confirm_delete }); await load() }, () => 'Saved.'), { disabled: busy, primary: true }))
 }
 
+function DeliverableView({ api, pid, item, busy, run, ctx, onChanged }) {
+  const [shown, setShown] = useState(null)
+  const [cmp, setCmp] = useState(null)
+  const [version, setVersion] = useState(0)
+  const [page, setPage] = useState(1)
+  useEffect(() => { setCmp(null); api('/deliverable-preview', { project: pid, path: item.path, version, page }).then(setShown).catch(e => setShown({ kind: 'none', why: String(e.message || e) })) }, [api, pid, item.path, version, page])
+  const ask = () => {
+    const text = `About ${item.path}${version ? ' (an earlier version)' : ''}: `
+    run(async () => { const ok = await Promise.resolve(host.composer.insertText(null, text, { mode: 'block' })); if (!ok) throw new Error('Could not reach a chat. Open one and try again.') }, () => 'Added to the chat box.')
+  }
+  const when = (t) => new Date(t * 1000).toLocaleString()
+  let body = null
+  if (!shown) body = h('div', { style: css.muted }, 'Loading...')
+  else if (shown.kind === 'text') body = h('pre', { style: { whiteSpace: 'pre-wrap', maxHeight: 320, overflow: 'auto', fontSize: 12, margin: '6px 0', padding: 8, border: '1px solid var(--ui-stroke-secondary, #8884)', borderRadius: 8 } }, shown.text + (shown.truncated ? '\n... (cut at 200 KB)' : ''))
+  else if (shown.kind === 'image') body = h('div', null,
+    h('img', { src: `data:${shown.mime};base64,${shown.data}`, alt: `${item.path}${shown.pages ? ` page ${shown.page}` : ''}`, style: { maxWidth: '100%', maxHeight: 480, border: '1px solid var(--ui-stroke-secondary, #8884)', borderRadius: 8 } }),
+    shown.pages > 1 ? h('div', { style: { ...css.row, marginTop: 4 } }, btn('Previous page', () => setPage(Math.max(1, page - 1)), { disabled: page <= 1 }), h('span', { style: css.muted }, `page ${shown.page} of ${shown.pages}`), btn('Next page', () => setPage(Math.min(shown.pages, page + 1)), { disabled: page >= shown.pages })) : null)
+  else if (shown.kind === 'grid') body = h('div', { style: { maxHeight: 320, overflow: 'auto', margin: '6px 0' } },
+    h('div', { style: { ...css.muted, fontSize: 12 } }, `Sheet ${shown.sheet}${shown.sheets.length > 1 ? ` (of ${shown.sheets.length})` : ''}`),
+    h('table', { style: { borderCollapse: 'collapse', fontSize: 12 } }, h('tbody', null, shown.rows.map((r, i) => h('tr', { key: i }, r.map((c, k) => h('td', { key: k, style: { border: '1px solid var(--ui-stroke-secondary, #8884)', padding: '2px 6px' } }, c)))))))
+  else body = h('div', { style: css.muted }, shown.why || 'No preview.')
+  return h('div', { style: { marginTop: 6 } },
+    h('div', { style: css.row },
+      version ? btn('Back to the file as it is now', () => { setVersion(0); setPage(1) }) : null,
+      btn('Ask the agent about this', ask),
+      item.exists && item.status !== 'approved' ? btn('Approve this version', () => run(async () => { await api('/deliverable-approve', { project: pid, path: item.path }); onChanged() }, () => `${item.path} approved.`), { disabled: busy, primary: true }) : null),
+    shown && shown.review_room ? h('div', { style: { ...css.muted, fontSize: 12, marginTop: 4 } }, 'This is the text of the document. Review the documents below draws it as Office does.') : null,
+    body,
+    item.versions.length ? h('div', { style: { marginTop: 6 } },
+      h('div', { style: { fontWeight: 600, fontSize: 12 } }, 'Earlier versions'),
+      item.versions.slice().reverse().map(v => h('div', { key: v.id, style: { ...css.row, padding: '2px 0', fontSize: 12 } },
+        h('span', null, `before the ${v.tool} at ${when(v.at)}`),
+        btn('See it', () => { setVersion(v.id); setPage(1) }),
+        btn('Compare with now', () => run(async () => setCmp(await api('/deliverable-diff', { project: pid, path: item.path, version: v.id })))))),
+      cmp ? (cmp.kind === 'text' ? h('div', null, h('div', { style: { ...css.muted, fontSize: 12 } }, cmp.same ? 'No difference in the text.' : `${cmp.added} line${cmp.added === 1 ? '' : 's'} added, ${cmp.removed} removed`),
+        h('pre', { style: { whiteSpace: 'pre-wrap', maxHeight: 280, overflow: 'auto', fontSize: 12 } }, cmp.diff.split('\n').map((ln, i) => h('div', { key: i, style: { color: ln.startsWith('+') && !ln.startsWith('+++') ? 'var(--ui-green, #16a34a)' : ln.startsWith('-') && !ln.startsWith('---') ? 'var(--ui-red, #dc2626)' : 'inherit' } }, ln || ' '))))
+        : h('div', { style: css.muted }, cmp.why)) : null) : null)
+}
+
+function Deliverables({ api, pid, busy, run, ctx }) {
+  const [items, setItems] = useState(null)
+  const [open, setOpen] = useState(null)
+  const load = useCallback(() => pid ? api('/deliverables', { project: pid }).then(r => setItems(r.items)).catch(() => setItems(null)) : setItems(null), [api, pid])
+  useEffect(() => { setOpen(null); load() }, [load])
+  if (!items || !items.length) return null
+  const tone = { approved: 'var(--ui-green, #16a34a)', 'changed since approval': 'var(--ui-amber, #d97706)', 'not reviewed': 'var(--ui-text-tertiary, #888)', missing: 'var(--ui-red, #dc2626)' }
+  const waiting = items.filter(i => i.status === 'not reviewed' || i.status === 'changed since approval').length
+  return h('section', { style: css.card, 'aria-label': 'Deliverables' },
+    h('h2', { style: css.h2 }, `Deliverables${waiting ? ` · ${waiting} to review` : ''}`),
+    h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'Every file the agent made or changed in this project. Look at it, compare it with the version before, ask about it, and approve the exact version you accept.'),
+    items.map(it => h('div', { key: it.path, style: { borderTop: '1px solid var(--ui-stroke-secondary, #8883)', padding: '6px 0' } },
+      h('div', { style: { ...css.row, justifyContent: 'space-between' } },
+        h('span', { style: { fontSize: 13 } }, `${it.path} · ${it.kind}${it.versions.length ? ` · ${it.versions.length} earlier version${it.versions.length === 1 ? '' : 's'}` : ''} · `, h('span', { style: { color: tone[it.status] || 'inherit' } }, it.status)),
+        btn(open === it.path ? 'Hide' : 'Open', () => setOpen(open === it.path ? null : it.path))),
+      open === it.path ? h(DeliverableView, { api, pid, item: it, busy, run, ctx, onChanged: load }) : null)))
+}
+
 const stateLabel = { accepted: 'linked automatically', confirmed: 'linked by you', confirm: 'needs you', skipped: 'left alone', held: 'you changed it by hand' }
 
 function Why({ info, onClose }) {
@@ -923,6 +980,7 @@ function WorkroomPage({ ctx }) {
         btn('Pretend a new quarter arrived', nextQuarter, { disabled: busy }))) : null,
     pid ? h(PagesList, { api, pid }) : null,
     pid ? h(Instructions, { api, pid, busy, run }) : null,
+    pid ? h(Deliverables, { api, pid, busy, run, ctx }) : null,
     pid ? h(Room, { api, pid, busy, run }) : null,
     pid ? h(AgentChanges, { api, pid, busy, run }) : null,
     pid ? h(Policy, { api, pid, busy, run }) : null,

@@ -255,6 +255,33 @@ async def snapshot_restore(body: RoomBody) -> dict:
     return _guard(lambda: _service().snapshot_restore(body.project, body.id))
 
 
+class DeliverableBody(BaseModel):
+    project: str
+    path: str = ""
+    version: int = 0
+    page: int = 1
+
+
+@router.post("/deliverables")
+async def deliverables(body: DeliverableBody) -> dict:
+    return _guard(lambda: {"items": _service().deliverables(body.project)})
+
+
+@router.post("/deliverable-preview")
+async def deliverable_preview(body: DeliverableBody) -> dict:
+    return _guard(lambda: _service().deliverable_preview(body.project, body.path, body.version, body.page))
+
+
+@router.post("/deliverable-diff")
+async def deliverable_diff(body: DeliverableBody) -> dict:
+    return _guard(lambda: _service().deliverable_diff(body.project, body.path, body.version))
+
+
+@router.post("/deliverable-approve")
+async def deliverable_approve(body: DeliverableBody) -> dict:
+    return _guard(lambda: _service().deliverable_approve(body.project, body.path))
+
+
 @router.post("/room-policy")
 async def room_policy(body: RoomBody) -> dict:
     return _guard(lambda: _service().room_policy(body.project))

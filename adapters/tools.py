@@ -96,6 +96,14 @@ ROOM_REMEMBER_SCHEMA = {
                                                     "source": {"type": "string", "description": "Where this came from, e.g. the owner's words or the file"}}, "required": ["project", "text", "kind", "source"]},
 }
 
+DELIVERABLE_SCHEMA = {
+    "name": "workroom_deliverable_register",
+    "description": ("List a file you produced inside the project folder as a deliverable, so the owner sees it under Deliverables with a preview, earlier versions and an approve button. "
+                    "Files changed by your file tools are listed by themselves; use this for files made by commands or scripts. You cannot approve it."),
+    "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "path": {"type": "string", "description": "Path inside the project folder"},
+                                                    "note": {"type": "string", "description": "One line on what it is"}}, "required": ["project", "path"]},
+}
+
 ROLL_SCHEMA = {
     "name": "workroom_roll_forward",
     "description": ("Prepare one release that rolls the project's documents forward to the next reporting period: every linked figure moves to the same row's next period column, "
@@ -253,6 +261,7 @@ def _directive(staged: dict[str, Any]) -> str:
 workroom_recipe_propose = _wrap(lambda a: service().recipe_propose(a["project"], a["report"]))
 workroom_recipe_status = _wrap(lambda a: service().recipe_status(a["project"]))
 workroom_release_record = _wrap(lambda a: service().release_record(a["project"], a["release"]))
+workroom_deliverable_register = _wrap(lambda a: service().deliverable_register(a["project"], a["path"], a.get("note", ""), by="agent"))
 workroom_room_read = _wrap(lambda a: service().room_read(a["project"]))
 workroom_room_add_source = _wrap(lambda a: service().room_add_source(a["project"], a["kind"], a["ref"], a.get("label", ""), by="agent"))
 workroom_room_remember = _wrap(lambda a: service().room_propose_memory(a["project"], a["text"], a["kind"], a["source"], by="agent"))
