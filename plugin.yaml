@@ -43,6 +43,9 @@ provides_tools:
 provides_hooks:
   - pre_tool_call
   - pre_llm_call
+  - post_tool_call
+  - transform_tool_result
+  - pre_verify
 config_schema:
   approvers:
     type: list
