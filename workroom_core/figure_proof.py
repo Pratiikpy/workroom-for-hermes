@@ -298,6 +298,14 @@ def check_text(text: str, items: list[Evidence] | _Index, context: str = "") -> 
                 body = re.search(r"\d[\d,]*(?:\.\d+)?", m.raw)
                 proof.excerpt = (_excerpt(ev.text, body.group(0)) if body else "") or " / ".join(cell.row_labels)[:200]
             proof.how = r.reason
+        if proof.state in ("candidate", "value only") and not proof.weak:
+            hit = _stated_in_a_sentence(m, idx, _words(_sentence(text, start, end) + " " + context))
+            if hit is not None:
+                ev, n = hit
+                proof.state, proof.evidence, proof.ref, proof.tool = "sourced", ev.id, ev.ref, ev.tool
+                proof.how = f"the same figure stands in a sentence the agent read that shares {n} telling words with this one"
+                body = re.search(r"\d[\d,]*(?:\.\d+)?", m.raw)
+                proof.excerpt = (_excerpt(ev.text, body.group(0)) if body else "") or proof.excerpt
         if proof.state in ("unsourced", "value only"):
             calc = _calculated(m, idx, _words(_sentence(text, start, end) + " " + context))
             if calc:
@@ -306,6 +314,22 @@ def check_text(text: str, items: list[Evidence] | _Index, context: str = "") -> 
                 proof.weak = False
         out.append(proof)
     return out
+
+
+def _stated_in_a_sentence(m, idx: _Index, words: set[str]):
+    """A figure that several of the agent's sources print in different places is ambiguous to the cell matcher, but when one printed occurrence sits in a
+    sentence that shares at least three words with the figure's own sentence, the figure was read there. Tables are not touched: their headings decide."""
+    tol = 0.5 * 10 ** (-m.decimals) + 1e-12
+    best = None
+    for target in _candidates(m):
+        for _val, oid, line in idx.near(target, tol):
+            ev = idx.by_id.get(oid)
+            if ev is None or ev.kind == "owner" or SHEET_MARK in ev.text[:4000]:
+                continue
+            n = len(idx.line_words[line] & words)  # topic words count here: on one subject nearly every line says "sales" and "electric", and the figure must still stand in a line of its own kind
+            if n >= 3 and (best is None or n > best[1]):
+                best = (ev, n)
+    return best
 
 
 CALC_NEAR_LINES = 3

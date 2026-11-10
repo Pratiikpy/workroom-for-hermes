@@ -175,3 +175,16 @@ def test_a_web_search_result_in_its_real_shape_becomes_evidence_that_supports_a_
         st.close()
     states = {p.raw: p.state for p in proofs}
     assert states.get("157,000") == "sourced" and states.get("38%") != "unsourced"  # "38 per cent" in the source is the same value written differently: not called fabricated
+
+
+def test_a_figure_printed_in_a_sentence_the_agent_read_is_supported_and_one_printed_elsewhere_is_not() -> None:
+    from workroom.workroom_core.figure_proof import Evidence, check_text
+
+    read = ("Tesla remained the top seller of electric vehicles in Australia, reporting 28,856 registrations in 2025 according to the sales data.\n"
+            "A football match in Melbourne drew 28,856 spectators on Saturday night.\n")
+    items = [Evidence(1, "web_search", "q", 0.0, read, "tool")]
+    states = {p.raw: p.state for p in check_text("Tesla was the top seller of electric vehicles in Australia with 28,856 units in 2025.", items)}
+    assert states["28,856"] == "sourced"
+    unrelated = [Evidence(1, "web_search", "q", 0.0, "A football match in Melbourne drew 28,856 spectators on Saturday night.\n", "tool")]
+    states = {p.raw: p.state for p in check_text("Tesla was the top seller of electric vehicles in Australia with 28,856 units in 2025.", unrelated)}
+    assert states["28,856"] != "sourced"
