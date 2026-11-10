@@ -393,8 +393,28 @@ function Policy({ api, pid, busy, run }) {
     btn('Save', () => run(async () => { await api('/room-policy-set', { project: pid, protected: patterns, confirm_delete: pol.confirm_delete }); await load() }, () => 'Saved.'), { disabled: busy, primary: true }))
 }
 
+const proofTone = { sourced: 'var(--ui-green, #16a34a)', calculated: 'var(--ui-accent, #3b82f6)', stated: '#7c3aed', candidate: 'var(--ui-amber, #d97706)', 'value only': 'var(--ui-amber, #d97706)', unsourced: 'var(--ui-red, #dc2626)' }
+const proofWord = { sourced: 'supported by a source', calculated: 'calculation verified', stated: 'stated by you', candidate: 'possible source, not verified', 'value only': 'number found, not verified', unsourced: 'not verified' }
+
+function ProofText({ text, figures, onPick }) {
+  const parts = []
+  let at = 0
+  figures.slice().sort((a, b) => a.start - b.start).forEach((f, i) => {
+    if (f.start < at || text.slice(f.start, f.end) !== f.raw) return
+    parts.push(text.slice(at, f.start))
+    parts.push(h('button', { key: i, onClick: () => onPick(f), title: proofWord[f.state], 'aria-label': `${f.raw}: ${proofWord[f.state]}`,
+      style: { font: 'inherit', padding: '0 2px', margin: 0, border: 'none', borderBottom: `2px solid ${proofTone[f.state]}`, background: 'transparent', color: 'inherit', cursor: 'pointer' } }, f.raw))
+    at = f.end
+  })
+  parts.push(text.slice(at))
+  return h('pre', { style: { whiteSpace: 'pre-wrap', maxHeight: 320, overflow: 'auto', fontSize: 12, margin: '6px 0', padding: 8, border: '1px solid var(--ui-stroke-secondary, #8884)', borderRadius: 8 } }, parts)
+}
+
 function DeliverableView({ api, pid, item, busy, run, ctx, onChanged }) {
   const [shown, setShown] = useState(null)
+  const [proof, setProof] = useState(null)
+  const [picked, setPicked] = useState(null)
+  useEffect(() => { setProof(null); setPicked(null); if (item.proof) api('/deliverable-proof', { project: pid, path: item.path }).then(setProof).catch(() => setProof(null)) }, [api, pid, item.path, item.proof && item.proof.at])
   const [cmp, setCmp] = useState(null)
   const [version, setVersion] = useState(0)
   const [page, setPage] = useState(1)
@@ -406,6 +426,7 @@ function DeliverableView({ api, pid, item, busy, run, ctx, onChanged }) {
   const when = (t) => new Date(t * 1000).toLocaleString()
   let body = null
   if (!shown) body = h('div', { style: css.muted }, 'Loading...')
+  else if (shown.kind === 'text' && !version && proof && proof.marks_align && proof.figures.length) body = h(ProofText, { text: shown.text, figures: proof.figures, onPick: setPicked })
   else if (shown.kind === 'text') body = h('pre', { style: { whiteSpace: 'pre-wrap', maxHeight: 320, overflow: 'auto', fontSize: 12, margin: '6px 0', padding: 8, border: '1px solid var(--ui-stroke-secondary, #8884)', borderRadius: 8 } }, shown.text + (shown.truncated ? '\n... (cut at 200 KB)' : ''))
   else if (shown.kind === 'image') body = h('div', null,
     h('img', { src: `data:${shown.mime};base64,${shown.data}`, alt: `${item.path}${shown.pages ? ` page ${shown.page}` : ''}`, style: { maxWidth: '100%', maxHeight: 480, border: '1px solid var(--ui-stroke-secondary, #8884)', borderRadius: 8 } }),
@@ -419,6 +440,13 @@ function DeliverableView({ api, pid, item, busy, run, ctx, onChanged }) {
       version ? btn('Back to the file as it is now', () => { setVersion(0); setPage(1) }) : null,
       btn('Ask the agent about this', ask),
       item.exists && item.status !== 'approved' ? btn('Approve this version', () => run(async () => { await api('/deliverable-approve', { project: pid, path: item.path }); onChanged() }, () => `${item.path} approved.`), { disabled: busy, primary: true }) : null),
+    proof && proof.summary ? h('div', { style: { ...css.row, fontSize: 12, marginTop: 6 } },
+      ['sourced', 'calculated', 'stated', 'candidate', 'value_only', 'unsourced'].filter(k => proof.summary[k]).map(k => h('span', { key: k, style: { color: proofTone[k.replace('_', ' ')] } }, `${proof.summary[k]} ${proofWord[k.replace('_', ' ')]}`))) : null,
+    picked ? h('div', { role: 'status', style: { ...css.card, marginTop: 6, borderColor: proofTone[picked.state] } },
+      h('div', { style: { fontWeight: 600 } }, `${picked.raw}: ${proofWord[picked.state]}`),
+      picked.ref ? h('div', { style: { ...css.muted, fontSize: 12 } }, `from ${picked.tool} ${picked.ref}`) : h('div', { style: { ...css.muted, fontSize: 12 } }, 'Not verified: nothing the agent read in that session supports this figure.'),
+      picked.how ? h('div', { style: { fontSize: 12 } }, picked.how) : null,
+      picked.excerpt ? h('div', { style: { fontSize: 12, fontFamily: 'monospace', marginTop: 4 } }, picked.excerpt) : null) : null,
     shown && shown.review_room ? h('div', { style: { ...css.muted, fontSize: 12, marginTop: 4 } }, 'This is the text of the document. Review the documents below draws it as Office does.') : null,
     body,
     item.versions.length ? h('div', { style: { marginTop: 6 } },
@@ -446,7 +474,8 @@ function Deliverables({ api, pid, busy, run, ctx, empty = false }) {
     h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'Every file the agent made or changed in this project. Look at it, compare it with the version before, ask about it, and approve the exact version you accept.'),
     items.map(it => h('div', { key: it.path, style: { borderTop: '1px solid var(--ui-stroke-secondary, #8883)', padding: '6px 0' } },
       h('div', { style: { ...css.row, justifyContent: 'space-between' } },
-        h('span', { style: { fontSize: 13 } }, `${it.path} · ${it.kind}${it.versions.length ? ` · ${it.versions.length} earlier version${it.versions.length === 1 ? '' : 's'}` : ''} · `, h('span', { style: { color: tone[it.status] || 'inherit' } }, it.status)),
+        h('span', { style: { fontSize: 13 } }, `${it.path} · ${it.kind}${it.versions.length ? ` · ${it.versions.length} earlier version${it.versions.length === 1 ? '' : 's'}` : ''} · `, h('span', { style: { color: tone[it.status] || 'inherit' } }, it.status),
+          it.proof && it.proof.figures ? h('span', { style: { marginLeft: 8, color: it.proof.unsourced ? 'var(--ui-red, #dc2626)' : 'var(--ui-green, #16a34a)' } }, `· ${it.proof.sourced + it.proof.calculated + it.proof.stated} of ${it.proof.figures} figures supported${it.proof.stale ? ' (changed since)' : ''}`) : null),
         btn(open === it.path ? 'Hide' : 'Open', () => setOpen(open === it.path ? null : it.path))),
       open === it.path ? h(DeliverableView, { api, pid, item: it, busy, run, ctx, onChanged: load }) : null)))
 }

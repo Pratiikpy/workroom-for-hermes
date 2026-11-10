@@ -1003,10 +1003,51 @@ class Service:
                 status = "missing" if now_sha is None else ("approved" if ap and ap["sha"] == now_sha else ("changed since approval" if ap else "not reviewed"))
                 out.append({"path": rel, "kind": kind_of(rel), "exists": now_sha is not None, "size": f.stat().st_size if now_sha else 0,
                             "modified": f.stat().st_mtime if now_sha else None, "versions": [{"id": v["id"], "at": v["at"], "tool": v["tool"]} for v in versions],
-                            "status": status, "registered": registered.get(rel), "approved": ap})
+                            "status": status, "registered": registered.get(rel), "approved": ap, "proof": self._proof_of(f, now_sha)})
             return out
 
         return self._with_both(pid, build)
+
+    def _proof_of(self, f: Path, now_sha: str | None) -> dict[str, Any] | None:
+        """The figure proof recorded when the agent last wrote this file: the counts, and whether the file changed since (then the counts are stale)."""
+        from .figure_proof import EvidenceStore
+
+        db = self.data_dir / "evidence.db"
+        if now_sha is None or not db.exists():
+            return None
+        st = EvidenceStore(db)
+        try:
+            rec = st.proof(str(f.resolve()))
+        finally:
+            st.close()
+        if rec is None:
+            return None
+        return {**rec["summary"], "stale": rec["sha"] != now_sha, "at": rec["at"]}
+
+    @_closing
+    def deliverable_proof(self, pid: str, path: str) -> dict[str, Any]:
+        """Each figure of a text deliverable with where it came from, checked again now against the evidence of the session that wrote it."""
+        from .figure_proof import EvidenceStore, check_file
+
+        proj, _ = self._open(pid)
+        f = (proj.root / path).resolve()
+        try:
+            f.relative_to(proj.root.resolve())
+        except ValueError:
+            raise ServiceError("the file is outside the project") from None
+        db = self.data_dir / "evidence.db"
+        if not db.exists():
+            return {"path": path, "figures": [], "why": "no evidence has been recorded yet"}
+        st = EvidenceStore(db)
+        try:
+            rec = st.proof(str(f))
+            if rec is None:
+                return {"path": path, "figures": [], "why": "the agent has not written this file in a session Workroom watched"}
+            summ = check_file(st, rec["session"], f)
+            rec = st.proof(str(f))
+        finally:
+            st.close()
+        return {"path": path, "summary": summ, "figures": rec["figures"] if rec else [], "marks_align": f.suffix.lower() not in (".html", ".htm")}
 
     @_closing
     def deliverable_preview(self, pid: str, path: str, version: int = 0, page: int = 1) -> dict[str, Any]:

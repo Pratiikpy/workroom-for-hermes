@@ -282,6 +282,11 @@ async def deliverable_diff(body: DeliverableBody) -> dict:
     return _guard(lambda: _service().deliverable_diff(body.project, body.path, body.version))
 
 
+@router.post("/deliverable-proof")
+async def deliverable_proof(body: DeliverableBody) -> dict:
+    return _guard(lambda: _service().deliverable_proof(body.project, body.path))
+
+
 @router.post("/deliverable-approve")
 async def deliverable_approve(body: DeliverableBody) -> dict:
     return _guard(lambda: _service().deliverable_approve(body.project, body.path))

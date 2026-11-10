@@ -92,7 +92,7 @@ def test_the_hooks_capture_reading_check_the_written_file_and_ask_once(tmp_path:
     brief = folder / "brief.md"
     brief.write_text("# Brief\nRevenue was $4,210 million. Budget 125,000. Market share 31.4%.\n")
     line = written(tool_name="write_file", args={"path": str(brief), "content": "..."}, result='{"ok": true}', session_id="s9")
-    assert "1 of 3 figures have no source" in line and "31.4%" in line
+    assert "1 of 3 figures are not verified" in line and "31.4%" in line
     st = EvidenceStore(db)
     rec = st.proof(str(brief.resolve()))
     st.close()
@@ -119,7 +119,7 @@ def test_a_workbook_read_with_read_file_counts_as_evidence(tmp_path: Path) -> No
     capture(tool_name="read_file", args={"path": str(book)}, result='{"error": "binary file"}', session_id="s2")
     out = tmp_path / "summary.md"
     out.write_text("Q3 revenue was 4,210.5.")
-    assert "all 1 figures trace" in written(tool_name="write_file", args={"path": str(out)}, result="{}", session_id="s2")
+    assert "all 1 figures are supported" in written(tool_name="write_file", args={"path": str(out)}, result="{}", session_id="s2")
 
 
 def test_a_reply_with_an_unsourced_figure_gets_one_line_and_is_otherwise_unchanged(tmp_path: Path) -> None:
@@ -133,3 +133,25 @@ def test_a_reply_with_an_unsourced_figure_gets_one_line_and_is_otherwise_unchang
     assert out.startswith(text) and "37.5%" in out.split(text, 1)[1] and "$4,210" not in out.split(text, 1)[1]
     assert reply(response_text="Here are 3 options.", session_id="s3") is None  # small counts are not flagged
     assert reply(response_text="Revenue for Q3 was $4,210 million.", session_id="s3") is None
+
+
+def test_the_deliverables_list_carries_the_proof_and_each_figure_says_where_it_came_from(tmp_path: Path) -> None:
+    from workroom.adapters.proof_hooks import make_proof_hooks
+    from workroom.tests.test_room import project
+
+    root, svc, pid = project(tmp_path)
+    capture, _o, written, _v, _r = make_proof_hooks(lambda: EvidenceStore(svc.data_dir / "evidence.db"))
+    capture(tool_name="web_extract", args={"url": "https://example.org/q3"}, result='{"content": "Revenue for the quarter was $4,210 million."}', session_id="s5")
+    brief = root / "brief.md"
+    svc.snapshot_take(pid, str(brief), "write_file")
+    brief.write_text("Revenue for the quarter was $4,210 million. The market will grow 37.5% a year.")
+    written(tool_name="write_file", args={"path": str(brief)}, result="{}", session_id="s5")
+    item = next(d for d in svc.deliverables(pid) if d["path"] == "brief.md")
+    assert item["proof"]["figures"] == 2 and item["proof"]["unsourced"] == 1 and not item["proof"]["stale"]
+    got = svc.deliverable_proof(pid, "brief.md")
+    states = {f["raw"]: f["state"] for f in got["figures"]}
+    assert states["37.5%"] == "unsourced" and states["$4,210 million"] in ("sourced", "candidate") and got["marks_align"]
+    src = next(f for f in got["figures"] if f["raw"] == "$4,210 million")
+    assert src["ref"] == "https://example.org/q3" and "4,210" in src["excerpt"]
+    brief.write_text("changed by hand")
+    assert next(d for d in svc.deliverables(pid) if d["path"] == "brief.md")["proof"]["stale"]

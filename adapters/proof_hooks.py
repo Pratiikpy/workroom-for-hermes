@@ -86,10 +86,10 @@ def make_proof_hooks(store: Callable[[], Any]):
                     st.close()
                 if summ and summ["figures"]:
                     if summ["unsourced"]:
-                        notes.append(f"Workroom proof for {target.name}: {summ['unsourced']} of {summ['figures']} figures have no source in what you read this session "
+                        notes.append(f"Workroom proof for {target.name}: {summ['unsourced']} of {summ['figures']} figures are not verified by anything you read this session "
                                      f"({', '.join(summ['unsourced_figures'][:6])}). Source each one, or say plainly in the text that it is an estimate.")
                     else:
-                        notes.append(f"Workroom proof for {target.name}: all {summ['figures']} figures trace to what you read this session.")
+                        notes.append(f"Workroom proof for {target.name}: all {summ['figures']} figures are supported by what you read this session (supported means the figure appears where its words point, not that the claim is true).")
             return result + "\n\n" + "\n".join(notes) if notes else None
         except Exception:  # noqa: BLE001
             return None
@@ -111,7 +111,7 @@ def make_proof_hooks(store: Callable[[], Any]):
             finally:
                 st.close()
             if open_figures:
-                return {"action": "continue", "message": "Before you finish: these figures have no source in what you read this session. "
+                return {"action": "continue", "message": "Before you finish: these figures are not verified by anything you read this session. "
                         "Find a source for each, or mark it as an estimate in the text. " + "; ".join(open_figures)}
         except Exception:  # noqa: BLE001
             return None
@@ -135,7 +135,7 @@ def make_proof_hooks(store: Callable[[], Any]):
             names = ", ".join(dict.fromkeys(p.raw for p in loose))
             n = len(loose)
             verb = "has" if n == 1 else "have"
-            return response_text.rstrip() + "\n\n" + f"_Workroom: {n} figure{'' if n == 1 else 's'} in this reply {verb} no source in what was read this session: {names[:200]}._"
+            return response_text.rstrip() + "\n\n" + f"_Workroom: {n} figure{'' if n == 1 else 's'} in this reply {verb} not verified by anything read this session: {names[:200]}._"
         except Exception:  # noqa: BLE001  a reply is never lost to a proof error
             return None
 
