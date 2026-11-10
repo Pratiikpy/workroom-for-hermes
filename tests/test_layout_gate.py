@@ -132,3 +132,42 @@ def test_a_built_deck_goes_through_the_gate_and_its_faults_reach_the_agent(tmp_p
     monkeypatch.setattr(layout_gate, "check_pptx", lambda data: [layout_gate.Finding(1, "Block 1 value 1", "overflow", "block", "the value does not fit its card")])
     refused = svc.create_from_spec(pid, {**spec, "path": "kpis2.pptx"})
     assert refused["state"] == "refused" and refused["errors"][0]["code"] == "layout" and "does not fit" in refused["errors"][0]["message"]
+
+
+def test_light_text_on_a_dark_master_background_is_not_called_low_contrast() -> None:
+    from lxml import etree
+
+    from pptx import Presentation as P
+
+    def build(s):
+        box(s, "Antonio Vives", color="F6F002", size=24)
+    data = deck(build)
+    prs = P(io.BytesIO(data))
+    master = prs.slide_masters[0]._element
+    ns = "http://schemas.openxmlformats.org/presentationml/2006/main"
+    a = "http://schemas.openxmlformats.org/drawingml/2006/main"
+    csld = master.find(f"{{{ns}}}cSld")
+    for old in csld.findall(f"{{{ns}}}bg"):
+        csld.remove(old)
+    csld.insert(0, etree.fromstring(f'<p:bg xmlns:p="{ns}" xmlns:a="{a}"><p:bgPr><a:solidFill><a:srgbClr val="101820"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>'))
+    out = io.BytesIO()
+    prs.save(out)
+    assert "contrast" not in kinds(out.getvalue())  # yellow on near-black is fine
+    prs2 = P(io.BytesIO(out.getvalue()))
+    master2 = prs2.slide_masters[0]._element
+    master2.find(f"{{{ns}}}cSld").find(f"{{{ns}}}bg").find(f"{{{ns}}}bgPr").find(f"{{{a}}}solidFill")[0].set("val", "FFFFFF")
+    out2 = io.BytesIO()
+    prs2.save(out2)
+    assert "contrast" in kinds(out2.getvalue())  # the same text on a white master is a fault
+
+
+def test_a_picture_or_gradient_behind_text_is_not_judged() -> None:
+    def build(s):
+        shp = s.shapes.add_shape(1, Inches(0.7), Inches(1.6), Inches(8), Inches(1))
+        shp.fill.gradient()
+        shp.name = "Banner"
+        r = shp.text_frame.paragraphs[0].add_run()
+        r.text = "Pale text"
+        r.font.size = Pt(24)
+        r.font.color.rgb = RGBColor.from_string("EEEEEE")
+    assert "contrast" not in kinds(deck(build))

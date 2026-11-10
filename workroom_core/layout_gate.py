@@ -130,6 +130,59 @@ def _solid(fill) -> str | None:
     return None
 
 
+_P = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
+_A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+
+
+def _theme_color(master, name: str) -> str | None:
+    for rel in master.part.rels.values():
+        if rel.reltype.endswith("/theme"):
+            from lxml import etree
+
+            root = etree.fromstring(rel.target_part.blob)
+            slot = root.find(f".//{_A}clrScheme/{_A}{name}")
+            if slot is None or len(slot) == 0:
+                return None
+            kid = slot[0]
+            val = kid.get("val") if kid.tag == f"{_A}srgbClr" else kid.get("lastClr")
+            return val if val and len(val) == 6 else None
+    return None
+
+
+def _background_of(element, master) -> tuple[bool, str | None]:
+    """(has a background of its own, its colour or None when it is a gradient, picture, style reference or a modified theme colour)."""
+    bg = element.find(f".//{_P}bg")
+    if bg is None:
+        return False, None
+    ref = bg.find(f"{_P}bgRef")
+    if ref is not None and ref.get("idx") == "1001" and len(ref) == 1:  # the theme's first background style is a plain fill of the colour named inside
+        solid = ref
+    else:
+        solid = bg.find(f"{_P}bgPr/{_A}solidFill")
+    if solid is None or len(solid) == 0:
+        return True, None
+    kid = solid[0]
+    if len(kid):  # shade, tint, luminance changes: not resolved here
+        return True, None
+    if kid.tag == f"{_A}srgbClr":
+        return True, kid.get("val")
+    if kid.tag == f"{_A}schemeClr":
+        alias = {"bg1": "lt1", "tx1": "dk1", "bg2": "lt2", "tx2": "dk2"}.get(kid.get("val") or "", kid.get("val") or "")
+        return True, _theme_color(master, alias)
+    return True, None
+
+
+def effective_background(slide) -> str | None:
+    """The colour behind a slide's text: the slide's own background, else its layout's, else its master's. White when none sets one; None when the
+    one that applies is a gradient, a picture or a modified theme colour (contrast cannot be judged there, so the gate does not guess)."""
+    master = slide.slide_layout.slide_master
+    for el in (slide._element, slide.slide_layout._element, master._element):
+        has, colour = _background_of(el, master)
+        if has:
+            return colour
+    return "FFFFFF"
+
+
 def check_pptx(data: bytes) -> list[Finding]:
     from pptx import Presentation
 
@@ -137,12 +190,11 @@ def check_pptx(data: bytes) -> list[Finding]:
     sw, sh = prs.slide_width, prs.slide_height
     out: list[Finding] = []
     for si, slide in enumerate(prs.slides, 1):
-        bg = None
         try:
-            bg = _solid(slide.background.fill)
-        except Exception:  # noqa: BLE001
+            bg = effective_background(slide)
+        except Exception:  # noqa: BLE001  a background that cannot be read is not guessed at
             bg = None
-        bg = bg or "FFFFFF"
+        unjudged: list[tuple[int, int, int, int]] = []  # shapes filled with a gradient, picture or pattern: text over them has no known colour behind it
         boxes = []
         fills: list[tuple[tuple[int, int, int, int], str]] = []
         for shp in slide.shapes:
@@ -155,6 +207,12 @@ def check_pptx(data: bytes) -> list[Finding]:
             f = _solid(shp.fill) if hasattr(shp, "fill") else None
             if f:
                 fills.append((box, f))
+            else:
+                try:
+                    if hasattr(shp, "fill") and shp.fill.type in (2, 3, 6):
+                        unjudged.append(box)
+                except Exception:  # noqa: BLE001
+                    pass
             if getattr(shp, "has_table", False) and shp.has_table:
                 rows = len(shp.table.rows)
                 needed = sum(r.height for r in shp.table.rows) if all(r.height for r in shp.table.rows) else rows * 0.4 * 914400
@@ -169,6 +227,9 @@ def check_pptx(data: bytes) -> list[Finding]:
                 out.append(Finding(si, name, "empty_title", "warn", f"{name} is an empty title"))
             if not text_all:
                 continue
+            body = tf._txBody.find(f"{_A}bodyPr")
+            if getattr(shp, "rotation", 0) or (body is not None and body.get("vert") not in (None, "horz")):
+                continue  # rotated or vertical text runs along a different axis; its box says nothing about whether it fits
             boxes.append((box, name))
             inset_w = (tf.margin_left or 91440) + (tf.margin_right or 91440)
             inset_h = (tf.margin_top or 45720) + (tf.margin_bottom or 45720)
@@ -197,7 +258,10 @@ def check_pptx(data: bytes) -> list[Finding]:
                     except Exception:  # noqa: BLE001
                         color = None
                     if color:
-                        behind = next((fc for fb, fc in reversed(fills) if fb[0] <= box[0] and fb[1] <= box[1] and fb[2] >= box[2] and fb[3] >= box[3]), None) or bg
+                        covered = lambda fb: fb[0] <= box[0] and fb[1] <= box[1] and fb[2] >= box[2] and fb[3] >= box[3]  # noqa: E731
+                        behind = next((fc for fb, fc in reversed(fills) if covered(fb)), None) or bg
+                        if behind is None or any(covered(ub) for ub in unjudged):
+                            continue
                         need_ratio = CONTRAST_LARGE if rs >= LARGE_PT or (r.font.bold and rs >= 14) else CONTRAST_TEXT
                         ratio = contrast(color, behind)
                         if ratio < need_ratio:
