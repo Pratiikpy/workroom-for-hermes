@@ -217,7 +217,7 @@ That is a guarantee about Workroom's tools and its editor, and it stops there. A
 | Are automatic links right on reports it had not seen? | 357 of 360 judged correct by an independent reader across two sets of public Victorian department reports (99.2%, 95% interval 97.6 to 99.8) | Word only, one government; see [Evidence](docs/EVIDENCE.md) |
 | Are automatic links right? | Two independent reports from one agency: 0 wrong in 70 read by hand on the first; on the second (last year's report against this year's workbook) 6 wrong by label and 3 unclear of 181, all of which the reader now guards against or asks about | the guards were written after seeing those results, so they are not yet tested blind; the links not read by hand were checked mechanically only |
 | Does it recover? | 16 of 16 injected crash points recover; restore is byte for byte | simulated process death, not a power cut |
-| Can the agent publish? | No Workroom tool approves or publishes; capable hosted models refused, ignored a planted instruction and left files unchanged | one run each; a shell guard was bypassed once and hardened, see [Limits](docs/LIMITS.md) |
+| Can the agent publish? | No Workroom tool approves or publishes; capable hosted models refused, ignored a planted instruction and left files unchanged | 3 to 5 runs per case with one model (Claude Haiku 4.5), so counts, not rates; real models got around the guard in three ways during testing and each was closed, see [Limits](docs/LIMITS.md) |
 
 Full tables, caveats and the dated record: [Evidence](docs/EVIDENCE.md).
 
