@@ -15,7 +15,7 @@ from workroom.workroom_core.figure_proof import EvidenceStore  # noqa: E402
 from workroom.workroom_core.service import Service  # noqa: E402
 
 NAME, FOLDER = sys.argv[1], Path(sys.argv[2])
-DATA = Path("C:/Users/prate/nous/.hermes-test/plugin-data/workroom")
+DATA = Path(__file__).resolve().parents[3] / ".hermes-test" / "plugin-data" / "workroom"
 SHOTS = HERE.parent / "ui_shots"
 checks: list[tuple[str, bool]] = []
 

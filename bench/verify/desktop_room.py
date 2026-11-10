@@ -57,7 +57,7 @@ def main() -> None:
         # the agent side: the same service the tools call
         data = Path.home() / "AppData" / "Roaming"  # not used: the service below talks to the plugin's own data folder
         svc_dir = None
-        for cand in (Path("C:/Users/prate/nous/.hermes-test/plugin-data/workroom"),):
+        for cand in (Path(__file__).resolve().parents[3] / ".hermes-test" / "plugin-data" / "workroom",):
             if cand.exists():
                 svc_dir = cand
         check("the plugin data folder is found", svc_dir is not None)

@@ -2,7 +2,7 @@
 
     python cron_watch.py
 
-Uses the test Hermes home (C:\\Users\\prate\\nous\\.hermes-test) and its Hermes interpreter. Creates a throwaway project, a script job with no model
+Uses the test Hermes home (the .hermes-test folder next to the repository) and its Hermes interpreter. Creates a throwaway project, a script job with no model
 (`--no-agent`, delivery `local`), forces a run, ticks the scheduler once and reads the durable run record.
 """
 

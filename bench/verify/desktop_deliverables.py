@@ -17,7 +17,7 @@ from workroom.workroom_core.service import Service  # noqa: E402
 
 CDP = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:9222"
 SHOTS = HERE.parent / "ui_shots"
-DATA = Path("C:/Users/prate/nous/.hermes-test/plugin-data/workroom")
+DATA = Path(__file__).resolve().parents[3] / ".hermes-test" / "plugin-data" / "workroom"
 checks: list[tuple[str, bool]] = []
 
 
