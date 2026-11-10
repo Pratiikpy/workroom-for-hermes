@@ -21,7 +21,8 @@ def test_a_helper_is_recorded_from_start_to_stop_with_the_files_it_touched(tmp_p
         assert [c["status"] for c in working] == ["working"] and working[0]["role"] == "researcher"
         history = [{"tool_name": "write_file", "tool_input": {"targets": {"path": str(root / "notes" / "summary.md")}}},
                    {"tool_name": "read_file", "tool_input": {"targets": {"path": str(root / "results.xlsx")}}},
-                   {"tool_name": "write_file", "tool_input": {"targets": {"path": "C:/elsewhere/other.md"}}}]
+                   {"tool_name": "write_file", "tool_input": {"targets": {"path": str(tmp_path / "elsewhere" / "other.md")}}},
+                   {"tool_name": "write_file", "tool_input": {"targets": {"path": "../climbs-out.md"}}}]
         stop(parent_session_id="p1", child_subagent_id="c1", child_status="completed", child_summary="Revenue rose 12%.", duration_ms=4200, tool_call_history=history)
     finally:
         session_cwd.use(None)

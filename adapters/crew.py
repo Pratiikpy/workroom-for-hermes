@@ -45,9 +45,10 @@ def files_touched(history: Any, root: Path | None) -> list[str]:
                 if not isinstance(raw, str) or not raw.strip():
                     continue
                 path = raw.strip()
-                if root is not None and Path(path).is_absolute():
+                if root is not None:
+                    target = Path(path) if Path(path).is_absolute() else root / path
                     try:
-                        path = Path(path).resolve().relative_to(root).as_posix()
+                        path = target.resolve().relative_to(root).as_posix()  # a relative path that climbs out with .. is not inside the project either
                     except ValueError:
                         continue
                 if path not in out:
