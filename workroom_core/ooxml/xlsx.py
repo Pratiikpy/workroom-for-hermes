@@ -309,6 +309,20 @@ def _nearest_above(entries: list[tuple[int, int]] | None, row: int) -> int | Non
     return hit
 
 
+HEADING_GAP = 3  # rows between two headings of one block: a blank row or two may sit inside a heading, a data row never does
+
+
+def _nearest_heading_block(above: list[tuple[int, str]]) -> list[tuple[int, str]]:
+    """The headings of the block a cell belongs to. A sheet that stacks several tables repeats its column headings above each; the headings of an earlier
+    block (their groups, their periods) are not this cell's, so only the run of headings closest above the cell is kept."""
+    if len(above) < 2:
+        return above
+    start = len(above) - 1
+    while start > 0 and above[start][0] - above[start - 1][0] <= HEADING_GAP:
+        start -= 1
+    return above[start:]
+
+
 def index_workbook(pkg: Package, max_cells: int = 500_000, file: str = "", stats: dict | None = None) -> list[SourceCell]:
     """Every numeric cell with the text labels on its row and column. Dates are flagged; cells in hidden rows, hidden columns and hidden
     sheets are flagged hidden. Rows and cells that omit their position (legal in the format) are placed in reading order. When ``stats`` is
@@ -356,13 +370,16 @@ def index_workbook(pkg: Package, max_cells: int = 500_000, file: str = "", stats
                         continue
                     style = int(c.get("s") or 0)
                     numbers.append((cell_row, col_n, ref, val, f is not None, style in date_styles, hidden or sheet_hidden or col_n in hidden_cols))
+        dividers_at: set[tuple[int, int]] = set()  # cells a section title (a row-wide merge from the first column) was spread over
         for lo_r, lo_c, hi_r, hi_c in _merged_ranges(root):
             text = strings.get((lo_r, lo_c))
             if text is None or (hi_r - lo_r + 1) * (hi_c - lo_c + 1) > 4096:
                 continue
+            title = lo_c == 1 and hi_c - lo_c >= 2
             for rr in range(lo_r, hi_r + 1):
                 for cc in range(lo_c, hi_c + 1):
-                    strings.setdefault((rr, cc), text)  # a merged heading heads every column (or row) it spans, not only the corner that holds its text
+                    if strings.setdefault((rr, cc), text) is text and title and cc != lo_c:
+                        dividers_at.add((rr, cc))  # a merged heading heads every column (or row) it spans, not only the corner that holds its text
         rows_by: dict[int, list[tuple[int, str]]] = {}
         cols_by: dict[int, list[tuple[int, str]]] = {}
         for (r, c), s in strings.items():
@@ -378,7 +395,8 @@ def index_workbook(pkg: Package, max_cells: int = 500_000, file: str = "", stats
         for r_, c_, ref, val, isf, isd, hid in numbers:
             row_labels = tuple(s for cc, s in sorted(rows_by.get(r_, []), key=lambda t: -t[0]) if cc < c_)[:3]
             above = sorted((rr, s) for rr, s in cols_by.get(c_, []) if rr < r_)
-            col_labels = tuple(dict.fromkeys([s for _, s in reversed(above)][:2] + ([above[0][1]] if above else [])))
+            block = _nearest_heading_block([(rr, s) for rr, s in above if (rr, c_) not in dividers_at])
+            col_labels = tuple(dict.fromkeys([s for _, s in reversed(above)][:2] + ([block[0][1]] if block else [])))
             year = _nearest_above(header_years.get(c_), r_)
             if year is not None and (r_, c_) not in header_years.get("cells", ()):
                 col_labels = tuple(dict.fromkeys(col_labels + (str(year),)))  # a year printed as a number heads its column like a year printed as text

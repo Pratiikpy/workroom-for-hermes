@@ -68,3 +68,27 @@ def test_a_small_figure_that_grows_follows_the_documents_thousands_and_bracket_s
     assert format_like(parse_numbers("68")[0], -59816.0, "exact", house) == "(59,816)"
     assert format_like(parse_numbers("77")[0], 3893.0, "exact") == "3893"  # without a house style the old behaviour stands
     assert format_like(parse_numbers("-77")[0], -3893.0, "exact", house) == "-3,893"  # a minus sign that was written stays a minus sign
+
+
+def test_a_sheet_stacking_tables_takes_each_cells_headings_from_its_own_block() -> None:
+    """Two tables on one sheet, each with its own group and years: the second table's cells are not also labelled with the first table's group."""
+    import io
+
+    from xlsxwriter import Workbook
+
+    from workroom.workroom_core.ooxml.package import open_package
+    from workroom.workroom_core.ooxml.xlsx import index_workbook
+
+    buf = io.BytesIO()
+    with Workbook(buf) as wb:
+        ws = wb.add_worksheet("Outputs")
+        ws.write_row(0, 1, ["Agriculture", "", "Water", ""])
+        ws.write_row(1, 1, ["2025", "2024", "2025", "2024"])
+        ws.write_row(2, 0, ["Net result", 10, 20, 30, 40])
+        ws.merge_range(3, 0, 3, 4, "Other flows")
+        ws.write_row(10, 1, ["Energy", "", "Fire", ""])
+        ws.write_row(11, 1, ["2025", "2024", "2025", "2024"])
+        ws.write_row(12, 0, ["Net result", 50, 60, 70, 80])
+    cells = {c.ref: c for c in index_workbook(open_package(buf.getvalue()), file="x.xlsx")}
+    assert "Agriculture" in cells["B3"].col_labels and "Energy" not in cells["B3"].col_labels
+    assert "Energy" in cells["B13"].col_labels and "Agriculture" not in cells["B13"].col_labels and "Water" not in cells["D13"].col_labels
