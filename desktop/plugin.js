@@ -326,6 +326,42 @@ function Instructions({ api, pid, busy, run }) {
         : btn('Apply and authorise this text', () => run(async () => { await api('/instruction-apply', { project: pid, proposal: pr.proposal }); await load() }, () => 'Applied and authorised.'), { disabled: busy, primary: true }))))
 }
 
+function Room({ api, pid, busy, run }) {
+  const [info, setInfo] = useState(null)
+  const [kind, setKind] = useState('note')
+  const [ref, setRef] = useState('')
+  const [label, setLabel] = useState('')
+  const load = useCallback(() => pid ? api('/room', { project: pid }).then(setInfo).catch(() => setInfo(null)) : setInfo(null), [api, pid])
+  useEffect(() => { load() }, [load])
+  if (!info) return null
+  const when = (t) => new Date(t * 1000).toLocaleString()
+  return h('section', { style: css.card, 'aria-label': 'Room' },
+    h('h2', { style: css.h2 }, 'Room'),
+    h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'What this project knows: the sources that belong to the job and what you have approved the agent to remember. The agent can add a source or suggest a memory; only you approve one.'),
+    info.pending.length ? h('div', { style: { marginBottom: 8 } },
+      h('div', { style: { fontWeight: 600, fontSize: 13 } }, `${info.pending.length} thing${info.pending.length === 1 ? '' : 's'} for you to decide`),
+      info.pending.map(m => h('div', { key: m.id, style: { ...css.card, marginTop: 6 } },
+        h('div', { style: { fontSize: 13 } }, m.text),
+        h('div', { style: { ...css.muted, fontSize: 12 } }, `from: ${m.source}`),
+        h('div', { style: { ...css.row, marginTop: 6 } },
+          btn('Remember this', () => run(async () => { await api('/room-memory-decide', { project: pid, id: m.id, approve: true }); await load() }, () => 'Remembered.'), { disabled: busy, primary: true }),
+          btn('Not this', () => run(async () => { await api('/room-memory-decide', { project: pid, id: m.id, approve: false }); await load() }, () => 'Rejected.'), { disabled: busy }))))) : null,
+    info.memory.length ? h('div', { style: { marginBottom: 8 } }, h('div', { style: { fontWeight: 600, fontSize: 13 } }, `Remembered (${info.memory.length})`),
+      info.memory.map(m => h('div', { key: m.id, style: { fontSize: 13, padding: '2px 0' } }, m.text, h('span', { style: { ...css.muted, fontSize: 12 } }, `  (${m.kind}, from: ${m.source})`)))) : null,
+    h('div', { style: { fontWeight: 600, fontSize: 13 } }, `Sources (${info.sources.length})`),
+    info.sources.length ? info.sources.map(sr => h('div', { key: sr.id, style: { ...css.row, justifyContent: 'space-between', padding: '3px 0' } },
+      h('span', { style: { fontSize: 13 } }, `${sr.label} · ${sr.kind}${sr.present === false ? ' · missing' : ''} · added by ${sr.added_by}`),
+      btn('Remove', () => run(async () => { await api('/room-source-remove', { project: pid, id: sr.id }); await load() }, () => 'Removed.'), { disabled: busy })))
+      : h('div', { style: css.muted }, 'No sources yet. Add the files, links or notes this job depends on.'),
+    h('div', { style: { ...css.row, marginTop: 6 } },
+      h('select', { value: kind, onChange: e => setKind(e.target.value), 'aria-label': 'Source kind' }, ['note', 'file', 'folder', 'url'].map(k => h('option', { key: k, value: k }, k))),
+      h('input', { value: ref, onChange: e => setRef(e.target.value), placeholder: kind === 'note' ? 'Note text' : kind === 'url' ? 'https://' : 'Path inside the project', 'aria-label': 'Source reference', style: { flex: 1 } }),
+      h('input', { value: label, onChange: e => setLabel(e.target.value), placeholder: 'Label', 'aria-label': 'Source label', style: { width: 140 } }),
+      btn('Add', () => run(async () => { await api('/room-source-add', { project: pid, kind, ref, label }); setRef(''); setLabel(''); await load() }, () => 'Added.'), { disabled: busy || !ref.trim() })),
+    info.audit.length ? h('details', { style: { marginTop: 8 } }, h('summary', { style: css.muted }, `Recent activity (${info.audit.length})`),
+      info.audit.slice().reverse().map(e => h('div', { key: e.id, style: { ...css.muted, fontSize: 12 } }, `${when(e.at)} · ${e.actor} · ${e.event.replace('_', ' ')}`))) : null)
+}
+
 const stateLabel = { accepted: 'linked automatically', confirmed: 'linked by you', confirm: 'needs you', skipped: 'left alone', held: 'you changed it by hand' }
 
 function Why({ info, onClose }) {
@@ -856,6 +892,7 @@ function WorkroomPage({ ctx }) {
         btn('Pretend a new quarter arrived', nextQuarter, { disabled: busy }))) : null,
     pid ? h(PagesList, { api, pid }) : null,
     pid ? h(Instructions, { api, pid, busy, run }) : null,
+    pid ? h(Room, { api, pid, busy, run }) : null,
     pid && past.length ? h('section', { style: css.card, 'aria-label': 'Past releases' },
       h('h2', { style: css.h2 }, 'Past releases'),
       h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'Restoring puts the files of that release back as they were before it. It is refused if you have worked in those files since, so nothing you did later is overwritten.'),

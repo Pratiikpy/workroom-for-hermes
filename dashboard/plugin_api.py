@@ -232,6 +232,42 @@ class RecipeBody(BaseModel):
     digest: str = ""
 
 
+class RoomBody(BaseModel):
+    project: str
+    kind: str = ""
+    ref: str = ""
+    label: str = ""
+    text: str = ""
+    source: str = ""
+    id: int = 0
+    approve: bool = True
+
+
+@router.post("/room")
+async def room_overview(body: RoomBody) -> dict:
+    return _guard(lambda: _service().room_overview(body.project))
+
+
+@router.post("/room-source-add")
+async def room_source_add(body: RoomBody) -> dict:
+    return _guard(lambda: _service().room_add_source(body.project, body.kind, body.ref, body.label, by="owner"))
+
+
+@router.post("/room-source-remove")
+async def room_source_remove(body: RoomBody) -> dict:
+    return _guard(lambda: _service().room_remove_source(body.project, body.id))
+
+
+@router.post("/room-memory-decide")
+async def room_memory_decide(body: RoomBody) -> dict:
+    return _guard(lambda: _service().room_memory_decide(body.project, body.id, body.approve))
+
+
+@router.post("/room-memory-edit")
+async def room_memory_edit(body: RoomBody) -> dict:
+    return _guard(lambda: _service().room_memory_edit(body.project, body.id, body.text))
+
+
 @router.post("/recipe")
 async def recipe_status(body: RecipeBody) -> dict:
     return _guard(lambda: _service().recipe_status(body.project))

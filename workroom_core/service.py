@@ -896,6 +896,65 @@ class Service:
         pfile.unlink()
         return self.authorise_instruction(pid, doc["name"], hashlib.sha256(doc["text"].encode("utf-8")).hexdigest())
 
+    # ---- the Room: sources, memory with provenance, audit (see room.py)
+    def _with_room(self, pid: str, fn):
+        from .room import Room, RoomError
+
+        proj, _ = self._open(pid)
+        pid = self._resolve(pid)
+        room = Room(self.data_dir / "projects" / pid, proj.root)
+        try:
+            return fn(room)
+        except RoomError as exc:
+            raise ServiceError(str(exc)) from None
+        finally:
+            room.close()
+
+    @_closing
+    def room_overview(self, pid: str) -> dict[str, Any]:
+        """Owner view: counts, the instruction state, what waits for a decision, and the latest audit lines."""
+        def build(room):
+            proposed = room.memory("proposed")
+            return {"counts": {"sources": len(room.sources()), "memory_approved": len(room.memory("approved")), "memory_proposed": len(proposed)},
+                    "pending": [{"kind": "memory", "id": m["id"], "text": m["text"], "source": m["source"], "proposed_by": m["proposed_by"]} for m in proposed],
+                    "sources": room.sources(), "memory": room.memory("approved"), "audit": room.audit(30)}
+
+        view = self._with_room(pid, build)
+        view["instructions"] = {"authorised": [x["name"] for x in self.instructions_for_agent(pid)["authorised"]], "proposals": len(self.proposals(pid))}
+        return view
+
+    @_closing
+    def room_read(self, pid: str) -> dict[str, Any]:
+        """Agent view: authorised instructions, listed sources and approved memory. Proposed or rejected memory is not shown."""
+        data = self._with_room(pid, lambda room: {"sources": room.sources(), "memory": room.memory("approved")})
+        data["instructions"] = self.instructions_for_agent(pid)
+        return data
+
+    @_closing
+    def room_add_source(self, pid: str, kind: str, ref: str, label: str = "", by: str = "owner") -> dict[str, Any]:
+        return {"id": self._with_room(pid, lambda room: room.add_source(kind, ref, label, by))}
+
+    @_closing
+    def room_remove_source(self, pid: str, source_id: int) -> dict[str, Any]:
+        self._with_room(pid, lambda room: room.remove_source(source_id, "owner"))
+        return {"removed": source_id}
+
+    @_closing
+    def room_propose_memory(self, pid: str, text: str, kind: str, source: str, by: str = "agent") -> dict[str, Any]:
+        return {"id": self._with_room(pid, lambda room: room.propose_memory(text, kind, source, by)), "state": "proposed",
+                "next": "The owner reviews this in the Workroom screen. Nothing is remembered until then."}
+
+    @_closing
+    def room_memory_decide(self, pid: str, memory_id: int, approve: bool) -> dict[str, Any]:
+        """Owner route (never an agent tool)."""
+        self._with_room(pid, lambda room: room.decide_memory(memory_id, approve, "owner"))
+        return {"id": memory_id, "state": "approved" if approve else "rejected"}
+
+    @_closing
+    def room_memory_edit(self, pid: str, memory_id: int, text: str) -> dict[str, Any]:
+        self._with_room(pid, lambda room: room.edit_memory(memory_id, text, "owner"))
+        return {"id": memory_id, "state": "edited"}
+
     @_closing
     def column_questions(self, pid: str) -> list[dict[str, Any]]:
         """Report table columns that fit two or more workbook columns about equally: one question per column instead of one per figure."""

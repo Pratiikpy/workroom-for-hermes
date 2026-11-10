@@ -73,6 +73,29 @@ RECIPE_STATUS_SCHEMA = {
 }
 
 
+ROOM_READ_SCHEMA = {
+    "name": "workroom_room_read",
+    "description": ("Read the project's Room before a job: the instructions the owner authorised, the sources that belong to the job (files, folders, links, notes) and the memory the owner approved, "
+                    "each with where it came from. Proposed or rejected memory is not shown. Read-only."),
+    "parameters": PROJECT_ONLY,
+}
+
+ROOM_SOURCE_SCHEMA = {
+    "name": "workroom_room_add_source",
+    "description": "Add a source to the project's Room so later tasks can find it: a file or folder inside the project folder, an http(s) link, or a short note. The owner sees who added it and can remove it.",
+    "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "kind": {"type": "string", "enum": ["file", "folder", "url", "note"]},
+                                                    "ref": {"type": "string", "description": "Path inside the project, link, or note text"}, "label": {"type": "string"}}, "required": ["project", "kind", "ref"]},
+}
+
+ROOM_REMEMBER_SCHEMA = {
+    "name": "workroom_room_remember",
+    "description": ("Propose something worth remembering for this project (a fact, a preference, or a correction the owner made) together with where it came from. "
+                    "It is NOT remembered until the owner approves it in the Workroom tab."),
+    "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "text": {"type": "string", "description": "Up to 1000 characters"},
+                                                    "kind": {"type": "string", "enum": ["fact", "preference", "correction"]},
+                                                    "source": {"type": "string", "description": "Where this came from, e.g. the owner's words or the file"}}, "required": ["project", "text", "kind", "source"]},
+}
+
 ROLL_SCHEMA = {
     "name": "workroom_roll_forward",
     "description": ("Prepare one release that rolls the project's documents forward to the next reporting period: every linked figure moves to the same row's next period column, "
@@ -230,3 +253,6 @@ def _directive(staged: dict[str, Any]) -> str:
 workroom_recipe_propose = _wrap(lambda a: service().recipe_propose(a["project"], a["report"]))
 workroom_recipe_status = _wrap(lambda a: service().recipe_status(a["project"]))
 workroom_release_record = _wrap(lambda a: service().release_record(a["project"], a["release"]))
+workroom_room_read = _wrap(lambda a: service().room_read(a["project"]))
+workroom_room_add_source = _wrap(lambda a: service().room_add_source(a["project"], a["kind"], a["ref"], a.get("label", ""), by="agent"))
+workroom_room_remember = _wrap(lambda a: service().room_propose_memory(a["project"], a["text"], a["kind"], a["source"], by="agent"))

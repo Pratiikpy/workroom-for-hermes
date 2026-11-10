@@ -35,6 +35,9 @@ provides_tools:
   - workroom_release_record
   - workroom_recipe_status
   - workroom_recipe_propose
+  - workroom_room_read
+  - workroom_room_add_source
+  - workroom_room_remember
 provides_hooks:
   - pre_tool_call
 config_schema:

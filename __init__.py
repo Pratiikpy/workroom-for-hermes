@@ -33,6 +33,9 @@ TOOLS = (
     ("workroom_release_record", tools.RECORD_SCHEMA, tools.workroom_release_record, "The record of one published release.", READ_ONLY_TOOLSET),
     ("workroom_recipe_status", tools.RECIPE_STATUS_SCHEMA, tools.workroom_recipe_status, "Which recipe is active for a project.", READ_ONLY_TOOLSET),
     ("workroom_recipe_propose", tools.RECIPE_PROPOSE_SCHEMA, tools.workroom_recipe_propose, "Propose a report as the model for a recurring report.", FULL_TOOLSET),
+    ("workroom_room_read", tools.ROOM_READ_SCHEMA, tools.workroom_room_read, "Read the project's Room: authorised instructions, sources, approved memory.", READ_ONLY_TOOLSET),
+    ("workroom_room_add_source", tools.ROOM_SOURCE_SCHEMA, tools.workroom_room_add_source, "Add a source (file, folder, link or note) to the project's Room.", FULL_TOOLSET),
+    ("workroom_room_remember", tools.ROOM_REMEMBER_SCHEMA, tools.workroom_room_remember, "Propose something for the project's Room memory; the owner decides.", FULL_TOOLSET),
 )
 
 
