@@ -542,6 +542,42 @@ class Service:
         return {"data": data, "text": dossier_mod.text(data)}
 
     @_closing
+    def release_proof_export(self, pid: str, release_id: str) -> dict[str, Any]:
+        """Owner route (never an agent tool): the signed record of a published release, to hand to whoever receives the document."""
+        from .signing import Signer, sha256_file
+
+        rec = self.release_record(pid, release_id)["data"]
+        if rec.get("restored_at"):
+            raise ServiceError("that release was restored; its files are no longer the released bytes")
+        proj, _ = self._open(pid)
+        pid = self._resolve(pid)
+        files = [{"file": f["file"], "sha256": f["after"]} for f in rec["files"] if f.get("after")]
+        meta_path = self.data_dir / "projects" / pid / "meta" / f"{release_id}.json"
+        meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+        refs = [c.get("src", "") for c in (meta.get("changes") or [])] + [f.get("source", "") for f in (meta.get("figures") or [])]
+        names = sorted({r.split("!")[0] for r in refs if r and "!" in r})
+        sources = []
+        for n in names:
+            h = sha256_file(proj.root / n)
+            if h:
+                sources.append({"file": n, "sha256": h})
+        payload = {"project": proj.root.name, "release": release_id, "digest": rec["digest"], "approved_by": rec["approved_by"], "approved_via": rec["channel"],
+                   "approved_at": rec["approved_at"], "published_at": rec["published_at"], "files": files, "sources": sources,
+                   "figures": len(meta.get("figures") or []) or rec["changes_total"],
+                   "note": "Sources are hashed when this record is exported; export it right after the release."}
+        return Signer(self.data_dir / "keys").sign(payload)
+
+    @_closing
+    def verify_proof(self, pid: str, envelope: Any) -> dict[str, Any]:
+        """Check a signed record against the documents and sources in the project folder. Read-only."""
+        from .signing import verify
+
+        proj, _ = self._open(pid)
+        if not isinstance(envelope, dict):
+            raise ServiceError("the record must be the JSON object that was exported")
+        return verify(envelope, proj.root)
+
+    @_closing
     def restore_release(self, pid: str, release_id: str, principal: str = DESKTOP_PRINCIPAL) -> dict[str, Any]:
         pid = self._resolve(pid)
         try:

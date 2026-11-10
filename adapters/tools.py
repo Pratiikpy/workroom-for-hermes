@@ -103,6 +103,13 @@ LAYOUT_SCHEMA = {
     "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "path": {"type": "string", "description": "The deck, relative to the project folder"}}, "required": ["project", "path"]},
 }
 
+VERIFY_SCHEMA = {
+    "name": "workroom_verify",
+    "description": ("Check a signed Workroom release record (the JSON the owner exported) against the document and source files in the project folder: signature, "
+                    "document bytes, source bytes. Read-only. A pass proves who approved which exact bytes against which exact sources, not that the figures are true."),
+    "parameters": {"type": "object", "properties": {"project": {"type": "string"}, "record": {"type": "object", "description": "The exported record"}}, "required": ["project", "record"]},
+}
+
 ATTENTION_SCHEMA = {
     "name": "workroom_attention",
     "description": ("List everything that waits for the owner across all Workroom projects (releases to approve, memory to decide, deliverables to review, proposals, links to confirm), "
@@ -277,6 +284,7 @@ workroom_recipe_propose = _wrap(lambda a: service().recipe_propose(a["project"],
 workroom_recipe_status = _wrap(lambda a: service().recipe_status(a["project"]))
 workroom_release_record = _wrap(lambda a: service().release_record(a["project"], a["release"]))
 workroom_layout_check = _wrap(lambda a: service().layout_check(a["project"], a["path"]))
+workroom_verify = _wrap(lambda a: service().verify_proof(a["project"], a["record"]))
 workroom_attention = _wrap(lambda a: service().attention())
 workroom_deliverable_register = _wrap(lambda a: service().deliverable_register(a["project"], a["path"], a.get("note", ""), by="agent"))
 workroom_room_read = _wrap(lambda a: service().room_read(a["project"]))

@@ -37,6 +37,7 @@ TOOLS = (
     ("workroom_room_add_source", tools.ROOM_SOURCE_SCHEMA, tools.workroom_room_add_source, "Add a source (file, folder, link or note) to the project's Room.", FULL_TOOLSET),
     ("workroom_room_remember", tools.ROOM_REMEMBER_SCHEMA, tools.workroom_room_remember, "Propose something for the project's Room memory; the owner decides.", FULL_TOOLSET),
     ("workroom_layout_check", tools.LAYOUT_SCHEMA, tools.workroom_layout_check, "Check a deck for visible layout faults.", READ_ONLY_TOOLSET),
+    ("workroom_verify", tools.VERIFY_SCHEMA, tools.workroom_verify, "Check a signed Workroom release record against the files.", READ_ONLY_TOOLSET),
     ("workroom_attention", tools.ATTENTION_SCHEMA, tools.workroom_attention, "What waits for the owner across all projects.", READ_ONLY_TOOLSET),
     ("workroom_deliverable_register", tools.DELIVERABLE_SCHEMA, tools.workroom_deliverable_register, "List a file you produced as a deliverable for the owner to review.", FULL_TOOLSET),
 )
@@ -57,6 +58,9 @@ def register(ctx):
 
     ctx.register_hook("pre_tool_call", make_guard(lambda: [p["folder"] for p in tools.service().projects()]))
     from .adapters.workspace_guard import make_workspace_guard
+    from .adapters.secret_guard import make_secret_guard
+
+    ctx.register_hook("pre_tool_call", make_secret_guard(lambda: [tools.service().data_dir]))
 
     ctx.register_hook("pre_tool_call", make_workspace_guard(lambda: tools.service().projects(), lambda pid: tools.service().room_policy(pid)))
     from .adapters.snapshotter import make_snapshotter
