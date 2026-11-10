@@ -109,10 +109,26 @@ def _xml(z, name: str):
     return etree.fromstring(z.read(name), etree.XMLParser(resolve_entities=False, no_network=True, huge_tree=False))
 
 
-def slides_svg(data: bytes, limit: int = 60) -> list[dict]:
+def _marked(text: str, figures: list[str]) -> str:
+    """Escaped text with each linked figure wrapped in an underlined, green span (the first occurrence of each, left to right)."""
+    spans: list[tuple[int, int]] = []
+    for fig in sorted(set(f for f in figures if f), key=len, reverse=True):
+        at = text.find(fig)
+        if at >= 0 and not any(a < at + len(fig) and at < b for a, b in spans):
+            spans.append((at, at + len(fig)))
+    out, pos = [], 0
+    for a, b in sorted(spans):
+        out.append(_esc(text[pos:a]))
+        out.append(f'<tspan fill="#047857" font-weight="700" text-decoration="underline">{_esc(text[a:b])}</tspan>')
+        pos = b
+    out.append(_esc(text[pos:]))
+    return "".join(out)
+
+
+def slides_svg(data: bytes, limit: int = 60, marks: dict[int, list[str]] | None = None) -> list[dict]:
     """Each slide drawn from its shapes' own positions and sizes as an SVG: boxes, text at its font size, tables as grids. Read straight from the file's XML
     (no PowerPoint, no python-pptx), structural rather than typeset: line breaks and fonts are approximate, and the page says so. Text is escaped; nothing
-    from the file is executed."""
+    from the file is executed. ``marks`` maps a slide number to the figures on it that are linked to a source; each is drawn underlined in green."""
     import zipfile
 
     z = zipfile.ZipFile(io.BytesIO(data))
@@ -165,7 +181,7 @@ def slides_svg(data: bytes, limit: int = 60) -> list[dict]:
                     if c is not None and re.fullmatch(r"[0-9A-Fa-f]{6}", c.get("val") or ""):
                         col = "#" + c.get("val")
                         break
-                parts.append(f'<text x="{x + 6:.1f}" y="{ty:.1f}" font-size="{size:.0f}" fill="{col or "#111827"}">{_esc(txt[:160])}</text>')
+                parts.append(f'<text x="{x + 6:.1f}" y="{ty:.1f}" font-size="{size:.0f}" fill="{col or "#111827"}">{_marked(txt[:160], (marks or {}).get(si, []))}</text>')
         parts.append("</svg>")
         out.append({"slide": si, "svg": "".join(parts)})
     return out
@@ -221,7 +237,7 @@ def text_of(data: bytes, kind: str) -> str | None:
     return None
 
 
-def preview(data: bytes, kind: str, path: str, page: int = 1) -> dict:
+def preview(data: bytes, kind: str, path: str, page: int = 1, marks: dict[int, list[str]] | None = None) -> dict:
     if kind == "text":
         text = data[:MAX_TEXT].decode("utf-8", "replace")
         return {"kind": "text", "text": text, "truncated": len(data) > MAX_TEXT}
@@ -246,7 +262,7 @@ def preview(data: bytes, kind: str, path: str, page: int = 1) -> dict:
     why = ""
     if kind == "powerpoint":
         try:
-            return {"kind": "slides", "slides": slides_svg(data), "structural": True}
+            return {"kind": "slides", "slides": slides_svg(data, marks=marks), "structural": True, "marked": sum(len(v) for v in (marks or {}).values())}
         except Exception as exc:  # noqa: BLE001  a deck the reader cannot draw still has its text
             why = f" ({type(exc).__name__}: {str(exc)[:80]})"
     if kind == "word":

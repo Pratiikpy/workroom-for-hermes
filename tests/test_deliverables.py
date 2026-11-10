@@ -131,3 +131,27 @@ def test_a_deck_and_a_report_are_drawn_structurally_without_any_office_program()
     d.save(b2)
     blocks = preview(b2.getvalue(), "word", "r.docx")["blocks"]
     assert [x["type"] for x in blocks] == ["heading", "paragraph", "table"] and blocks[2]["rows"] == [["Metric", "Q2"]]
+
+
+def test_linked_figures_are_underlined_in_the_structural_drawing_and_text_stays_escaped(tmp_path: Path) -> None:
+    from pptx import Presentation
+    from pptx.util import Inches
+
+    from workroom.tests.test_flagship_headless import make_workbook
+
+    root = tmp_path / "proj"
+    root.mkdir()
+    (root / "results.xlsx").write_bytes(make_workbook())
+    prs = Presentation()
+    s = prs.slides.add_slide(prs.slide_layouts[6])
+    s.shapes.add_textbox(Inches(1), Inches(1), Inches(6), Inches(1)).text_frame.text = "Revenue was 120 in Q2 <b>& more</b>."
+    prs.save(str(root / "deck.pptx"))
+    from workroom.workroom_core.service import Service
+
+    svc = Service(tmp_path / "data")
+    pid = svc.add_project(str(root))["project"]
+    svc.discover(pid)
+    svc.deliverable_register(pid, "deck.pptx", "made by a script")
+    got = svc.deliverable_preview(pid, "deck.pptx")
+    svg = got["slides"][0]["svg"]
+    assert got["marked"] >= 1 and 'text-decoration="underline">120<' in svg and "<b>" not in svg and "&lt;b&gt;" in svg

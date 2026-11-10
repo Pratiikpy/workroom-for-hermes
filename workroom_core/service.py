@@ -1243,8 +1243,16 @@ class Service:
                 if not f.is_file():
                     return {"kind": "none", "why": "the file is not in the folder any more"}
                 data = f.read_bytes()
-            return {"path": rel, "version": version, **preview(data, kind_of(rel), rel, page)}
+            return {"path": rel, "version": version, **preview(data, kind_of(rel), rel, page, marks)}
 
+        marks: dict[int, list[str]] = {}
+        try:  # figures of this deck that are linked to a source, so the drawing can mark them; a project that cannot be read simply draws unmarked
+            proj, _ = self._open(pid)
+            for t in proj.ties():
+                if t.deck == path and t.state in ("accepted", "confirmed") and t.slide:
+                    marks.setdefault(int(t.slide), []).append(t.raw.strip())
+        except Exception:  # noqa: BLE001
+            marks = {}
         return self._with_both(pid, build)
 
     @_closing

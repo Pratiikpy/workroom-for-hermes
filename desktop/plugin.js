@@ -427,7 +427,7 @@ function DeliverableView({ api, pid, item, busy, run, ctx, onChanged }) {
   let body = null
   if (!shown) body = h('div', { style: css.muted }, 'Loading...')
   else if (shown.kind === 'slides') body = h('div', null,
-    h('div', { style: { ...css.muted, fontSize: 12 } }, 'Drawn from where each shape sits, not typeset: fonts and line breaks are approximate. No Office program needed.'),
+    h('div', { style: { ...css.muted, fontSize: 12 } }, 'Drawn from where each shape sits, not typeset: fonts and line breaks are approximate. No Office program needed.' + (shown.marked ? ' Figures linked to a source are underlined in green (' + shown.marked + ').' : '')),
     shown.slides.map(sl => h('img', { key: sl.slide, alt: `Slide ${sl.slide}`, src: `data:image/svg+xml;utf8,${encodeURIComponent(sl.svg)}`, style: { width: '100%', margin: '6px 0', border: '1px solid var(--ui-stroke-secondary, #8884)', borderRadius: 6 } })))
   else if (shown.kind === 'blocks') body = h('div', { style: { maxHeight: 360, overflow: 'auto', margin: '6px 0' } },
     h('div', { style: { ...css.muted, fontSize: 12 } }, 'Structural view of the document: text and tables, not the page layout.'),
