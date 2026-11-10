@@ -978,6 +978,15 @@ class Service:
         return {"id": memory_id, "state": "approved" if approve else "rejected"}
 
     @_closing
+    def room_policy(self, pid: str) -> dict[str, Any]:
+        return self._with_room(pid, lambda room: room.policy())
+
+    @_closing
+    def room_set_policy(self, pid: str, protected: list[str], confirm_delete: bool) -> dict[str, Any]:
+        """Owner route (never an agent tool)."""
+        return self._with_room(pid, lambda room: room.set_policy(protected, confirm_delete, "owner"))
+
+    @_closing
     def room_memory_edit(self, pid: str, memory_id: int, text: str) -> dict[str, Any]:
         self._with_room(pid, lambda room: room.edit_memory(memory_id, text, "owner"))
         return {"id": memory_id, "state": "edited"}

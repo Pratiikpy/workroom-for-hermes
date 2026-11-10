@@ -50,6 +50,9 @@ def register(ctx):
     from .adapters.guard import make_guard
 
     ctx.register_hook("pre_tool_call", make_guard(lambda: [p["folder"] for p in tools.service().projects()]))
+    from .adapters.workspace_guard import make_workspace_guard
+
+    ctx.register_hook("pre_tool_call", make_workspace_guard(lambda: tools.service().projects(), lambda pid: tools.service().room_policy(pid)))
     from .adapters.snapshotter import make_snapshotter
 
     ctx.register_hook("pre_tool_call", make_snapshotter(lambda: tools.service().projects(), lambda pid, path, tool: tools.service().snapshot_take(pid, path, tool)))

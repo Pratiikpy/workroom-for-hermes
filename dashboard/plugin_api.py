@@ -241,6 +241,8 @@ class RoomBody(BaseModel):
     source: str = ""
     id: int = 0
     approve: bool = True
+    protected: list[str] = []
+    confirm_delete: bool = True
 
 
 @router.post("/snapshots")
@@ -251,6 +253,16 @@ async def snapshots(body: RoomBody) -> dict:
 @router.post("/snapshot-restore")
 async def snapshot_restore(body: RoomBody) -> dict:
     return _guard(lambda: _service().snapshot_restore(body.project, body.id))
+
+
+@router.post("/room-policy")
+async def room_policy(body: RoomBody) -> dict:
+    return _guard(lambda: _service().room_policy(body.project))
+
+
+@router.post("/room-policy-set")
+async def room_policy_set(body: RoomBody) -> dict:
+    return _guard(lambda: _service().room_set_policy(body.project, body.protected, body.confirm_delete))
 
 
 @router.post("/room")

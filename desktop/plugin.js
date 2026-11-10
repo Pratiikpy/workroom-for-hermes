@@ -377,6 +377,22 @@ function AgentChanges({ api, pid, busy, run }) {
       r.state === 'too_large' ? null : btn('Restore', () => run(async () => { await api('/snapshot-restore', { project: pid, id: r.id }); await load() }, () => 'Restored.'), { disabled: busy }))))
 }
 
+function Policy({ api, pid, busy, run }) {
+  const [pol, setPol] = useState(null)
+  const [text, setText] = useState('')
+  const load = useCallback(() => pid ? api('/room-policy', { project: pid }).then(p => { setPol(p); setText(p.protected.join('\n')) }).catch(() => setPol(null)) : setPol(null), [api, pid])
+  useEffect(() => { load() }, [load])
+  if (!pol) return null
+  const patterns = text.split('\n').map(x => x.trim()).filter(Boolean)
+  return h('section', { style: css.card, 'aria-label': 'Protected files' },
+    h('h2', { style: css.h2 }, 'Protected files'),
+    h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'The agent cannot change these files (one pattern per line, inside this project, * allowed). Removing a folder, a wildcard or five or more files asks you first. These are checks on command text, not a sandbox.'),
+    h('textarea', { value: text, onChange: e => setText(e.target.value), rows: 4, 'aria-label': 'Protected patterns', style: { ...css.input, width: '100%', fontFamily: 'monospace' } }),
+    h('label', { style: { ...css.row, margin: '6px 0', fontSize: 13 } },
+      h('input', { type: 'checkbox', checked: pol.confirm_delete, onChange: e => setPol({ ...pol, confirm_delete: e.target.checked }), 'aria-label': 'Ask before bulk removal' }), 'Ask me before the agent removes or moves many files'),
+    btn('Save', () => run(async () => { await api('/room-policy-set', { project: pid, protected: patterns, confirm_delete: pol.confirm_delete }); await load() }, () => 'Saved.'), { disabled: busy, primary: true }))
+}
+
 const stateLabel = { accepted: 'linked automatically', confirmed: 'linked by you', confirm: 'needs you', skipped: 'left alone', held: 'you changed it by hand' }
 
 function Why({ info, onClose }) {
@@ -909,6 +925,7 @@ function WorkroomPage({ ctx }) {
     pid ? h(Instructions, { api, pid, busy, run }) : null,
     pid ? h(Room, { api, pid, busy, run }) : null,
     pid ? h(AgentChanges, { api, pid, busy, run }) : null,
+    pid ? h(Policy, { api, pid, busy, run }) : null,
     pid && past.length ? h('section', { style: css.card, 'aria-label': 'Past releases' },
       h('h2', { style: css.h2 }, 'Past releases'),
       h('p', { style: { ...css.muted, margin: '0 0 8px', fontSize: 12 } }, 'Restoring puts the files of that release back as they were before it. It is refused if you have worked in those files since, so nothing you did later is overwritten.'),

@@ -37,6 +37,7 @@ class Room:
             self.db.execute("CREATE TABLE IF NOT EXISTS sources (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT, ref TEXT, label TEXT, added_by TEXT, added_at REAL)")
             self.db.execute("CREATE TABLE IF NOT EXISTS memory (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT, text TEXT, source TEXT, state TEXT, proposed_by TEXT,"
                             " proposed_at REAL, decided_by TEXT, decided_at REAL, history TEXT)")
+            self.db.execute("CREATE TABLE IF NOT EXISTS policy (key TEXT PRIMARY KEY, value TEXT)")
             self.db.execute("CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY AUTOINCREMENT, at REAL, actor TEXT, event TEXT, detail TEXT)")
 
     def close(self) -> None:
@@ -160,3 +161,27 @@ class Room:
         return [{"id": r["id"], "kind": r["kind"], "text": r["text"], "source": r["source"], "state": r["state"], "proposed_by": r["proposed_by"],
                  "proposed_at": r["proposed_at"], "decided_by": r["decided_by"], "decided_at": r["decided_at"], "history": json.loads(r["history"])}
                 for r in self.db.execute("SELECT * FROM memory WHERE state=? ORDER BY id", (state,))]
+
+    # ---- policy: files the agent may not change, and whether removing many files needs a human yes
+    DEFAULT_PROTECTED = (".git/*", ".env", "*.pem", "*.key", "workroom.md")
+
+    def policy(self) -> dict:
+        row = self.db.execute("SELECT value FROM policy WHERE key='policy'").fetchone()
+        if row is None:
+            return {"protected": list(self.DEFAULT_PROTECTED), "confirm_delete": True}
+        return json.loads(row["value"])
+
+    def set_policy(self, protected: list[str], confirm_delete: bool, by: str) -> dict:
+        if self._actor(by) != "owner":
+            raise RoomError("only the owner changes the policy")
+        clean = []
+        for pat in protected:
+            pat = str(pat).strip().replace(chr(92), "/")
+            if not pat or len(pat) > 200 or pat.startswith("/") or ".." in pat.split("/"):
+                raise RoomError("a protected pattern is a path inside the project, such as reports/final/* or *.pem")
+            clean.append(pat)
+        value = {"protected": clean[:100], "confirm_delete": bool(confirm_delete)}
+        with self.db:
+            self.db.execute("INSERT OR REPLACE INTO policy (key, value) VALUES ('policy', ?)", (json.dumps(value),))
+            self._log(by, "policy_changed", {"protected": len(value["protected"]), "confirm_delete": value["confirm_delete"]})
+        return value
