@@ -26,9 +26,18 @@ def check(name: str, ok: bool) -> None:
     print(("PASS " if ok else "FAIL ") + name, flush=True)
 
 
+def ready(pg) -> None:
+    pg.wait_for_timeout(4000)
+    try:
+        pg.wait_for_selector("text=Backend ready", timeout=90000)
+    except Exception:
+        pass
+    pg.wait_for_timeout(3000)
+
+
 def open_page(pg, root: Path) -> None:
     pg.reload()
-    pg.wait_for_timeout(6000)
+    ready(pg)
     try:
         flow.open_workroom(pg)
     except AssertionError:
@@ -48,7 +57,7 @@ def main() -> None:
         pg.on("pageerror", lambda e: errors.append(str(e)[:200]))
         pg.on("console", lambda m: errors.append(m.text[:200]) if m.type == "error" else None)
         pg.reload()
-        pg.wait_for_timeout(6000)
+        ready(pg)
         try:
             flow.open_workroom(pg)
         except AssertionError:
@@ -65,8 +74,16 @@ def main() -> None:
         brief.write_text("# Brief\nRevenue rose 20%.\nCosts fell.\n")
         open_page(pg, root)
         needs = pg.get_by_role("region", name="Needs you", exact=True)
+        try:
+            needs.get_by_text("brief.md", exact=False).first.wait_for(timeout=20000)
+        except Exception:
+            pass
         check("the Needs-you inbox shows the deliverable to review", needs.count() > 0 and "brief.md" in needs.inner_text())
         panel = pg.get_by_role("region", name="Deliverables", exact=True)
+        try:
+            panel.get_by_text("not reviewed").first.wait_for(timeout=20000)
+        except Exception:
+            pass
         check("the Deliverables panel lists brief.md as not reviewed", panel.count() > 0 and "not reviewed" in panel.inner_text())
         panel.get_by_role("button", name="Open").first.click()
         pg.wait_for_selector("text=Costs fell.", timeout=10000)
@@ -76,8 +93,12 @@ def main() -> None:
         check("compare shows lines added and removed", True)
         pg.screenshot(path=str(SHOTS / "deliverables_compare.png"))
         panel.get_by_role("button", name="Approve this version").first.click()
-        pg.wait_for_timeout(2500)
-        check("approving marks it approved", "approved" in panel.inner_text())
+        try:
+            pg.wait_for_selector("text=brief.md approved.", timeout=30000)
+            pg.wait_for_timeout(1500)
+        except Exception:
+            pass
+        check("approving marks it approved", "· approved" in panel.inner_text() or "· approved" in panel.inner_text())
         check("the inbox no longer lists it", "brief.md" not in pg.get_by_role("region", name="Needs you", exact=True).inner_text())
         pg.screenshot(path=str(SHOTS / "deliverables_approved.png"))
         check("no page or console errors", not errors)

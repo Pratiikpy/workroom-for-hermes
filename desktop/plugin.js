@@ -1,5 +1,5 @@
 import { createElement as h, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { SandboxedFrame, host } from '@hermes/plugin-sdk'
+import { SandboxedFrame, host, useValue, Tabs, TabsList, TabsTrigger, Badge, EmptyState, STATUSBAR_AREAS, PALETTE_AREA } from '@hermes/plugin-sdk'
 import { TRANSCRIPT_DIRECTIVE_AREA } from '@hermes/plugin-sdk'
 
 const css = {
@@ -432,11 +432,12 @@ function DeliverableView({ api, pid, item, busy, run, ctx, onChanged }) {
         : h('div', { style: css.muted }, cmp.why)) : null) : null)
 }
 
-function Deliverables({ api, pid, busy, run, ctx }) {
+function Deliverables({ api, pid, busy, run, ctx, empty = false }) {
   const [items, setItems] = useState(null)
   const [open, setOpen] = useState(null)
   const load = useCallback(() => pid ? api('/deliverables', { project: pid }).then(r => setItems(r.items)).catch(() => setItems(null)) : setItems(null), [api, pid])
   useEffect(() => { setOpen(null); load() }, [load])
+  if (items && !items.length && empty) return h(EmptyState, { title: 'Nothing made yet', description: 'Files the agent makes or changes in this folder appear here, with their earlier versions and an approve button.' })
   if (!items || !items.length) return null
   const tone = { approved: 'var(--ui-green, #16a34a)', 'changed since approval': 'var(--ui-amber, #d97706)', 'not reviewed': 'var(--ui-text-tertiary, #888)', missing: 'var(--ui-red, #dc2626)' }
   const waiting = items.filter(i => i.status === 'not reviewed' || i.status === 'changed since approval').length
@@ -459,12 +460,87 @@ function NeedsYou({ api, pid, setPid, refreshKey }) {
   return h('section', { style: { ...css.card, borderColor: att.total ? 'var(--ui-accent, #3b82f6)' : undefined }, 'aria-label': 'Needs you' },
     h('h2', { style: css.h2 }, att.total ? `Needs you · ${att.total}` : 'Nothing needs you'),
     att.total ? h('div', { style: { ...css.muted, fontSize: 12, marginBottom: 6 } }, parts.join(' · ')) : h('div', { style: { ...css.muted, fontSize: 12 } }, 'No release, memory, deliverable or question is waiting in any project.'),
-    att.items.slice(0, 12).map((it, i) => h('div', { key: i, style: { ...css.row, justifyContent: 'space-between', padding: '3px 0', borderTop: i ? '1px solid var(--ui-stroke-secondary, #8883)' : 'none' } },
+    [...att.items.filter(i => i.project === pid), ...att.items.filter(i => i.project !== pid)].slice(0, 12).map((it, i) => h('div', { key: i, style: { ...css.row, justifyContent: 'space-between', padding: '3px 0', borderTop: i ? '1px solid var(--ui-stroke-secondary, #8883)' : 'none' } },
       h('span', { style: { fontSize: 13 } }, h('span', { style: css.chip }, it.name), ' ', it.title),
       it.project !== pid ? btn('Go to project', () => setPid(it.project)) : h('span', { style: { ...css.muted, fontSize: 12 } }, 'in this project, below'))),
     att.items.length > 12 ? h('div', { style: { ...css.muted, fontSize: 12 } }, `and ${att.items.length - 12} more`) : null,
     att.folders_missing && att.folders_missing.length ? h('div', { style: { ...css.muted, fontSize: 12, marginTop: 6 } }, `${att.folders_missing.length} project${att.folders_missing.length === 1 ? '' : 's'} not shown: the folder was moved or deleted.`) : null,
     att.could_not_check.length ? h('div', { role: 'alert', style: { color: 'var(--ui-amber, #d97706)', fontSize: 12, marginTop: 6 } }, `${att.could_not_check.length} part${att.could_not_check.length === 1 ? '' : 's'} could not be checked: ${att.could_not_check.map(f => `${f.part} (${f.error})`).join('; ').slice(0, 300)}`) : null)
+}
+
+
+const inside = (folder, cwd) => {
+  if (!folder || !cwd) return false
+  const norm = (p) => p.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()
+  const f = norm(folder), c = norm(cwd)
+  return c === f || c.startsWith(f + '/')
+}
+
+function useAttention(api, everyMs) {
+  const [att, setAtt] = useState(null)
+  const [tick, setTick] = useState(0)
+  useEffect(() => { let live = true; api('/attention', {}).then(a => { if (live) setAtt(a) }).catch(() => {}); return () => { live = false } }, [api, tick])
+  useEffect(() => { const t = setInterval(() => setTick(x => x + 1), everyMs); return () => clearInterval(t) }, [everyMs])
+  return [att, () => setTick(x => x + 1)]
+}
+
+// The pane beside the chat: it follows the folder of the chat you are in, shows what needs you, what the agent made, and what the project knows.
+function SidePane({ ctx }) {
+  const api = useCallback((path, body) => ctx.rest(path, body === undefined ? undefined : { method: 'POST', body }), [ctx])
+  const cwd = useValue(host.state.cwd)
+  const [projects, setProjects] = useState(null)
+  const [tab, setTab] = useState('needs')
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState(null)
+  const [att, refresh] = useAttention(api, 30000)
+  useEffect(() => { api('/projects').then(setProjects).catch(() => setProjects([])) }, [api, cwd])
+  const run = useCallback(async (fn, okText) => {
+    setBusy(true); setMessage(null)
+    try { const out = await fn(); if (okText) setMessage({ kind: 'ok', text: okText(out) }); refresh(); return out }
+    catch (err) { setMessage({ kind: 'error', text: String(err && err.message ? err.message : err) }); return null }
+    finally { setBusy(false) }
+  }, [refresh])
+  const project = (projects || []).filter(p => inside(p.folder, cwd)).sort((a, b) => b.folder.length - a.folder.length)[0] || null
+  const pid = project ? project.project : null
+  const mine = att ? att.items.filter(i => i.project === pid) : []
+  const openFull = () => { if (host.undismissPane) host.undismissPane('workroom:page'); if (host.revealPane) host.revealPane('workroom:page') }
+  if (projects && !project) {
+    return h('div', { style: { ...css.page, gap: 10 } },
+      h(EmptyState, { title: 'This chat is not in a Workroom project', description: cwd ? `The chat works in ${cwd}. Add that folder as a project to keep its sources, deliverables and approvals here.` : 'Open a chat in a project folder.' }),
+      cwd ? btn('Add this folder as a project', () => run(async () => { await api('/projects', { folder: cwd }); setProjects(await api('/projects')) }, () => 'Project added.'), { primary: true, disabled: busy }) : null,
+      btn('Open the full Workroom page', openFull),
+      att && att.total ? h('div', { style: { ...css.muted, fontSize: 12 } }, `${att.total} thing${att.total === 1 ? '' : 's'} wait for you in other projects.`) : null)
+  }
+  if (!project) return h('div', { style: css.page }, h('div', { style: css.muted }, 'Loading...'))
+  const count = (n) => n ? h(Badge, { variant: 'secondary', style: { marginLeft: 6 } }, String(n)) : null
+  return h('div', { style: { ...css.page, gap: 10, padding: 12 }, 'aria-busy': busy },
+    h('div', { style: { ...css.row, justifyContent: 'space-between' } },
+      h('div', null, h('div', { style: { fontWeight: 600 } }, project.folder.split(/[\\/]/).pop()), h('div', { style: { ...css.muted, fontSize: 11 } }, project.folder)),
+      btn('Full page', openFull)),
+    message ? h(Banner, { kind: message.kind }, message.text) : null,
+    h(Tabs, { value: tab, onValueChange: setTab },
+      h(TabsList, null,
+        h(TabsTrigger, { value: 'needs' }, 'Needs you', count(mine.length)),
+        h(TabsTrigger, { value: 'made' }, 'Made'),
+        h(TabsTrigger, { value: 'room' }, 'Room'),
+        h(TabsTrigger, { value: 'rules' }, 'Rules'))),
+    tab === 'needs' ? (mine.length
+      ? h('div', null, mine.map((it, i) => h('div', { key: i, style: { padding: '6px 0', borderTop: i ? '1px solid var(--ui-stroke-secondary, #8883)' : 'none', fontSize: 13 } }, it.title)),
+          h('div', { style: { ...css.muted, fontSize: 12, marginTop: 6 } }, 'Each one is settled in its own tab here or on the full page.'))
+      : h(EmptyState, { title: 'Nothing needs you in this project', description: att && att.total ? `${att.total} item${att.total === 1 ? '' : 's'} wait in other projects.` : 'No release, memory, deliverable or question is waiting.' })) : null,
+    tab === 'made' ? h('div', null, h(Deliverables, { api, pid, busy, run, ctx, empty: true }), h(AgentChanges, { api, pid, busy, run })) : null,
+    tab === 'room' ? h(Room, { api, pid, busy, run }) : null,
+    tab === 'rules' ? h('div', null, h(Policy, { api, pid, busy, run }), h(Instructions, { api, pid, busy, run })) : null)
+}
+
+function NeedsStatus({ ctx }) {
+  const api = useCallback((path, body) => ctx.rest(path, body === undefined ? undefined : { method: 'POST', body }), [ctx])
+  const [att] = useAttention(api, 60000)
+  if (!att) return null
+  const open = () => { if (host.undismissPane) host.undismissPane('workroom:room'); if (host.revealPane) host.revealPane('workroom:room') }
+  return h('button', { onClick: open, title: att.total ? Object.entries(att.counts).map(([k, n]) => `${n} ${k}`).join(', ') : 'Nothing waits for you', 'aria-label': `Workroom: ${att.total} need you`,
+    style: { background: 'transparent', border: 'none', color: att.total ? 'var(--ui-accent, #3b82f6)' : 'var(--ui-text-tertiary, #888)', font: 'inherit', fontSize: 11, cursor: 'pointer', padding: '0 6px' } },
+    att.total ? `Workroom · ${att.total} need you` : 'Workroom')
 }
 
 const stateLabel = { accepted: 'linked automatically', confirmed: 'linked by you', confirm: 'needs you', skipped: 'left alone', held: 'you changed it by hand' }
@@ -1026,6 +1102,17 @@ export default {
       render: () => h(WorkroomPage, { ctx })
     })
     pluginCtx = ctx
+    ctx.register({
+      id: 'room',
+      area: 'panes',
+      title: 'Workroom',
+      data: { placement: 'right', width: '400px' },
+      render: () => h(SidePane, { ctx })
+    })
+    ctx.register({ id: 'needs-status', area: STATUSBAR_AREAS.right, order: 130, render: () => h(NeedsStatus, { ctx }) })
+    const reveal = (id) => () => { if (host.undismissPane) host.undismissPane(id); if (host.revealPane) host.revealPane(id) }
+    ctx.register({ id: 'palette-open', area: PALETTE_AREA, data: { id: 'workroom.open', label: 'Workroom: open the project pane', keywords: ['workroom', 'deliverables', 'room', 'approve'], run: reveal('workroom:room') } })
+    ctx.register({ id: 'palette-full', area: PALETTE_AREA, data: { id: 'workroom.full', label: 'Workroom: open the full page', keywords: ['workroom', 'documents', 'links', 'release'], run: reveal('workroom:page') } })
     ctx.register({
       id: 'release-card',
       area: TRANSCRIPT_DIRECTIVE_AREA,
