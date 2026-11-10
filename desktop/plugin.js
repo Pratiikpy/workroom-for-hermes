@@ -358,6 +358,12 @@ function Room({ api, pid, busy, run }) {
       h('input', { value: ref, onChange: e => setRef(e.target.value), placeholder: kind === 'note' ? 'Note text' : kind === 'url' ? 'https://' : 'Path inside the project', 'aria-label': 'Source reference', style: css.input }),
       h('input', { value: label, onChange: e => setLabel(e.target.value), placeholder: 'Label', 'aria-label': 'Source label', style: { ...css.input, flex: 'none', minWidth: 140, width: 160 } }),
       btn('Add', () => run(async () => { await api('/room-source-add', { project: pid, kind, ref, label }); setRef(''); setLabel(''); await load() }, () => 'Added.'), { disabled: busy || !ref.trim() })),
+    (info.crew && info.crew.length) ? h('details', { style: { marginTop: 8 }, open: true }, h('summary', { style: css.muted }, `Helper agents (${info.crew.length})`),
+      info.crew.map(c => h('div', { key: c.id, style: { fontSize: 12, margin: '4px 0' } },
+        h('div', null, (c.role || 'helper') + ' · ' + c.status + (c.duration_ms ? ' · ' + Math.round(c.duration_ms / 1000) + ' s' : '')),
+        c.goal ? h('div', { style: css.muted }, c.goal) : null,
+        c.summary ? h('div', { style: css.muted }, c.summary) : null,
+        c.files && c.files.length ? h('div', { style: css.muted }, 'Files: ' + c.files.join(', ')) : null))) : null,
     info.audit.length ? h('details', { style: { marginTop: 8 } }, h('summary', { style: css.muted }, `Recent activity (${info.audit.length})`),
       info.audit.slice().reverse().map(e => h('div', { key: e.id, style: { ...css.muted, fontSize: 12 } }, `${when(e.at)} · ${e.actor} · ${e.event.replace('_', ' ')}`))) : null)
 }

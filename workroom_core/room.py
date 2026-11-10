@@ -40,10 +40,46 @@ class Room:
             self.db.execute("CREATE TABLE IF NOT EXISTS policy (key TEXT PRIMARY KEY, value TEXT)")
             self.db.execute("CREATE TABLE IF NOT EXISTS deliverables (path TEXT PRIMARY KEY, registered_by TEXT, note TEXT, at REAL)")
             self.db.execute("CREATE TABLE IF NOT EXISTS approvals (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT, sha TEXT, at REAL, by TEXT)")
+            self.db.execute("CREATE TABLE IF NOT EXISTS crew (id INTEGER PRIMARY KEY AUTOINCREMENT, parent TEXT, child TEXT, role TEXT, goal TEXT, status TEXT,"
+                            " summary TEXT, started_at REAL, ended_at REAL, duration_ms INTEGER, files TEXT)")
             self.db.execute("CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY AUTOINCREMENT, at REAL, actor TEXT, event TEXT, detail TEXT)")
 
     def close(self) -> None:
         self.db.close()
+
+    # ---- crew: the helper agents the main agent started in this project, recorded from Hermes's own subagent events
+    def crew_start(self, parent: str, child: str, role: str, goal: str) -> int:
+        with self.db:
+            cur = self.db.execute("INSERT INTO crew (parent, child, role, goal, status, started_at, files) VALUES (?,?,?,?,?,?,?)",
+                                  (str(parent or "")[:80], str(child or "")[:80], str(role or "")[:40], str(goal or "")[:300], "working", time.time(), "[]"))
+            self._log("agent", "crew_start", {"role": str(role or "")[:40], "goal": str(goal or "")[:120]})
+            return int(cur.lastrowid)
+
+    def crew_stop(self, parent: str, child: str, status: str, summary: str, duration_ms: int, files: list[str]) -> int:
+        """Close the matching helper (by child id, else the oldest still-working one of that parent); a stop with no recorded start is recorded on its own."""
+        row = None
+        if child:
+            row = self.db.execute("SELECT id FROM crew WHERE child=? AND status='working' ORDER BY id LIMIT 1", (str(child),)).fetchone()
+        if row is None:
+            row = self.db.execute("SELECT id FROM crew WHERE parent=? AND status='working' ORDER BY id LIMIT 1", (str(parent or ""),)).fetchone()
+        clean = [f for f in files if isinstance(f, str)][:40]
+        with self.db:
+            if row is None:
+                cur = self.db.execute("INSERT INTO crew (parent, child, role, goal, status, summary, started_at, ended_at, duration_ms, files) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                                      (str(parent or "")[:80], str(child or "")[:80], "", "", str(status or "done")[:20], str(summary or "")[:600], time.time(), time.time(),
+                                       int(duration_ms or 0), json.dumps(clean)))
+                rid = int(cur.lastrowid)
+            else:
+                rid = int(row["id"])
+                self.db.execute("UPDATE crew SET status=?, summary=?, ended_at=?, duration_ms=?, files=? WHERE id=?",
+                                (str(status or "done")[:20], str(summary or "")[:600], time.time(), int(duration_ms or 0), json.dumps(clean), rid))
+            self._log("agent", "crew_stop", {"status": str(status or "done")[:20], "files": len(clean)})
+        return rid
+
+    def crew(self, limit: int = 30) -> list[dict]:
+        rows = self.db.execute("SELECT * FROM crew ORDER BY id DESC LIMIT ?", (int(limit),)).fetchall()
+        return [{"id": r["id"], "role": r["role"], "goal": r["goal"], "status": r["status"], "summary": r["summary"], "started_at": r["started_at"],
+                 "ended_at": r["ended_at"], "duration_ms": r["duration_ms"], "files": json.loads(r["files"] or "[]")} for r in rows]
 
     # ---- audit
     def _log(self, actor: str, event: str, detail: dict) -> None:

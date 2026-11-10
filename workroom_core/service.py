@@ -1338,11 +1338,21 @@ class Service:
             proposed = room.memory("proposed")
             return {"counts": {"sources": len(room.sources()), "memory_approved": len(room.memory("approved")), "memory_proposed": len(proposed)},
                     "pending": [{"kind": "memory", "id": m["id"], "text": m["text"], "source": m["source"], "proposed_by": m["proposed_by"]} for m in proposed],
-                    "sources": room.sources(), "memory": room.memory("approved"), "audit": room.audit(30)}
+                    "sources": room.sources(), "memory": room.memory("approved"), "audit": room.audit(30), "crew": room.crew(20)}
 
         view = self._with_room(pid, build)
         view["instructions"] = {"authorised": [x["name"] for x in self.instructions_for_agent(pid)["authorised"]], "proposals": len(self.proposals(pid))}
         return view
+
+    @_closing
+    def crew_event(self, pid: str, kind: str, parent: str = "", child: str = "", role: str = "", goal: str = "", status: str = "", summary: str = "",
+                   duration_ms: int = 0, files: list[str] | None = None) -> dict[str, Any]:
+        """Record a helper agent starting or stopping in a project (called from Hermes's subagent hooks, never an agent tool)."""
+        if kind == "start":
+            return {"id": self._with_room(pid, lambda room: room.crew_start(parent, child, role, goal))}
+        if kind == "stop":
+            return {"id": self._with_room(pid, lambda room: room.crew_stop(parent, child, status, summary, duration_ms, files or []))}
+        raise ServiceError("kind must be start or stop")
 
     @_closing
     def room_read(self, pid: str) -> dict[str, Any]:

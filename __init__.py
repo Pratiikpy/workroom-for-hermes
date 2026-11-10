@@ -80,6 +80,11 @@ def register(ctx):
         ctx.register_hook("transform_llm_output", reply)
     from .adapters.room_context import make_room_context
 
+    from .adapters.crew import make_crew_hooks
+
+    crew_start, crew_stop = make_crew_hooks(lambda: tools.service().projects(), lambda pid, kind, **kw: tools.service().crew_event(pid, kind, **kw))
+    ctx.register_hook("subagent_start", crew_start)
+    ctx.register_hook("subagent_stop", crew_stop)
     ctx.register_hook("pre_llm_call", make_room_context(lambda: tools.service().projects(), lambda pid: tools.service().room_read(pid)))
     ctx.register_command(
         "workroom-approve",
