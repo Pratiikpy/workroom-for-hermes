@@ -43,7 +43,7 @@ def test_apply_rejects_bad_ops_and_stale_revisions_without_changing_the_draft(tm
 
 def test_only_scene_files_inside_the_project_can_be_opened(tmp_path: Path) -> None:
     svc, pid, root = _published(tmp_path)
-    for bad in ("../x.scene.json", "results.xlsx", "/etc/passwd", "pages/missing.scene.json", "pages\q2.scene.json"):
+    for bad in ("../x.scene.json", "results.xlsx", "/etc/passwd", "pages/missing.scene.json", "pages\\q2.scene.json"):
         with pytest.raises(ServiceError):
             svc.scene_open(pid, bad)
 
