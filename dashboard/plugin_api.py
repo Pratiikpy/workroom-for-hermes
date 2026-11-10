@@ -297,6 +297,11 @@ async def deliverable_approve(body: DeliverableBody) -> dict:
     return _guard(lambda: _service().deliverable_approve(body.project, body.path))
 
 
+@router.post("/tripwire-dismiss")
+async def tripwire_dismiss(body: RoomBody) -> dict:
+    return _guard(lambda: _service().tripwire_dismiss(body.project))
+
+
 @router.post("/run-score")
 async def run_score(body: RoomBody) -> dict:
     return _guard(lambda: _service().run_score(body.project))

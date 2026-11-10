@@ -1102,6 +1102,44 @@ class Service:
         return {"release_id": rid, "state": "awaiting_approval", "digest": ctl.digest(rid), "changes": [change], "part_changed": report.parts_changed[0], "other_parts_identical": True}
 
     # ---- one inbox: everything that waits for the owner, in every project
+    # ---- direct changes to managed Office files by a shell tool: put back by the tripwire, the agent's version kept aside (see adapters/tripwire.py)
+    def tripwire_published_since(self, pid: str, since: float) -> bool:
+        try:
+            return any((r.get("published_at") or 0) >= since for r in self.releases(pid))
+        except Exception:  # noqa: BLE001  when the journal cannot be read, assume the owner published and leave the files alone
+            return True
+
+    def tripwire_keep(self, pid: str, rel: str, data: bytes) -> None:
+        pid = self._resolve(pid)
+        folder = self.data_dir / "projects" / pid / "rejected"
+        folder.mkdir(parents=True, exist_ok=True)
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        (folder / f"{stamp}-{Path(rel).name}").write_bytes(data)
+
+    def tripwire_note(self, pid: str, rel: str, outcome: str) -> None:
+        pid = self._resolve(pid)
+        folder = self.data_dir / "projects" / pid / "rejected"
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / "events.json"
+        events = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
+        events.append({"at": int(time.time()), "file": rel, "outcome": str(outcome)[:80], "seen": False})
+        path.write_text(json.dumps(events[-100:]), encoding="utf-8")
+
+    def tripwire_events(self, pid: str) -> list[dict[str, Any]]:
+        """Direct changes to managed files the owner has not looked at yet, newest last."""
+        path = self.data_dir / "projects" / self._resolve(pid) / "rejected" / "events.json"
+        return [e for e in (json.loads(path.read_text(encoding="utf-8")) if path.exists() else []) if not e.get("seen")]
+
+    def tripwire_dismiss(self, pid: str) -> dict[str, Any]:
+        """Owner route: mark the direct-change notices as seen. The kept copies stay in the rejected folder."""
+        path = self.data_dir / "projects" / self._resolve(pid) / "rejected" / "events.json"
+        if path.exists():
+            events = json.loads(path.read_text(encoding="utf-8"))
+            for e in events:
+                e["seen"] = True
+            path.write_text(json.dumps(events), encoding="utf-8")
+        return {"dismissed": True}
+
     # ---- scheduled checks: every run leaves a receipt, so a check that failed or stopped running is seen, not assumed
     def watch_receipt(self, pid: str, outcome: str, detail: str = "", every_hours: float = 0) -> dict[str, Any]:
         """Record one run of the scheduled check. ``outcome``: ok (nothing to do), prepared (a release is waiting), failed."""
@@ -1154,6 +1192,7 @@ class Service:
                 ("instructions", lambda: [add("instruction", f"A proposed change to {x['name']}", "instructions", x["proposal"], 2) for x in self.proposals(pid)]),
                 ("recipe", lambda: [add("recipe", "A proposed recipe waits for approval", "recipe", "", 2) for _ in (self.recipe_status(pid).get("pending") or [])]),
                 ("links", lambda: (lambda n: [add("links", f"{n} figure link(s) need your confirmation", "links", "", 1)] if n else [])(sum(1 for t in self.ties(pid) if t.get("state") == "confirm"))),
+                ("bypass", lambda: (lambda ev: [add("bypass", f"The agent changed {len(ev)} managed file(s) directly; Workroom put them back ({', '.join(sorted({e['file'] for e in ev})[:3])})", "release", "", 3)] if ev else [])(self.tripwire_events(pid))),
                 ("schedule", lambda: (lambda w: [add("schedule", w["problem"], "release", "", 2)] if w["problem"] else [])(self.watch_status(pid))),
                 ("columns", lambda: (lambda n: [add("columns", f"{n} report column(s) fit two workbook columns", "links", "", 1)] if n else [])(len(self.column_questions(pid)))),
             )

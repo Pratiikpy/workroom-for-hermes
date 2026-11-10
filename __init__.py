@@ -80,6 +80,12 @@ def register(ctx):
         ctx.register_hook("transform_llm_output", reply)
     from .adapters.room_context import make_room_context
 
+    from .adapters.tripwire import make_tripwire
+
+    trip_before, trip_after = make_tripwire(lambda: tools.service().projects(), lambda pid, rel, data: tools.service().tripwire_keep(pid, rel, data),
+                                            lambda pid, since: tools.service().tripwire_published_since(pid, since), lambda pid, rel, out: tools.service().tripwire_note(pid, rel, out))
+    ctx.register_hook("pre_tool_call", trip_before)
+    ctx.register_hook("transform_tool_result", trip_after)
     from .adapters.crew import make_crew_hooks
 
     crew_start, crew_stop = make_crew_hooks(lambda: tools.service().projects(), lambda pid, kind, **kw: tools.service().crew_event(pid, kind, **kw))

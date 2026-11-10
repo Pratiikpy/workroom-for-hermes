@@ -524,7 +524,8 @@ function NeedsYou({ api, pid, setPid, refreshKey }) {
     att.total ? h('div', { style: { ...css.muted, fontSize: 12, marginBottom: 6 } }, parts.join(' · ')) : h('div', { style: { ...css.muted, fontSize: 12 } }, 'No release, memory, deliverable or question is waiting in any project.'),
     [...att.items.filter(i => i.project === pid), ...att.items.filter(i => i.project !== pid)].slice(0, 12).map((it, i) => h('div', { key: i, style: { ...css.row, justifyContent: 'space-between', padding: '3px 0', borderTop: i ? '1px solid var(--ui-stroke-secondary, #8883)' : 'none' } },
       h('span', { style: { fontSize: 13 } }, h('span', { style: css.chip }, it.name), ' ', it.title),
-      it.project !== pid ? btn('Go to project', () => setPid(it.project)) : h('span', { style: { ...css.muted, fontSize: 12 } }, 'in this project, below'))),
+      it.kind === 'bypass' ? btn('I have seen this', () => api('/tripwire-dismiss', { project: it.project }).then(() => api('/attention', {}).then(setAtt)), { name: 'Dismiss the direct-change notice' })
+        : it.project !== pid ? btn('Go to project', () => setPid(it.project)) : h('span', { style: { ...css.muted, fontSize: 12 } }, 'in this project, below'))),
     att.items.length > 12 ? h('div', { style: { ...css.muted, fontSize: 12 } }, `and ${att.items.length - 12} more`) : null,
     att.folders_missing && att.folders_missing.length ? h('div', { style: { ...css.muted, fontSize: 12, marginTop: 6 } }, `${att.folders_missing.length} project${att.folders_missing.length === 1 ? '' : 's'} not shown: the folder was moved or deleted.`) : null,
     att.could_not_check.length ? h('div', { role: 'alert', style: { color: 'var(--ui-amber, #d97706)', fontSize: 12, marginTop: 6 } }, `${att.could_not_check.length} part${att.could_not_check.length === 1 ? '' : 's'} could not be checked: ${att.could_not_check.map(f => `${f.part} (${f.error})`).join('; ').slice(0, 300)}`) : null)
