@@ -1489,11 +1489,27 @@ class Service:
         self._integrity(pid, proj, ctl)
         cells = proj.source_index().cells
         brand, brand_note = self._brand(proj.root)
+        template_notes: list[str] = []
+        if isinstance(spec, dict) and isinstance(spec.get("template"), str) and spec["kind"] == "pptx":
+            from .build.template import read_theme
+
+            tpath = (proj.root / spec["template"]).resolve()
+            try:
+                tpath.relative_to(proj.root.resolve())
+            except ValueError:
+                return {"state": "refused", "errors": [{"code": "bad_template", "where": "template", "message": "the template must be inside the project folder"}], "notes": []}
+            if tpath.suffix.lower() not in (".pptx", ".docx") or not tpath.is_file() or tpath.stat().st_size > 50_000_000:
+                return {"state": "refused", "errors": [{"code": "bad_template", "where": "template", "message": "the template must be a .pptx or .docx file in the project folder"}], "notes": []}
+            tokens, template_notes = read_theme(tpath.read_bytes())
+            spec = {k: v for k, v in spec.items() if k != "template"}
+            if tokens and "theme" not in spec:
+                brand = tokens
         if brand and isinstance(spec, dict) and spec.get("kind") in ("pptx",) and "theme" not in spec:
             spec = {**spec, "theme": brand}
         v = validate_spec(spec, cells)
         if brand_note:
             v.notes.append(brand_note)
+        v.notes += [f"template: {n}" for n in template_notes]
         if v.errors:
             from .build.spec import example_for
 

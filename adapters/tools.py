@@ -143,6 +143,7 @@ CREATE_SCHEMA = {
     "description": (
         "Create a new PowerPoint deck or Word report whose every figure is linked to a source cell. You never write the file: you write a spec "
         "and Workroom builds it, checks it and stages it for the owner to approve. Nothing is written until the owner approves.\n"
+        "To make the deck in the look of one the owner already has, add template:'their-deck.pptx' (a .pptx or .docx inside the project folder): its theme colours and font are used, made readable if too pale. "
         "Spec: {version:1, kind:'pptx'|'docx', path:'reports/q2.pptx', facts:{id:{ref:'results.xlsx!Results!C2', concept:'Revenue', period:'Q2', "
         "unit:'currency'|'percent'|'count'|'ratio'}}, slides:[{title, blocks:[...]}] (pptx) or blocks:[...] (docx)}. "
         "Blocks: text{text}, bullets{items}, table{header,rows}, chart{kind:'bar'|'line', title, categories, series:[{name, facts:[ids]}]} (pptx only), "
