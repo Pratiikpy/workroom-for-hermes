@@ -93,8 +93,21 @@ def test_a_large_single_token_script_is_scanned_with_a_bounded_cost(tmp_path: Pa
     g = make_guard(lambda: [str(proj)])
 
     started = perf_counter()
-    assert g(tool_name="terminal", args={"command": f"python {script}"}) is None
+    assert g(tool_name="terminal", args={"command": f"python {script}"})["action"] == "approve"
     assert perf_counter() - started < 0.1
+
+
+def test_script_budget_is_total_and_late_writes_need_approval(tmp_path: Path) -> None:
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    (proj / "deck.pptx").write_bytes(b"x")
+    first = tmp_path / "first.py"
+    second = tmp_path / "second.py"
+    first.write_text("#" + "x" * 40_000, encoding="utf-8")
+    second.write_text("#" + "x" * 30_000 + "\nopen('deck.pptx','wb')", encoding="utf-8")
+    g = make_guard(lambda: [str(proj)])
+    assert g(tool_name="terminal", args={"command": f"python {first} && python {second}", "workdir": str(proj)})["action"] == "approve"
+    assert g(tool_name="terminal", args={"command": f"python {second}", "workdir": str(proj)})["action"] == "approve"
 
 
 def test_the_chat_card_shows_one_line_for_the_same_change_in_several_places() -> None:

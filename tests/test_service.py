@@ -63,7 +63,7 @@ def test_unsafe_broad_and_internal_project_folders_are_refused(tmp_path: Path, m
     monkeypatch.setenv("HERMES_HOME", str(hermes_home))
     data = tmp_path / "data"
     svc = Service(data)
-    for unsafe in (Path.home(), Path(tmp_path.anchor), hermes_home, data):
+    for unsafe in (Path.home(), Path(tmp_path.anchor), hermes_home, data, tmp_path):
         with pytest.raises(ServiceError, match="refusing to register"):
             svc.add_project(str(unsafe))
 

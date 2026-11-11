@@ -54,10 +54,12 @@ _TOKEN = re.compile(r"\"[^\"]*\"|'[^']*'|[^\s'\"]+")
 MAX_SCRIPT_BYTES = 64 * 1024
 
 
-def _script_text(command: str, args: dict[str, Any]) -> str:
-    """The text of every script file the command names, so a write hidden inside a script is judged like one typed on the command line."""
+def _script_text(command: str, args: dict[str, Any]) -> tuple[str, bool]:
+    """Scan up to 64 KiB total; require approval when a named script cannot be fully inspected."""
     base = next((str(args[k]) for k in ("workdir", "cwd", "working_dir", "directory") if isinstance(args.get(k), str) and args[k].strip()), "")
     found: list[str] = []
+    remaining = MAX_SCRIPT_BYTES
+    seen: set[Path] = set()
     for token in _TOKEN.findall(command):
         name = token.strip("\"'")
         if not name.lower().endswith(_SCRIPT_EXT):
@@ -66,12 +68,20 @@ def _script_text(command: str, args: dict[str, Any]) -> str:
             path = Path(name).expanduser()
             if not path.is_absolute() and base:
                 path = Path(base).expanduser() / path
+            path = path.resolve()
+            if path in seen:
+                continue
+            seen.add(path)
             if path.is_file():
                 with path.open("rb") as script:
-                    found.append(script.read(MAX_SCRIPT_BYTES).decode("utf-8", errors="replace"))
+                    data = script.read(remaining + 1)
+                if len(data) > remaining:
+                    return "\n".join(found), True
+                remaining -= len(data)
+                found.append(data.decode("utf-8", errors="replace"))
         except OSError:
-            continue
-    return "\n".join(found)
+            return "\n".join(found), True
+    return "\n".join(found), False
 
 
 def make_guard(roots: Callable[[], list[str]]) -> Callable[..., dict[str, str] | None]:
@@ -83,7 +93,10 @@ def make_guard(roots: Callable[[], list[str]]) -> Callable[..., dict[str, str] |
             return None
         if tool_name in SHELL_TOOLS:
             text = _shell_text(args)
-            text = text + "\n" + _script_text(text, args)
+            scripts, incomplete = _script_text(text, args)
+            if incomplete:
+                return {"action": "approve", "message": SHELL_MESSAGE.format(name="a script Workroom could not fully inspect"), "rule_key": "workroom-shell-write"}
+            text = text + "\n" + scripts
             if not _WRITEISH.search(text):
                 return None
             if _GLOB.search(text):
