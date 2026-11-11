@@ -1,0 +1,41 @@
+name: catalog-validation
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  install-deps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HERMES_HOME: ${{ runner.temp }}/workroom-validation-home
+    steps:
+      - name: Check out the catalog host
+        uses: actions/checkout@v4
+        with:
+          repository: NousResearch/hermes-agent
+          ref: d8c75ab58208b3cced4a88d065abf09a3abfd099
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - name: Check out the plugin being validated
+        uses: actions/checkout@v4
+        with:
+          path: workroom
+          persist-credentials: false
+      - name: Prepare Hermes using its catalog CI toolchain
+        uses: ./.github/actions/setup-pm
+        with:
+          toolchain: python
+          extras: '[]'
+          cache: 'false'
+          cache-python: 'false'
+      - name: Validate the plugin and install its dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C workroom rev-parse HEAD
+          timeout 600 hermes plugins validate --install-deps "$GITHUB_WORKSPACE/workroom" </dev/null 2>&1 | tee "$RUNNER_TEMP/workroom-validation.log"
+          if grep -qi 'dependency preparation failed' "$RUNNER_TEMP/workroom-validation.log"; then
+            exit 1
+          fi
+          grep -q 'Validation passed' "$RUNNER_TEMP/workroom-validation.log"

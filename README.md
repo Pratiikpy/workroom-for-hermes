@@ -233,7 +233,7 @@ The complete list is in [Limits](docs/LIMITS.md).
 
 ## Disclosure
 
-- Dependencies installed by Hermes: `lxml` (reading and patching Office files), `python-pptx` and `python-docx` (building decks and reports; `XlsxWriter`, which python-pptx brings, writes workbooks). `pypdfium2` and `Pillow` (drawing the pages of a document in the review room: Office saves a private copy as a PDF and pdfium draws it; without them the room lists the figures instead). Test-only: pytest, openpyxl, Playwright.
+- Dependencies declared directly and installed by Hermes: `lxml` (reading and patching Office files), `python-pptx` and `python-docx` (building decks and reports), `XlsxWriter>=3,<4` (writing workbooks), and `cryptography` (signing release records). `pypdfium2` and `Pillow` draw document pages in the review room: Office saves a private copy as a PDF and pdfium draws it; without them the room lists the figures instead. Test-only: pytest, openpyxl, Playwright.
 - Programs Workroom starts, all local, none with network access of its own:
   1. a Python child process (same interpreter as Hermes, 60 second limit, scrubbed environment) that runs only `workroom_core/build/worker.py` to build a file from a validated spec; it receives no project paths and no secrets and contains no network code (the operating system does not enforce that);
   2. on Windows, the system `icacls` tool once, to make Workroom's own signing-key file readable only by your account;
