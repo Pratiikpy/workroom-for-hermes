@@ -1,4 +1,5 @@
 from pathlib import Path
+from time import perf_counter
 
 from workroom.adapters.guard import make_guard
 
@@ -81,6 +82,19 @@ def test_a_script_that_writes_a_managed_file_is_judged_by_what_it_contains_not_b
     elsewhere = scratch / "other.py"
     elsewhere.write_text("open('notes.txt', 'w').write('hi')\n", encoding="utf-8")
     assert g(tool_name="terminal", args={"command": f"python3 {elsewhere}"}) is None
+
+
+def test_a_large_single_token_script_is_scanned_with_a_bounded_cost(tmp_path: Path) -> None:
+    """A hostile blob must not delay every shell or code invocation."""
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    script = tmp_path / "blob.py"
+    script.write_text("write=" + "x" * 300_000, encoding="utf-8")
+    g = make_guard(lambda: [str(proj)])
+
+    started = perf_counter()
+    assert g(tool_name="terminal", args={"command": f"python {script}"}) is None
+    assert perf_counter() - started < 0.1
 
 
 def test_the_chat_card_shows_one_line_for_the_same_change_in_several_places() -> None:

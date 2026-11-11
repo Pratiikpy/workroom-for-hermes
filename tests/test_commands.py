@@ -98,13 +98,16 @@ def test_the_chat_card_describes_an_edited_page_and_an_export(tmp_path: Path) ->
     assert out == "Nothing was changed."
 
 
-def test_watch_command_prints_the_wrapper_and_the_cron_line_without_changing_anything(tmp_path: Path) -> None:
+def test_watch_command_prints_the_wrapper_and_the_cron_line_without_changing_anything(tmp_path: Path, monkeypatch) -> None:
     from workroom.adapters.commands import make_watch_command
 
     svc, root, pid, _ = staged(tmp_path)
+    profile = tmp_path / "named-profile"
+    monkeypatch.setenv("HERMES_HOME", str(profile))
     out = make_watch_command(lambda: svc)(pid)
     assert "hermes cron create" in out and "--no-agent" in out and f"workroom-watch-{pid}.py" in out and pid in out
     assert "never approves" in out
+    assert str(profile / "scripts") in out
     assert "not a known project" in make_watch_command(lambda: svc)("nope")
     assert "Usage" in make_watch_command(lambda: svc)("")
 

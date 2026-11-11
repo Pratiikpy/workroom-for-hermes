@@ -8,7 +8,9 @@ platform-specific code is needed. The approval is bound to the release digest sh
 
 from __future__ import annotations
 
+import os
 import re
+from pathlib import Path
 from typing import Any
 from collections.abc import Callable
 
@@ -132,13 +134,14 @@ def make_watch_command(service_factory: Callable[[], Service]) -> Callable[..., 
         except ServiceError as exc:
             return str(exc)
         name = f"workroom-watch-{pid}.py"
+        scripts_dir = Path(os.environ.get("HERMES_HOME", "~/.hermes")).expanduser() / "scripts"
         body = chr(10).join([
             "import os, runpy, sys",
             f'sys.argv = ["watch.py", "--project", "{pid}", "--every", "6"]',
             'runpy.run_path(os.path.join(os.environ.get("HERMES_HOME", os.path.expanduser("~/.hermes")), "plugins", "workroom", "scripts", "watch.py"), run_name="__main__")',
         ])
         return chr(10).join([
-            f"To have Hermes check project {pid} on a schedule, save this as ~/.hermes/scripts/{name}:",
+            f"To have Hermes check project {pid} on a schedule, save this as {scripts_dir / name}:",
             "",
             body,
             "",

@@ -137,6 +137,10 @@ class Service:
         path = Path(folder).expanduser().resolve()
         if not path.is_dir():
             raise ServiceError(f"{folder} is not a folder")
+        hermes_home = Path(os.environ.get("HERMES_HOME", "~/.hermes")).expanduser().resolve()
+        forbidden = (Path.home().resolve(), Path(path.anchor), hermes_home, self.data_dir.resolve())
+        if path in forbidden:
+            raise ServiceError("refusing to register a home folder, filesystem root, Hermes home, or Workroom's data folder as a project")
         pid = hashlib.sha256(str(path).lower().encode()).hexdigest()[:12]
         reg = self._registry()
         reg[pid] = str(path)

@@ -3,7 +3,6 @@ from pathlib import Path
 import pytest
 
 from workroom.tests.test_flagship_headless import change_source, deck_texts, make_deck, make_workbook
-from workroom.workroom_core.controller.release import ReleaseError
 from workroom.workroom_core.service import Service, ServiceError
 
 
@@ -56,6 +55,17 @@ def test_unknown_project_and_bad_folder_are_refused(tmp_path: Path) -> None:
         svc.discover("nope")
     with pytest.raises(ServiceError):
         svc.add_project(str(tmp_path / "does-not-exist"))
+
+
+def test_unsafe_broad_and_internal_project_folders_are_refused(tmp_path: Path, monkeypatch) -> None:
+    hermes_home = tmp_path / "hermes-home"
+    hermes_home.mkdir()
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+    data = tmp_path / "data"
+    svc = Service(data)
+    for unsafe in (Path.home(), Path(tmp_path.anchor), hermes_home, data):
+        with pytest.raises(ServiceError, match="refusing to register"):
+            svc.add_project(str(unsafe))
 
 
 def test_the_signing_key_persists_and_is_not_regenerated(tmp_path: Path) -> None:

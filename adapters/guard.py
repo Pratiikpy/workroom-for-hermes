@@ -34,13 +34,13 @@ _WRITEISH = re.compile(
     r"(>>?|\b(?:mv|cp|rm|del|erase|rd|rmdir|move|copy|copyfile|ren|rename|renames|touch|tee|truncate|dd|zip|7z|xcopy|robocopy|mklink|save|saveas|write|write_bytes|write_text|writelines|"
     r"writeFile\w*|appendFile\w*|unlink\w*|rmSync|rmtree|remove|removedirs|Delete|WriteAll\w*|copyFile\w*|createWriteStream|"
     r"Set-Content|Add-Content|Clear-Content|Out-File|Remove-Item|Move-Item|Copy-Item|Rename-Item|New-Item|Compress-Archive|Expand-Archive)\b|"
-    r"\bos\.replace\b|\bgit\b[^;&|]*\b(?:checkout|restore|reset|clean|stash|mv|rm)\b|unzip\s+-o|sed\s+-i|open\s*\([^)]*['\"][wax]\+?b?['\"])", re.I)
+    r"\bos\.replace\b|\bgit\b[^;&|\n]{0,200}\b(?:checkout|restore|reset|clean|stash|mv|rm)\b|unzip\s+-o|sed\s+-i|open\s*\([^)\n]{0,200}['\"][wax]\+?b?['\"])", re.I)
 # verbs that can reach files nobody named: a whole folder, a wildcard, a working directory
 _FOLDERISH = re.compile(
     r"(?:\b(?:rm|del|erase|rd|rmdir|rmtree|remove|removedirs|unlink\w*|rmSync|Delete|move|mv|ren|rename|renames|robocopy|xcopy|Remove-Item|Move-Item|Rename-Item|Clear-Content)\b|"
-    r"\bgit\b[^;&|]*\b(?:checkout|restore|reset|clean|stash|mv|rm)\b)", re.I)
-_GLOB = re.compile(r"[*?\[{][^\s'\"<>|]*(?:pptx|docx|xlsx)", re.I)
-_OFFICE_NAME = re.compile(r"[^\s'\"<>|]+\.(?:pptx|docx|xlsx)\b", re.I)
+    r"\bgit\b[^;&|\n]{0,200}\b(?:checkout|restore|reset|clean|stash|mv|rm)\b)", re.I)
+_GLOB = re.compile(r"[*?\[{][^\s'\"<>|]{0,260}(?:pptx|docx|xlsx)", re.I)
+_OFFICE_NAME = re.compile(r"[^\s'\"<>|]{1,260}\.(?:pptx|docx|xlsx)\b", re.I)
 SHELL_MESSAGE = ("This command looks like it writes {name}, which Workroom manages. A direct change bypasses the verified release; "
                  "approve only if you mean to edit it by hand.")
 
@@ -51,7 +51,7 @@ def _shell_text(args: dict[str, Any]) -> str:
 
 _SCRIPT_EXT = (".py", ".js", ".mjs", ".cjs", ".ts", ".sh", ".bash", ".ps1", ".bat", ".cmd", ".rb", ".pl", ".php")
 _TOKEN = re.compile(r"\"[^\"]*\"|'[^']*'|[^\s'\"]+")
-MAX_SCRIPT_BYTES = 400_000
+MAX_SCRIPT_BYTES = 64 * 1024
 
 
 def _script_text(command: str, args: dict[str, Any]) -> str:
@@ -66,8 +66,9 @@ def _script_text(command: str, args: dict[str, Any]) -> str:
             path = Path(name).expanduser()
             if not path.is_absolute() and base:
                 path = Path(base).expanduser() / path
-            if path.is_file() and path.stat().st_size <= MAX_SCRIPT_BYTES:
-                found.append(path.read_text(encoding="utf-8", errors="replace"))
+            if path.is_file():
+                with path.open("rb") as script:
+                    found.append(script.read(MAX_SCRIPT_BYTES).decode("utf-8", errors="replace"))
         except OSError:
             continue
     return "\n".join(found)
@@ -100,6 +101,8 @@ def make_guard(roots: Callable[[], list[str]]) -> Callable[..., dict[str, str] |
                         continue
                     if any(here == m or m in here.parents for m in managed):
                         return {"action": "approve", "message": SHELL_MESSAGE.format(name=f"files inside {here.name}"), "rule_key": "workroom-shell-write"}
+            if not any(ext in text.lower() for ext in OFFICE):
+                return None
             for raw in _OFFICE_NAME.findall(text):
                 try:
                     rp = Path(raw.strip("\"'")).expanduser().resolve()
