@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      HERMES_HOME: ${{ runner.temp }}/workroom-validation-home
+      HERMES_HOME: /tmp/workroom-validation-home
     steps:
       - name: Check out the catalog host
         uses: actions/checkout@v4
