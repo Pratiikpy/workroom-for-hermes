@@ -117,3 +117,35 @@ def test_the_chat_card_shows_one_line_for_the_same_change_in_several_places() ->
     view = {"release_id": "r1", "digest": "d" * 64, "changes": [change, dict(change), dict(change), {**change, "old_text": "1.5%", "new_text": "1.8%"}], "flags": []}
     card = _card(view)
     assert card.count("$30.2 trillion -> $30.6 trillion") == 1 and "3 places" in card and "1.5% -> 1.8%" in card
+
+
+def test_inline_text_of_any_shape_is_checked_in_bounded_time(tmp_path: Path) -> None:
+    """Runs of one character, of git, of wildcards or of extensions must not make the guard slow, below the inspection budget or above it."""
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    (proj / "deck.pptx").write_bytes(b"x")
+    g = make_guard(lambda: [str(proj)])
+    for size in (60_000, 300_000):
+        for unit in ("A", "*", ".", "git ", "open(", "a.pptx ", "pptx", "'", ";"):
+            started = perf_counter()
+            g(tool_name="execute_code", args={"code": "write " + unit * (size // len(unit))})
+            assert perf_counter() - started < 0.1, (unit, size)
+
+
+def test_inline_text_over_the_inspection_budget_needs_approval(tmp_path: Path) -> None:
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    g = make_guard(lambda: [str(proj)])
+    assert g(tool_name="execute_code", args={"code": "x = 1  # " + "y" * 70_000})["action"] == "approve"
+
+
+def test_git_commands_that_rewrite_files_are_still_caught(tmp_path: Path) -> None:
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    (proj / "deck.pptx").write_bytes(b"x")
+    g = make_guard(lambda: [str(proj)])
+    assert g(tool_name="terminal", args={"command": "git checkout -- deck.pptx", "workdir": str(proj)})["action"] == "approve"
+    assert g(tool_name="terminal", args={"command": "git -C . restore deck.pptx", "workdir": str(proj)})["action"] == "approve"
+    assert g(tool_name="terminal", args={"command": "git status; echo reset", "workdir": str(proj)}) is None
+    assert g(tool_name="terminal", args={"command": "rm *.pptx", "workdir": str(proj)})["action"] == "approve"
+    assert g(tool_name="terminal", args={"command": f"cp x {proj / 'deck.pptx'}"})["action"] == "approve"

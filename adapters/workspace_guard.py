@@ -13,7 +13,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from .guard import _FOLDERISH, _GLOB, SHELL_TOOLS, WRITE_TOOLS, _paths, _shell_text
+from .guard import SHELL_TOOLS, WRITE_TOOLS, _folderish, _office_glob, _paths, _shell_text
 from .snapshotter import _base_folder, shell_targets
 
 MANY = 5
@@ -52,8 +52,8 @@ def make_workspace_guard(projects: Callable[[], list[dict[str, Any]]], policy_of
                     for pat in policy["protected"]:
                         if fnmatch.fnmatch(rel, pat) or fnmatch.fnmatch(Path(rel).name, pat):
                             return {"action": "block", "message": f"{rel} is protected in this project's Workroom policy; the owner can change that in the Workroom tab."}
-                if shell and policy["confirm_delete"] and _FOLDERISH.search(text):
-                    many = len(rels) >= MANY or _ANY_GLOB.search(text) or _GLOB.search(text) or any((folder / r).is_dir() for r in rels)
+                if shell and policy["confirm_delete"] and _folderish(text):
+                    many = len(rels) >= MANY or _ANY_GLOB.search(text) or _office_glob(text) or any((folder / r).is_dir() for r in rels)
                     if many:
                         return {"action": "approve", "message": f"This command removes or moves a folder, a wildcard or {MANY}+ files inside {folder.name}. A copy is kept only for files it names.",
                                 "rule_key": "workroom-delete"}

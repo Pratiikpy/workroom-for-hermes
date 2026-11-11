@@ -34,13 +34,64 @@ _WRITEISH = re.compile(
     r"(>>?|\b(?:mv|cp|rm|del|erase|rd|rmdir|move|copy|copyfile|ren|rename|renames|touch|tee|truncate|dd|zip|7z|xcopy|robocopy|mklink|save|saveas|write|write_bytes|write_text|writelines|"
     r"writeFile\w*|appendFile\w*|unlink\w*|rmSync|rmtree|remove|removedirs|Delete|WriteAll\w*|copyFile\w*|createWriteStream|"
     r"Set-Content|Add-Content|Clear-Content|Out-File|Remove-Item|Move-Item|Copy-Item|Rename-Item|New-Item|Compress-Archive|Expand-Archive)\b|"
-    r"\bos\.replace\b|\bgit\b[^;&|\n]{0,200}\b(?:checkout|restore|reset|clean|stash|mv|rm)\b|unzip\s+-o|sed\s+-i|open\s*\([^)\n]{0,200}['\"][wax]\+?b?['\"])", re.I)
+    r"\bos\.replace\b|unzip\s+-o|sed\s+-i|open\s{0,8}\([^)\n]{0,200}['\"][wax]\+?b?['\"])", re.I)
 # verbs that can reach files nobody named: a whole folder, a wildcard, a working directory
 _FOLDERISH = re.compile(
-    r"(?:\b(?:rm|del|erase|rd|rmdir|rmtree|remove|removedirs|unlink\w*|rmSync|Delete|move|mv|ren|rename|renames|robocopy|xcopy|Remove-Item|Move-Item|Rename-Item|Clear-Content)\b|"
-    r"\bgit\b[^;&|\n]{0,200}\b(?:checkout|restore|reset|clean|stash|mv|rm)\b)", re.I)
-_GLOB = re.compile(r"[*?\[{][^\s'\"<>|]{0,260}(?:pptx|docx|xlsx)", re.I)
-_OFFICE_NAME = re.compile(r"[^\s'\"<>|]{1,260}\.(?:pptx|docx|xlsx)\b", re.I)
+    r"\b(?:rm|del|erase|rd|rmdir|rmtree|remove|removedirs|unlink\w*|rmSync|Delete|move|mv|ren|rename|renames|robocopy|xcopy|Remove-Item|Move-Item|Rename-Item|Clear-Content)\b", re.I)
+_OFFICE_EXT = re.compile(r"\.(?:pptx|docx|xlsx)\b", re.I)
+_OFFICE_WORD = re.compile(r"(?:pptx|docx|xlsx)", re.I)
+_NAME_RUN = re.compile(r"[^\s'\"<>|]+")
+_GLOB_CHAR = re.compile(r"[*?\[{]")
+_GIT_STEP = re.compile(r"(?P<cut>[;&|\n])|(?P<git>\bgit\b)|(?P<verb>\b(?:checkout|restore|reset|clean|stash|mv|rm)\b)", re.I)
+NAME_SPAN = 260
+GIT_SPAN = 200
+
+
+def _office_names(text: str) -> list[str]:
+    """Every Office file name in the text, each at most NAME_SPAN characters before its extension. The text is walked once, run by run, so a long run without spaces costs no more than its length."""
+    names: list[str] = []
+    seen: set[str] = set()
+    for run in _NAME_RUN.finditer(text):
+        token = run.group()
+        for m in _OFFICE_EXT.finditer(token):
+            name = token[max(0, m.start() - NAME_SPAN):m.end()]
+            if m.start() and name not in seen:
+                seen.add(name)
+                names.append(name)
+    return names
+
+
+def _office_glob(text: str) -> bool:
+    """A wildcard that could reach an Office file: a wildcard character followed, in the same run of name characters and within NAME_SPAN, by an Office extension."""
+    for run in _NAME_RUN.finditer(text):
+        token = run.group()
+        for m in _OFFICE_WORD.finditer(token):
+            if _GLOB_CHAR.search(token, max(0, m.start() - NAME_SPAN), m.start()):
+                return True
+    return False
+
+
+def _git_rewrite(text: str) -> bool:
+    """A git command that can rewrite or remove working files: the word git and, in the same command and within GIT_SPAN characters, checkout, restore, reset, clean, stash, mv or rm. One pass."""
+    git_at = -1
+    for m in _GIT_STEP.finditer(text):
+        if m.lastgroup == "cut":
+            git_at = -1
+        elif m.lastgroup == "git":
+            git_at = m.end()
+        elif git_at >= 0 and m.start() - git_at <= GIT_SPAN:
+            return True
+    return False
+
+
+def _writeish(text: str) -> bool:
+    return bool(_WRITEISH.search(text)) or _git_rewrite(text)
+
+
+def _folderish(text: str) -> bool:
+    return bool(_FOLDERISH.search(text)) or _git_rewrite(text)
+
+
 SHELL_MESSAGE = ("This command looks like it writes {name}, which Workroom manages. A direct change bypasses the verified release; "
                  "approve only if you mean to edit it by hand.")
 
@@ -93,16 +144,16 @@ def make_guard(roots: Callable[[], list[str]]) -> Callable[..., dict[str, str] |
             return None
         if tool_name in SHELL_TOOLS:
             text = _shell_text(args)
-            scripts, incomplete = _script_text(text, args)
+            scripts, incomplete = _script_text(text, args) if len(text) <= MAX_SCRIPT_BYTES else ("", True)
             if incomplete:
                 return {"action": "approve", "message": SHELL_MESSAGE.format(name="a script Workroom could not fully inspect"), "rule_key": "workroom-shell-write"}
             text = text + "\n" + scripts
-            if not _WRITEISH.search(text):
+            if not _writeish(text):
                 return None
-            if _GLOB.search(text):
+            if _office_glob(text):
                 return {"action": "approve", "message": SHELL_MESSAGE.format(name="the Office files in this folder"), "rule_key": "workroom-shell-write"}
             lowered = text.lower().replace("\\", "/")
-            folderish = bool(_FOLDERISH.search(text))
+            folderish = _folderish(text)
             for m in managed:
                 if folderish and m.as_posix().lower() in lowered:
                     return {"action": "approve", "message": SHELL_MESSAGE.format(name=f"files inside {m.name}"), "rule_key": "workroom-shell-write"}
@@ -116,7 +167,7 @@ def make_guard(roots: Callable[[], list[str]]) -> Callable[..., dict[str, str] |
                         return {"action": "approve", "message": SHELL_MESSAGE.format(name=f"files inside {here.name}"), "rule_key": "workroom-shell-write"}
             if not any(ext in text.lower() for ext in OFFICE):
                 return None
-            for raw in _OFFICE_NAME.findall(text):
+            for raw in _office_names(text):
                 try:
                     rp = Path(raw.strip("\"'")).expanduser().resolve()
                 except OSError:
