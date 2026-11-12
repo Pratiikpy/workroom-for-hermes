@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import bisect
 import re
 from dataclasses import dataclass
 
@@ -72,9 +73,12 @@ def _part_of_longer_token(text: str, start: int, end: int) -> bool:
     return nxt == "." and nxt2.isdigit()
 
 
-_CALL = re.compile(r"[A-Za-z_][A-Za-z_0-9]*\([^()]*\)|\{[^{}]*\}|\[\d+(?:\s?[,–-]\s?\d+)*\]")
+_CALL = re.compile(r"(?<![A-Za-z_])[A-Za-z_][A-Za-z_0-9]*\([^()]*\)|\{[^{}]*\}|\[\d+(?:\s?[,–-]\s?\d+)*\]")
 # a number that names a place in the document ("Note 4.1", "Table 3", "page 12", "Section 2") is a reference, not a quantity
 _REFERENCE_WORD = re.compile(r"\b(?:sections?|notes?|tables?|figures?|fig|pages?|chapters?|parts?|appendix|appendices|items?|steps?|slides?|rows?|columns?|lines?|paragraphs?|clauses?|articles?|schedules?|exhibits?)\b\.?\s*$", re.I)
+
+
+_REFERENCE_SPAN = 24  # longer than the longest reference word and its full stop
 
 
 def parse_numbers(text: str) -> list[NumberMention]:
@@ -84,16 +88,21 @@ def parse_numbers(text: str) -> list[NumberMention]:
     quantities and are skipped."""
     out: list[NumberMention] = []
     calls = [(c.start(), c.end()) for c in _CALL.finditer(text)]
+    call_starts = [lo for lo, _ in calls]
     for m in _NUMBER.finditer(text):
-        if calls and any(lo <= m.start("num") < hi for lo, hi in calls):
+        at = bisect.bisect_right(call_starts, m.start("num")) - 1
+        if at >= 0 and m.start("num") < calls[at][1]:
             continue
         raw_num = m.group("num")
         # a bare number glued to letters (A1, Q2, FY25) is a label, not a quantity
         before = text[m.start("num") - 1] if m.start("num") > 0 else " "
         if before.isalpha() and not m.group("cur"):
             continue
-        if _REFERENCE_WORD.search(text[: m.start()]):
-            continue
+        gap = m.start()
+        while gap > 0 and text[gap - 1].isspace():
+            gap -= 1
+        if _REFERENCE_WORD.search(text, max(0, gap - _REFERENCE_SPAN), m.start()):
+            continue  # the word sits right before the number, so only the few characters before it are read
         if raw_num.strip("0") == "" and len(raw_num) >= 2 and "." not in raw_num and "," not in raw_num:
             continue  # a run of zeros is the thousands mark of $'000 (and a column of leading zeros), never a quantity
         if _part_of_longer_token(text, m.start("num"), m.end("num")):
@@ -102,8 +111,10 @@ def parse_numbers(text: str) -> list[NumberMention]:
         value = float(raw_num.replace(",", ""))
         balanced = bool(m.group("neg_open")) and bool(m.group("neg_close"))
         pct_unit = (m.group("pct") or "").lower() in ("%", "pp")
-        before_text = text[: m.start("neg_open")].rstrip() if balanced else ""
-        aside = balanced and pct_unit and bool(before_text) and (before_text[-1].isalnum() or before_text[-1] in "%)")
+        last = m.start("neg_open") - 1 if balanced else -1
+        while last >= 0 and text[last].isspace():
+            last -= 1
+        aside = balanced and pct_unit and last >= 0 and (text[last].isalnum() or text[last] in "%)")
         if aside:
             balanced = False
         sign_at = m.start("sign")

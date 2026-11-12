@@ -118,3 +118,20 @@ def test_release_view_refuses_malformed_or_unknown_ids(tmp_path: Path) -> None:
     for bad in ("", "x", "../../etc", "0" * 15, "0" * 16):
         with pytest.raises(ServiceError):
             svc.release_view(pid, bad)
+
+
+def test_folders_inside_hermes_home_or_credential_folders_are_refused_and_ordinary_ones_pass(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    hermes_home = home / ".hermes"
+    for folder in (hermes_home / "profiles" / "x", home / ".ssh" / "keys", home / ".aws", home / "Documents" / "Reports"):
+        folder.mkdir(parents=True)
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
+    data = tmp_path / "data"
+    svc = Service(data)
+    for unsafe in (hermes_home / "profiles" / "x", home / ".ssh", home / ".ssh" / "keys", home / ".aws", data / "samples", home, tmp_path):
+        Path(unsafe).mkdir(parents=True, exist_ok=True)
+        with pytest.raises(ServiceError, match="refusing to register"):
+            svc.add_project(str(unsafe))
+    assert svc.add_project(str(home / "Documents" / "Reports"))["project"]
+    assert svc.create_sample()["project"]

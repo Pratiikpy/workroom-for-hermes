@@ -122,11 +122,11 @@ def make_proof_hooks(store: Callable[[], Any]):
         try:
             if not session_id or not isinstance(response_text, str) or not response_text.strip():
                 return None
-            from ..workroom_core.figure_proof import check_text
+            from ..workroom_core.figure_proof import check_text, session_index
 
             st = store()
             try:
-                items = st.items(str(session_id))
+                items = session_index(st, str(session_id))
             finally:
                 st.close()
             loose = [p for p in check_text(response_text, items) if p.state == "unsourced" and not p.weak]

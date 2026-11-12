@@ -27,11 +27,21 @@ def _is_path(word: str) -> bool:
     return not _WIN_FLAG.match(word)
 
 
+MAX_SHELL_TEXT = 64 * 1024
+MAX_TARGETS = 200  # more named files than this in one command is a bulk operation; the workspace guard asks first for those
+MAX_PART = 8192  # one command of a pipeline is read up to here
+MAX_PARTS = 500  # commands of one call that are read for the files they name
+
+
 def shell_targets(text: str) -> list[str]:
     """Files a simple command removes, moves, overwrites or edits in place, as named on the command line. Wildcards, flags and switches are skipped; a
     pipeline is read command by command. A program that reaches files it does not name is not covered (stated in the product)."""
+    if len(text) > MAX_SHELL_TEXT:
+        return []  # too long to read as a simple command: the shell guard has already sent it to the approval prompt, and the tripwire still covers managed files
     out: list[str] = []
-    for part in re.split(r"[;&|\n]+", text):
+    for part in re.split(r"[;&|\n]+", text)[:MAX_PARTS]:
+        if len(part) > MAX_PART:
+            part = part[:MAX_PART].rsplit(None, 1)[0] if part[:MAX_PART].strip() and len(part[:MAX_PART].split()) > 1 else part[:MAX_PART]  # the first files a very long command names
         try:
             words = [w.strip("\"'") for w in shlex.split(part, posix=False)]
         except ValueError:
@@ -67,7 +77,7 @@ def shell_targets(text: str) -> list[str]:
             root = next((w for w in args if _is_path(w) and not w.startswith("-")), ".")
             out.append(root)  # a folder: the guard asks first; no single file can be copied in advance
     out += [m.strip("\"'") for m in _REDIRECT.findall(text) if m.strip("\"'") not in ("/dev/null", "nul", "NUL", "&1", "&2")]
-    return out
+    return list(dict.fromkeys(out))[:MAX_TARGETS]
 
 
 def _base_folder(args: dict[str, Any], kwargs: dict[str, Any]) -> str:
@@ -79,12 +89,12 @@ def _base_folder(args: dict[str, Any], kwargs: dict[str, Any]) -> str:
     return _after_cd(_shell_text(args), given)
 
 
-_CD = re.compile(r"(?:^|[;&|\n])\s*(?:cd|pushd|Set-Location)\s+(?:/d\s+)?(\"[^\"]+\"|'[^']+'|[^\s;&|]+)", re.I)
+_CD = re.compile(r"(?:^|[;&|\n])[ \t]*(?:cd|pushd|Set-Location)[ \t]+(?:/d[ \t]+)?(\"[^\"\n]{1,1024}\"|'[^'\n]{1,1024}'|[^\s;&|]{1,1024})", re.I)
 
 
 def _after_cd(text: str, base: str) -> str:
     """The folder a command works in once its own leading ``cd`` has run: a model writes ``cd <folder> && mv a b`` and the paths after it are relative to that folder."""
-    m = _CD.search(text or "")
+    m = _CD.search(text or "", 0, MAX_SHELL_TEXT)
     if not m:
         return base
     target = Path(m.group(1).strip("\"'")).expanduser()

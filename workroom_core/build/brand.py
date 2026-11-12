@@ -14,7 +14,8 @@ HEX_ANY = re.compile(r"#([0-9A-Fa-f]{6})\b")
 HEX_ONLY = re.compile(r"^#?([0-9A-Fa-f]{6})$")
 FONT = re.compile(r"^[A-Za-z][A-Za-z0-9 \-]{0,39}$")
 GENERIC_FONTS = {"system-ui", "ui-sans-serif", "ui-serif", "ui-monospace", "sans-serif", "serif", "monospace", "blinkmacsystemfont", "-apple-system", "inherit"}
-LINE = re.compile(r"^[\s>*\-+]*\**\s*([A-Za-z][A-Za-z \-/]{1,34}?)\s*\**\s*[:=]\s*\**\s*(.+?)\s*$")
+LINE = re.compile(r"^[\s>*\-+]*([A-Za-z][A-Za-z \-/]{1,34}?)\s*(?:\*+\s*)?[:=]\s*(?:\*+\s*)?(\S(?:.*\S)?)\s*$")
+LINE_MAX = 400
 KEYS = {
     "accent": ("accent", "primary", "brand", "primary color", "primary colour", "brand color", "brand colour", "accent color", "accent colour", "primary cta", "cta", "primary button"),
     "ink": ("ink", "text", "foreground", "text color", "text colour", "body text", "primary text", "heading / body text", "heading text", "heading", "body"),
@@ -49,7 +50,7 @@ def _font_name(value: str) -> str | None:
     m = re.search(r"\*\*([^*]+)\*\*", value) or re.search(r"`([^`]+)`", value)
     first = (m.group(1) if m else value).split(",")[0].strip().strip("'\"` *")
     low = first.lower()
-    if not FONT.match(first) or low in GENERIC_FONTS or re.search(r"emoji|icon|mono|code|symbol", low) or re.search(r"\d+\s*px|weight|\bpt\b|\brem\b", low) or len(first) < 2:
+    if not FONT.match(first) or low in GENERIC_FONTS or re.search(r"emoji|icon|mono|code|symbol", low) or re.search(r"(?<!\d)\d{1,6}\s{0,4}px|weight|\bpt\b|\brem\b", low) or len(first) < 2:
         return None
     return first
 
@@ -72,7 +73,7 @@ def parse_design_md(text: str) -> dict[str, str]:
             if name:
                 out["font"] = name
                 continue
-        m = LINE.match(raw)
+        m = LINE.match(raw) if len(raw) <= LINE_MAX else None
         if not m:
             continue
         label, value = m.group(1).strip().lower(), m.group(2).strip()

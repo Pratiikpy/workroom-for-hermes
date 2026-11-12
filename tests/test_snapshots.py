@@ -117,3 +117,38 @@ def test_a_relative_write_with_no_known_folder_is_not_recorded(tmp_path: Path) -
     assert svc.snapshots(pid) == []
     hook(tool_name="write_file", args={"path": "notes.txt", "content": "y"}, cwd=str(root))
     assert [s["path"] for s in svc.snapshots(pid)] == ["notes.txt"]
+
+
+def test_the_cd_reader_is_fast_on_hostile_text_and_still_follows_a_cd(tmp_path: Path) -> None:
+    from time import perf_counter
+
+    from workroom.adapters.snapshotter import _after_cd
+
+    for text in ("\n" * 300_000, "\n\n " * 100_000, "; cd " * 60_000, " " * 300_000, "cd " + "x" * 300_000, 'cd "' + "y" * 300_000, "\t\n" * 150_000):
+        started = perf_counter()
+        _after_cd(text, str(tmp_path))
+        assert perf_counter() - started < 0.1, text[:8]
+    sub = tmp_path / "reports"
+    sub.mkdir()
+    assert _after_cd("cd reports && mv a b", str(tmp_path)) == str(sub.resolve())
+    assert _after_cd("echo hi\ncd reports; rm x", str(tmp_path)) == str(sub.resolve())
+    assert _after_cd('pushd "reports"', str(tmp_path)) == str(sub.resolve())
+    assert _after_cd("echo cd", str(tmp_path)) == str(tmp_path)
+
+
+def test_a_command_naming_thousands_of_files_is_read_in_bounded_time(tmp_path: Path) -> None:
+    from time import perf_counter
+
+    from workroom.adapters.snapshotter import MAX_TARGETS, make_snapshotter, shell_targets
+
+    assert shell_targets("rm a.txt a.txt b.txt") == ["a.txt", "b.txt"]
+    assert len(shell_targets("rm " + " ".join(f"f{i}.txt" for i in range(5000)))) == MAX_TARGETS
+    assert shell_targets("rm x; " + "y" * 70_000) == []
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    taken: list[str] = []
+    hook = make_snapshotter(lambda: [{"project": "p1", "folder": str(proj)}], lambda pid, path, tool: taken.append(path))
+    for command in ("rm " * 20_000, "rm " + " ".join(f"f{i}.txt" for i in range(8000)), "mv a b\n" * 8000):
+        started = perf_counter()
+        hook(tool_name="terminal", args={"command": command, "workdir": str(proj)})
+        assert perf_counter() - started < 2, command[:12]

@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from .guard import SHELL_TOOLS, WRITE_TOOLS, _folderish, _office_glob, _paths, _shell_text
-from .snapshotter import _base_folder, shell_targets
+from .snapshotter import MAX_SHELL_TEXT, _base_folder, shell_targets
 
 MANY = 5
 _ANY_GLOB = re.compile(r"[*?]")
@@ -39,7 +39,7 @@ def make_workspace_guard(projects: Callable[[], list[dict[str, Any]]], policy_of
                 return None
             base = _base_folder(args, kwargs)
             shell = tool_name in SHELL_TOOLS
-            text = _shell_text(args) if shell else ""
+            text = _shell_text(args)[:MAX_SHELL_TEXT] if shell else ""  # a longer command has already been sent to the approval prompt by the shell guard
             raws = shell_targets(text) if shell else _paths(args)
             for p in projects():
                 folder = Path(p["folder"]).resolve()

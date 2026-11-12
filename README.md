@@ -9,7 +9,7 @@ A Hermes Agent plugin: a Cowork-style room inside Hermes Desktop where the agent
 No network, no extra model, no account. Everything stays on your disk.
 
 <a href="https://github.com/Pratiikpy/workroom-for-hermes/actions/workflows/ci.yml"><img src="https://github.com/Pratiikpy/workroom-for-hermes/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-<img src="https://img.shields.io/badge/tests-734%20passing-2ea043" alt="734 tests passing">
+<img src="https://img.shields.io/badge/tests-748%20passing-2ea043" alt="748 tests passing">
 <img src="https://img.shields.io/badge/version-0.4.0-555" alt="version 0.4.0">
 <img src="https://img.shields.io/badge/Hermes-0.23.0%2B-7c3aed" alt="Hermes 0.23.0+">
 <img src="https://img.shields.io/badge/network-none-2ea043" alt="No network">
@@ -80,7 +80,7 @@ Also: **point-to-edit** (change a few words in one shape or paragraph; every oth
 | The editor touches only what must change | Every untouched part of 250 public Office files stays byte-identical; checked by python-pptx, Microsoft's Open XML validator and the real Word, Excel and PowerPoint | `bench/EVIDENCE.md` |
 | A release survives a crash and restores exactly | Recovery from a crash at every injected point; restore returns the original bytes | `bench/EVIDENCE.md` |
 | The agent cannot approve or publish | No Workroom tool approves; attempts by a real model to approve, to publish via a speaker-note injection, and to bypass ended with nothing changed | `bench/EVIDENCE.md` (real Haiku runs) |
-| Tests | 734 passed (6 skipped) on Windows; 707 passed on Linux from a fresh clone; the catalog validator passes | `bench/EVIDENCE.md` (suite row for the pinned commit) |
+| Tests | 748 passed (6 skipped) on Windows; 707 passed on Linux from a fresh clone; the catalog validator passes | `bench/EVIDENCE.md` (suite row for the pinned commit) |
 
 ## More than a prompt or a skill
 

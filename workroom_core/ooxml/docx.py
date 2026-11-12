@@ -152,7 +152,7 @@ class Doc:
                         continue
                     if (style.startswith("heading") or style == "title") and nm.unit == "plain" and seg_start + nm.start == 0:
                         continue  # the section number that opens a heading ("4.1 Property, plant and equipment") numbers the section, it is not a quantity
-                    if nm.unit == "plain" and seg_start + nm.start == 0 and _NUMBERED_HEADING.match(plain) and len(plain) <= 100:
+                    if nm.unit == "plain" and seg_start + nm.start == 0 and len(plain) <= 100 and _NUMBERED_HEADING.match(plain):
                         continue  # the same, in a heading that is only formatted as one
                     if note_col and nm.unit == "plain" and _REFERENCE_NUMBER.fullmatch(nm.raw):
                         continue  # a "Notes" column holds note numbers, not amounts

@@ -57,7 +57,7 @@ _DMY = re.compile(r"\b(\d{1,2})\s+(january|february|march|april|may|june|july|au
 _ISO_M = re.compile(r"^\s*((?:19|20)\d{2})[-/](0?[1-9]|1[0-2])\s*$")
 _ENDED = re.compile(r"\b(three|six|nine|twelve|3|6|9|12)\s+months?\s+ended\s+(.+)", re.I)
 _DATE_ISO = re.compile(r"((?:19|20)\d{2})-(\d{2})-(\d{2})")
-_DATE_TXT = re.compile(r"([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s+((?:19|20)\d{2})")
+_DATE_TXT = re.compile(r"\b([A-Za-z]{3})[a-z]{0,9}\.?\s{1,4}(\d{1,2}),?\s{1,4}((?:19|20)\d{2})")
 _LEN = {"three": 3, "6": 6, "3": 3, "six": 6, "nine": 9, "9": 9, "twelve": 12, "12": 12}
 
 

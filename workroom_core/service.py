@@ -133,14 +133,31 @@ class Service:
         p = self.data_dir / "projects.json"
         return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
 
+    CREDENTIAL_FOLDERS = (".ssh", ".gnupg", ".aws", ".azure", ".kube", ".docker", ".config/gcloud", ".config/gh", ".password-store", ".local/share/keyrings")
+
+    def _refuse_unsafe_folder(self, path: Path) -> None:
+        """A project folder is scanned and copied before tool calls, so it may not be the home folder, a drive root or a parent of either, and may not be, contain or sit
+        inside the Hermes home, Workroom's own data or a folder that holds credentials. Workroom's own sample project is the one folder allowed inside its data."""
+        home = Path.home().resolve()
+        try:
+            from hermes_constants import get_hermes_home
+            hermes_home = Path(get_hermes_home()).expanduser().resolve()
+        except Exception:  # noqa: BLE001  outside Hermes (tests, the bench) the environment variable or the default is used
+            hermes_home = Path(os.environ.get("HERMES_HOME", "~/.hermes")).expanduser().resolve()
+        if path == home or path in home.parents or path == Path(path.anchor):
+            raise ServiceError("refusing to register the home folder, a drive root or a folder that contains them: pick the folder that holds the documents")
+        if path == self._sample_folder().resolve():
+            return
+        closed = [hermes_home, self.data_dir.resolve()] + [(home / name).resolve() for name in self.CREDENTIAL_FOLDERS]
+        for protected in closed:
+            if path == protected or path in protected.parents or protected in path.parents:
+                raise ServiceError(f"refusing to register {path}: it is, contains or sits inside {protected}, which holds Hermes's or Workroom's own files or credentials")
+
     def add_project(self, folder: str) -> dict[str, Any]:
         path = Path(folder).expanduser().resolve()
         if not path.is_dir():
             raise ServiceError(f"{folder} is not a folder")
-        hermes_home = Path(os.environ.get("HERMES_HOME", "~/.hermes")).expanduser().resolve()
-        forbidden = (Path.home().resolve(), Path(path.anchor), hermes_home, self.data_dir.resolve())
-        if any(path == protected or path in protected.parents for protected in forbidden):
-            raise ServiceError("refusing to register a folder that contains the home folder, filesystem root, Hermes home, or Workroom's data folder")
+        self._refuse_unsafe_folder(path)
         pid = hashlib.sha256(str(path).lower().encode()).hexdigest()[:12]
         reg = self._registry()
         reg[pid] = str(path)

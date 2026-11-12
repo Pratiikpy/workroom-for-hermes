@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 def heading_key(labels) -> tuple:
     """Headings compared without footnote marks, case or spacing: "Agriculture(i)" this year is "Agriculture" next year."""
-    return tuple(re.sub(r"\s+", " ", re.sub(r"\s*\((?:[ivxlc]+|[a-z]|\d{1,2})\)\s*$", "", x.strip().lower())) for x in labels)
+    return tuple(re.sub(r"\s+", " ", re.sub(r"(?<!\s)\s*\((?:[ivxlc]+|[a-z]|\d{1,2})\)$", "", x.strip().lower())) for x in labels)
 
 
 _NOTE_REF = re.compile(r"\d{1,2}(?:\.\d{1,2})+[a-z]?(?:\([a-z]\))?")

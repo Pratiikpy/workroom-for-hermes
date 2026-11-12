@@ -69,3 +69,17 @@ def test_absolute_paths_and_in_place_edits_are_checked_too(tmp_path: Path) -> No
     assert g(tool_name="terminal", args={"command": "sed -i s/a/b/ .env", "workdir": str(root)})["action"] == "block"
     assert g(tool_name="terminal", args={"command": "cp other.txt .env", "workdir": str(root)})["action"] == "block"
     assert g(tool_name="terminal", args={"command": "echo x | tee .env", "workdir": str(root)})["action"] == "block"
+
+
+def test_the_workspace_guard_reads_a_bounded_part_of_a_huge_command(tmp_path: Path) -> None:
+    from time import perf_counter
+
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    (proj / "a.txt").write_text("x")
+    g = make_workspace_guard(lambda: [{"project": "p1", "folder": str(proj)}], lambda pid: {"protected": [".env"], "confirm_delete": True})
+    for unit in ("A", "rm ", "\t\n", "; cd ", "cd x\n", "f(", "> a ", "git "):
+        started = perf_counter()
+        g(tool_name="terminal", args={"command": unit * (300_000 // len(unit)), "workdir": str(proj)})
+        assert perf_counter() - started < 0.5, unit
+    assert g(tool_name="terminal", args={"command": "rm -rf .", "workdir": str(proj)})["action"] == "approve"

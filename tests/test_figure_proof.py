@@ -188,3 +188,71 @@ def test_a_figure_printed_in_a_sentence_the_agent_read_is_supported_and_one_prin
     unrelated = [Evidence(1, "web_search", "q", 0.0, "A football match in Melbourne drew 28,856 spectators on Saturday night.\n", "tool")]
     states = {p.raw: p.state for p in check_text("Tesla was the top seller of electric vehicles in Australia with 28,856 units in 2025.", unrelated)}
     assert states["28,856"] != "sourced"
+
+
+def test_tags_are_removed_in_one_pass_even_when_they_never_close() -> None:
+    from time import perf_counter
+
+    for html in ("<script" * 43_000, "<" * 300_000, "<style" * 50_000, "<a " * 100_000, "</script " * 33_000, "<script>" + "x" * 300_000, "<b>" * 100_000):
+        started = perf_counter()
+        plain_text(html, ".html")
+        assert perf_counter() - started < 0.1, html[:10]
+    assert plain_text("<p>Revenue was <b>$4.2 million</b>.</p><script>var x = 99;</script><style>p{margin:7px}</style>", ".html").split() == ["Revenue", "was", "$4.2", "million", "."]
+    assert "99" not in plain_text("<p>ok</p><script>var x = 99;", ".html")
+
+
+def test_many_figures_in_one_text_are_placed_without_rewalking_it() -> None:
+    from time import perf_counter
+
+    from workroom.workroom_core.figure_proof import _Sentences, _sentence
+
+    text = "Revenue was 4.2 million. Costs fell to 3.1 million; margin 12.5%.\nHeadcount 241"
+    for start, end in ((12, 15), (40, 43), (60, 64), (text.index("241"), len(text))):
+        assert _Sentences(text).around(start, end)[0] == _sentence(text, start, end)
+    assert _sentence(text, 12, 15) == "Revenue was 4.2 million"
+    assert _sentence(text, text.index("241"), len(text)) == "Headcount 241"
+    for big in ("7,", "7 ", "7\n", "1.5 ", "9;"):
+        blob = big * (300_000 // len(big))
+        started = perf_counter()
+        sentences = _Sentences(blob)
+        for at in range(0, len(blob) - 2, 97):
+            sentences.around(at, at + 1)
+        assert perf_counter() - started < 0.5, big
+        assert len(sentences.around(150_000, 150_001)[0]) <= 4_001
+
+
+def test_the_number_reader_costs_no_more_than_the_length_of_a_line() -> None:
+    from time import perf_counter
+
+    from workroom.workroom_core.match.numbers import parse_numbers
+
+    for unit in ("1 ", "1,", "(1) ", "f(1) ", "Note 4 ", "1" + " " * 40, "a"):
+        took = []
+        for size in (40_000, 160_000):
+            started = perf_counter()
+            parse_numbers(unit * (size // len(unit)))
+            took.append(perf_counter() - started)
+        assert took[1] < 0.2 or took[1] < took[0] * 10, (unit, took)
+    assert [n.raw for n in parse_numbers("see Note 4 and Table 12; revenue was 4,210 (5%) and f(2, 3)")] == ["4,210", "(5%)"]
+
+
+def test_a_large_numeric_text_is_checked_within_its_limits() -> None:
+    from time import perf_counter
+
+    from workroom.workroom_core import figure_proof as fp
+
+    evidence = [fp.Evidence(i, "read_file", f"f{i}", 0.0, "\n".join(f"Item {j} total: {j * 7 + i}" for j in range(2000))) for i in range(1, 12)]
+    evidence.append(fp.Evidence(99, "owner", "chat", 0.0, "use 4210 and 17 percent", "owner"))
+    for unit in ("7\n", "1 ", "12.5% ", "Total was 4,210 in 2026. "):
+        text = unit * (300_000 // len(unit))
+        started = perf_counter()
+        out = fp.check_text(text, evidence)
+        assert perf_counter() - started < 8, unit
+        assert len(out) <= fp.MAX_LISTED + fp.MAX_LINE
+        late = [p for p in out[fp.MAX_FIGURES:]]
+        assert late and all(p.state == "unsourced" and p.how.startswith("not checked") for p in late), unit
+    stated = fp.check_text("We will use 4,210 as the base.", evidence)
+    assert [p.state for p in stated] == ["stated"]
+    idx = fp._Index(evidence, 500)
+    assert idx.truncated and len(idx.values) <= 500 + 2000
+    assert not fp.build_index(evidence).truncated

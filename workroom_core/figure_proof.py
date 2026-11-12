@@ -18,7 +18,7 @@ import json
 import re
 import sqlite3
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -28,11 +28,18 @@ from .match.numbers import consistent_with_source, parse_numbers
 MAX_ITEM = 300_000
 MAX_SESSION = 20_000_000
 CALC_MAX_NUMBERS = 400
+MAX_INDEX_NUMBERS = 8_000  # evidence figures read for one check, newest evidence first; older evidence beyond this is not used for that check
+MAX_FIGURES = 4_000  # figures of one text that are matched; the rest are reported as not checked
+MAX_LINE = 20_000  # a longer line is read in windows of this size
+MAX_LISTED = 10_000  # figures of one text that are listed at all
+CHECK_PART = 500  # a text with more figures than this is matched in parts, so the time limit can stop between parts
+CHECK_SECONDS = 1.0  # once a large text has used this long, its remaining figures are reported as not checked
 WEAK_MAX = 10
 COMMON_SHARE = 0.05  # a word on more than this share of evidence lines (sheet names, units, "total") says nothing about which figure is meant  # 0..10 and round tens match by chance far too easily to count as strong proof on their own
 TEXT_DELIVERABLES = {".md", ".markdown", ".html", ".htm", ".csv", ".tsv", ".txt"}
 READING_TOOLS_PREFIX = ("read_file", "search_files", "web_", "browser_", "terminal", "process", "execute_code", "vision", "video_analyze", "mcp_", "delegate", "session_search", "skill_view")
-_TAGS = re.compile(r"<script.*?</script>|<style.*?</style>|<[^>]+>", re.S | re.I)
+_TAGS = re.compile(r"<script\b.*?(?:</script\s*>|\Z)|<style\b.*?(?:</style\s*>|\Z)|<[^<>]*(?:>|\Z)", re.S | re.I)
+_DIGIT = re.compile(r"[0-9]")
 _LIST_MARK = re.compile(r"^\s*(?:\d{1,2}[.)]|#{1,6}\s*\d+(?:\.\d+)*[.)]?)\s")
 
 
@@ -65,6 +72,7 @@ class FigureProof:
 class EvidenceStore:
     def __init__(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
+        self.path = str(path)
         self.db = sqlite3.connect(str(path))
         self.db.row_factory = sqlite3.Row
         with self.db:
@@ -77,7 +85,7 @@ class EvidenceStore:
 
     def add(self, session: str, tool: str, ref: str, text: str, kind: str = "tool") -> int | None:
         text = (text or "")[:MAX_ITEM]
-        if not session or not text.strip() or not any(parse_numbers(line) for line in text[:MAX_ITEM].split("\n")):
+        if not session or not text.strip() or not _DIGIT.search(text):
             return None  # nothing with a figure in it can prove a figure
         sha = hashlib.sha256(text.encode("utf-8", "replace")).hexdigest()
         with self.db:
@@ -120,13 +128,31 @@ def plain_text(data: str, suffix: str) -> str:
     return data
 
 
+def _numbers_of_line(line: str) -> list:
+    """The numbers of one line; a very long line is read window by window, cut at a space, with positions kept relative to the whole line."""
+    if len(line) <= MAX_LINE:
+        return parse_numbers(line)
+    out = []
+    start = 0
+    while start < len(line) and len(out) < MAX_LISTED:
+        end = min(len(line), start + MAX_LINE)
+        if end < len(line):
+            cut = line.rfind(" ", start + MAX_LINE // 2, end)
+            end = cut + 1 if cut > 0 else end
+        out += [replace(n, start=n.start + start, end=n.end + start) for n in parse_numbers(line[start:end])]
+        start = end
+    return out
+
+
 def _figures(text: str) -> list:
     out = []
     lines = text.split("\n")
     pos = 0
     for line in lines:
-        mark = _LIST_MARK.match(line)
-        for m in parse_numbers(line):
+        if len(out) >= MAX_LISTED:
+            break
+        mark = _LIST_MARK.match(line[:200])
+        for m in _numbers_of_line(line):
             if mark and m.start < mark.end():
                 continue  # a list marker or a numbered heading, not a figure
             if m.unit == "plain" and m.decimals == 0 and "," not in m.raw and len(m.raw.strip("()-+")) == 4 and 1900 <= abs(m.value) <= 2100:
@@ -175,7 +201,7 @@ class _Index:
     """Every evidence value with the item and the words of the line it sits on, sorted by value; how common each word is across the evidence; and the
     same evidence as source cells for the matcher (one cell per figure, its line's words as the headings)."""
 
-    def __init__(self, items: list[Evidence]) -> None:
+    def __init__(self, items: list[Evidence], budget: int | None = None) -> None:
         from .ooxml.xlsx import SourceCell
         from .match.engine import SourceIndex
 
@@ -185,13 +211,26 @@ class _Index:
         self.line_words: list[set[str]] = []
         self.by_id = {ev.id: ev for ev in items}
         df: dict[str, int] = {}
+        budget = budget if budget is not None else 10 ** 12  # no limit when the caller builds the index itself (the benchmarks); the hooks pass MAX_INDEX_NUMBERS
+        self.truncated = False
+        parsed: dict[int, list] = {}
+        for ev in reversed(items):
+            rows = parsed.setdefault(ev.id, [])
+            for line in ev.text.split("\n"):
+                if budget <= 0:
+                    self.truncated = True
+                    break
+                nums = parse_numbers(line[:MAX_LINE])
+                if nums:
+                    rows.append((line[:MAX_LINE], nums))
+                    budget -= len(nums)
+        owner_numbers = []
         for ev in items:
             ev.values = []
             header = _table_header(ev.text)
-            for line in ev.text.split("\n"):
-                nums = parse_numbers(line)
-                if not nums:
-                    continue
+            for line, nums in parsed.get(ev.id, []):
+                if ev.kind == "owner":
+                    owner_numbers += [(n.scaled, len(owner_numbers) + i, ev) for i, n in enumerate(nums)]
                 words = _words(line)
                 k = len(self.line_words)
                 self.line_words.append(words)
@@ -210,12 +249,24 @@ class _Index:
                         ref = f"E{ev.id}L{k}N{j}"  # a text source has no sheet; its words are only those that name the figure
                         cells.append(SourceCell(sheet, ref, k, j, n.scaled, False, False, row_labels, (), False, ev.ref))
                         self.cell_item[(sheet, ref)] = ev.id
+        owner_numbers.sort(key=lambda t: (t[0], t[1]))
+        self.owner_values = [t[0] for t in owner_numbers]
+        self.owner_numbers = owner_numbers
         pairs.sort()
         self.values = [p[0] for p in pairs]
         self.owner = [p[1] for p in pairs]
         self.line = [p[2] for p in pairs]
         lines = max(1, len(self.line_words))
         self.common = {w for w, n in df.items() if n / lines > COMMON_SHARE and lines >= 20}
+        self.word_lines: dict[str, list[int]] = {}
+        for k, words in enumerate(self.line_words):
+            for w in words:
+                if w not in self.common:
+                    self.word_lines.setdefault(w, []).append(k)
+        self.line_values: dict[int, list[tuple[int, float]]] = {}
+        for val, owner_id, k in pairs:
+            if val != 0:
+                self.line_values.setdefault(k, []).append((owner_id, val))
         self.sources = SourceIndex(cells)
 
     def near(self, target: float, tol: float) -> list[tuple[float, int, int]]:
@@ -250,6 +301,30 @@ def _is_weak(m) -> bool:
     return m.decimals == 0 and (v <= WEAK_MAX or (v < 1000 and v % 10 == 0 and m.unit == "plain"))
 
 
+def _said_by_owner(m, idx: _Index):
+    """The first owner message that states this figure, found by value instead of by reading every message again for every figure."""
+    if not idx.owner_numbers:
+        return None
+    tol = (0.5 * 10 ** (-m.decimals)) * 1.0001 + 1e-12
+    factors = [1.0, 1e3, 1e6, 1e9]
+    if m.unit in ("percent", "pp"):
+        factors.append(0.01)
+    if m.scale != 1.0:
+        factors.append(m.scale)
+    best = None
+    for f in factors:
+        lo, hi = sorted(((m.value - tol) * f, (m.value + tol) * f))
+        pad = abs(hi) * 1e-9 + 1e-12
+        for a, b in ((lo, hi), (-hi, -lo)) if m.aside else ((lo, hi),):
+            i = bisect.bisect_left(idx.owner_values, a - pad)
+            while i < len(idx.owner_values) and idx.owner_values[i] <= b + pad:
+                value, order, ev = idx.owner_numbers[i]
+                if (best is None or order < best[0]) and consistent_with_source(m, value)[0]:
+                    best = (order, ev)
+                i += 1
+    return best[1] if best else None
+
+
 def build_index(items: list[Evidence]) -> _Index:
     """Read every figure out of the evidence once; pass the result to check_text when checking many texts against the same evidence."""
     return _Index(items)
@@ -258,61 +333,97 @@ def build_index(items: list[Evidence]) -> _Index:
 _BOUNDARY = re.compile(r"[.;!?](?=\s|$)|\n")
 
 
+SENTENCE_SPAN = 600
+_STOPS = ".;!?"
+
+
+class _Sentences:
+    """The sentence (or table line) boundaries of one text, found once, so each figure is placed by a lookup."""
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+        self.starts: list[int] = []
+        self.ends: list[int] = []
+        for b in _BOUNDARY.finditer(text):
+            self.starts.append(b.start())
+            self.ends.append(b.end())
+
+    def around(self, start: int, end: int) -> tuple[str, int]:
+        """The sentence around the figure at ``start:end`` and where it begins; a decimal point is not a boundary. Never more than SENTENCE_SPAN characters either side."""
+        i = bisect.bisect_right(self.ends, start)
+        left = self.ends[i - 1] if i else 0
+        if start and self.text[start - 1] in _STOPS:
+            left = start
+        j = bisect.bisect_left(self.starts, end)
+        right = self.starts[j] if j < len(self.starts) else len(self.text)
+        left, right = max(left, start - SENTENCE_SPAN), min(right, end + SENTENCE_SPAN)
+        return self.text[left:right], left
+
+
 def _sentence(text: str, start: int, end: int) -> str:
-    """The sentence (or table line) around a figure; a decimal point is not a boundary."""
-    left = 0
-    for b in _BOUNDARY.finditer(text, 0, start):
-        left = b.end()
-    right = _BOUNDARY.search(text, end)
-    return text[left: right.start() if right else len(text)]
+    """The sentence (or table line) around one figure."""
+    return _Sentences(text).around(start, end)[0]
 
 
 def check_text(text: str, items: list[Evidence] | _Index, context: str = "") -> list[FigureProof]:
     """Check every figure of ``text``. ``context`` adds words that belong to every figure (for a table cell: its row and column headings)."""
     from .match.engine import Mention, is_coincidence, match_mentions
 
-    idx = items if isinstance(items, _Index) else _Index(items)
+    idx = items if isinstance(items, _Index) else _Index(items, MAX_INDEX_NUMBERS)
     figures = _figures(text)
+    sentences = _Sentences(text)
     mentions = []
+    unchecked = figures[MAX_FIGURES:]
+    figures = figures[:MAX_FIGURES]
     for i, (m, start, end) in enumerate(figures):
-        sent = _sentence(text, start, end)
-        offset = text.find(sent, max(0, start - len(sent))) if sent else -1
+        sent, offset = sentences.around(start, end)
+        if not sent:
+            offset = -1
         span = (start - offset, end - offset) if offset >= 0 and sent[start - offset: end - offset] == m.raw else None
         mentions.append(Mention(str(i), m, tuple(x for x in (sent, context) if x), span, "", context.split("  ")[0] if context else ""))
-    results = match_mentions(mentions, idx.sources) if mentions else []
-    owners = [ev for ev in idx.by_id.values() if ev.kind == "owner"]
     out: list[FigureProof] = []
-    for (m, start, end), r in zip(figures, results):
-        proof = FigureProof(m.raw, m.scaled, start, end, "unsourced", weak=_is_weak(m))
-        said = next((ev for ev in owners for n in (parse_numbers(line) for line in ev.text.split("\n")) for x in n
-                     if consistent_with_source(m, x.scaled)[0]), None)
-        if said is not None:
-            proof.state, proof.evidence, proof.ref, proof.tool = "stated", said.id, said.ref, said.tool
-        elif r.best is not None:
-            cell = r.best.cell
-            ev = idx.by_id.get(idx.cell_item.get((cell.sheet, cell.ref), -1))
-            coincidence = r.decision == "confirm" and is_coincidence(r.best.label_score, m.raw, bool(context))
-            proof.state = "sourced" if r.decision == "accept" else ("value only" if coincidence else "candidate")
-            if ev is not None:
-                proof.evidence, proof.ref, proof.tool = ev.id, ev.ref, ev.tool
-                body = re.search(r"\d[\d,]*(?:\.\d+)?", m.raw)
-                proof.excerpt = (_excerpt(ev.text, body.group(0)) if body else "") or " / ".join(cell.row_labels)[:200]
-            proof.how = r.reason
-        if proof.state in ("candidate", "value only") and not proof.weak:
-            hit = _stated_in_a_sentence(m, idx, _words(_sentence(text, start, end) + " " + context))
-            if hit is not None:
-                ev, n = hit
-                proof.state, proof.evidence, proof.ref, proof.tool = "sourced", ev.id, ev.ref, ev.tool
-                proof.how = f"the same figure stands in a sentence the agent read that shares {n} telling words with this one"
-                body = re.search(r"\d[\d,]*(?:\.\d+)?", m.raw)
-                proof.excerpt = (_excerpt(ev.text, body.group(0)) if body else "") or proof.excerpt
-        if proof.state in ("unsourced", "value only"):
-            calc = _calculated(m, idx, _words(_sentence(text, start, end) + " " + context))
-            if calc:
-                ev, how = calc
-                proof.state, proof.evidence, proof.ref, proof.tool, proof.how = "calculated", ev.id, ev.ref, ev.tool, how
-                proof.weak = False
-        out.append(proof)
+    step = len(figures) if len(figures) <= CHECK_PART else CHECK_PART
+    deadline = time.monotonic() + CHECK_SECONDS
+    done = 0
+    while done < len(figures):
+        if done and time.monotonic() > deadline:
+            break
+        results = match_mentions(mentions[done:done + step], idx.sources)
+        for (m, start, end), r in zip(figures[done:done + step], results):
+            proof = FigureProof(m.raw, m.scaled, start, end, "unsourced", weak=_is_weak(m))
+            said = _said_by_owner(m, idx)
+            if said is not None:
+                proof.state, proof.evidence, proof.ref, proof.tool = "stated", said.id, said.ref, said.tool
+            elif r.best is not None:
+                cell = r.best.cell
+                ev = idx.by_id.get(idx.cell_item.get((cell.sheet, cell.ref), -1))
+                coincidence = r.decision == "confirm" and is_coincidence(r.best.label_score, m.raw, bool(context))
+                proof.state = "sourced" if r.decision == "accept" else ("value only" if coincidence else "candidate")
+                if ev is not None:
+                    proof.evidence, proof.ref, proof.tool = ev.id, ev.ref, ev.tool
+                    body = re.search(r"\d[\d,]*(?:\.\d+)?", m.raw)
+                    proof.excerpt = (_excerpt(ev.text, body.group(0)) if body else "") or " / ".join(cell.row_labels)[:200]
+                proof.how = r.reason
+            if proof.state in ("candidate", "value only") and not proof.weak:
+                hit = _stated_in_a_sentence(m, idx, _words(sentences.around(start, end)[0] + " " + context))
+                if hit is not None:
+                    ev, n = hit
+                    proof.state, proof.evidence, proof.ref, proof.tool = "sourced", ev.id, ev.ref, ev.tool
+                    proof.how = f"the same figure stands in a sentence the agent read that shares {n} telling words with this one"
+                    body = re.search(r"\d[\d,]*(?:\.\d+)?", m.raw)
+                    proof.excerpt = (_excerpt(ev.text, body.group(0)) if body else "") or proof.excerpt
+            if proof.state in ("unsourced", "value only"):
+                calc = _calculated(m, idx, _words(sentences.around(start, end)[0] + " " + context))
+                if calc:
+                    ev, how = calc
+                    proof.state, proof.evidence, proof.ref, proof.tool, proof.how = "calculated", ev.id, ev.ref, ev.tool, how
+                    proof.weak = False
+            out.append(proof)
+        done += step
+    for m, start, end in figures[done:]:
+        out.append(FigureProof(m.raw, m.scaled, start, end, "unsourced", weak=_is_weak(m), how="not checked: this text has too many figures to check in the time allowed"))
+    for m, start, end in unchecked:
+        out.append(FigureProof(m.raw, m.scaled, start, end, "unsourced", weak=_is_weak(m), how=f"not checked: this text has more than {MAX_FIGURES} figures"))
     return out
 
 
@@ -348,15 +459,15 @@ def _calculated(m, idx: _Index, words: set[str]):
     if digits < (2 if words & CALC_CUES else 3):
         return None  # short figures equal some sum or ratio of nearby numbers by chance (17 of 165 sourceless figures on a real report)
     pool: list[tuple[int, int, float]] = []
-    for val, owner_id, line in zip(idx.values, idx.owner, idx.line):
-        if val != 0 and idx.shared(line, words):
-            pool.append((owner_id, line, val))
+    for line in sorted({k for w in words if w in idx.word_lines for k in idx.word_lines[w]}):
+        pool += [(owner_id, line, val) for owner_id, val in idx.line_values.get(line, ())]
+        if len(pool) > CALC_MAX_NUMBERS * 4:
+            return None
     pool.sort()
-    if len(pool) > CALC_MAX_NUMBERS * 4:
-        return None
+    keys = [(o, k) for o, k, _ in pool]
     for oa, la, a in pool:
-        for ob, lb, b in pool:
-            if ob != oa or a == b or abs(la - lb) > CALC_NEAR_LINES:
+        for _, lb, b in pool[bisect.bisect_left(keys, (oa, la - CALC_NEAR_LINES)):bisect.bisect_right(keys, (oa, la + CALC_NEAR_LINES))]:
+            if a == b:
                 continue
             if not (words & CALC_CUES) and len(idx.shared(la, words) | idx.shared(lb, words)) < 2:
                 continue  # without a word that says "change" or "total", one shared word is a coincidence waiting to happen
@@ -449,11 +560,27 @@ def result_text(result: Any) -> str:
     return _split_long(json.dumps(result, ensure_ascii=False, default=str)) if result is not None else ""
 
 
+_INDEXES: dict[tuple, _Index] = {}
+
+
+def session_index(store: EvidenceStore, session: str) -> _Index:
+    """The evidence of a session, read once and kept until the session's evidence changes, so several checks in a row do not each read it again."""
+    newest, count = store.db.execute("SELECT COALESCE(MAX(id), 0), COUNT(*) FROM evidence WHERE session=?", (session,)).fetchone()
+    key = (store.path, session, newest, count)
+    idx = _INDEXES.get(key)
+    if idx is None:
+        idx = _Index(store.items(session), MAX_INDEX_NUMBERS)
+        while len(_INDEXES) >= 4:
+            _INDEXES.pop(next(iter(_INDEXES)))
+        _INDEXES[key] = idx
+    return idx
+
+
 def check_file(store: EvidenceStore, session: str, path: Path) -> dict[str, Any] | None:
     """Check a text deliverable against the session's evidence and remember the result for the owner's view."""
     if path.suffix.lower() not in TEXT_DELIVERABLES or not path.is_file() or path.stat().st_size > MAX_ITEM:
         return None
     data = path.read_bytes()
     text = plain_text(data.decode("utf-8", "replace"), path.suffix.lower())
-    proofs = check_text(text, store.items(session))
+    proofs = check_text(text, session_index(store, session))
     return store.save_proof(str(path.resolve()), session, hashlib.sha256(data).hexdigest(), proofs)
